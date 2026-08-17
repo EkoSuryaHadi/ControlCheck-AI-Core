@@ -2,3 +2,6 @@
 *.pdf -text
 *.png -text
 *.xlsx -text
+docs/001_controlcheck_core_schema.sql -text
+docs/controlcheck_expected_findings_v0.1.json -text
+docs/controlcheck_rule_catalogue_v0.1.json -text
