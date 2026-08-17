@@ -8,3 +8,4 @@ var/
 ~$*.docx
 ~$*.xlsx
 *.tmp
+*.egg-info/
