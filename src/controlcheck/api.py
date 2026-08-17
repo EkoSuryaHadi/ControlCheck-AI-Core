@@ -10,12 +10,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, sessionmaker
 
 from . import __version__
-from .api_models import ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext
+from .api_models import AnalysisRunResponse, ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext
+from .application import AnalysisService
 from .errors import ControlCheckApplicationError
 from .loader import WorkbookSchemaError
 from .models import AuditResult
 from .persistence.repositories import OrganizationRepository, ProjectRepository
 from .service import run_audit
+from .storage import FileStorage
 from .versioning import VersionCompatibilityError
 
 
@@ -34,6 +36,7 @@ def create_app(
     catalogue_path: Path | str | None = None,
     max_upload_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
     session_factory: sessionmaker[Session] | None = None,
+    storage: FileStorage | None = None,
 ) -> FastAPI:
     catalogue = Path(catalogue_path) if catalogue_path else _default_catalogue()
     application = FastAPI(title="ControlCheck Core API", version=__version__)
@@ -140,6 +143,41 @@ def create_app(
                 return ProjectListResponse(
                     items=[ProjectResponse.model_validate(project) for project in projects]
                 )
+
+        if storage is not None:
+            analysis_service = AnalysisService(session_factory, storage, catalogue)
+
+            @application.post(
+                "/v1/projects/{project_id}/analysis-runs",
+                response_model=AnalysisRunResponse,
+                status_code=201,
+            )
+            async def create_analysis_run(
+                project_id: UUID,
+                file: UploadFile,
+                tenant: TenantContext = Depends(require_tenant),
+            ) -> AnalysisRunResponse:
+                if not file.filename or not file.filename.lower().endswith(".xlsx"):
+                    raise ControlCheckApplicationError(
+                        "unsupported_file_type", "Only .xlsx workbooks are supported", 415
+                    )
+                data = bytearray()
+                while chunk := await file.read(1024 * 1024):
+                    data.extend(chunk)
+                    if len(data) > max_upload_bytes:
+                        raise ControlCheckApplicationError(
+                            "file_too_large",
+                            f"Upload exceeds the {max_upload_bytes} byte limit",
+                            413,
+                        )
+                run = analysis_service.run(
+                    tenant.organization_id,
+                    project_id,
+                    file.filename,
+                    file.content_type or "application/octet-stream",
+                    bytes(data),
+                )
+                return AnalysisRunResponse.model_validate(run)
 
     return application
 

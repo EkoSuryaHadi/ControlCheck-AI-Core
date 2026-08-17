@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,3 +28,20 @@ class ProjectResponse(BaseModel):
 
 class ProjectListResponse(BaseModel):
     items: list[ProjectResponse]
+
+
+class AnalysisRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    engine_version: str
+    workbook_sha256: str
+    status: str
+    rule_count: int
+    finding_count: int
+    duration_ms: int | None
+    safe_error_code: str | None
+    safe_error_message: str | None
+    started_at: datetime
+    completed_at: datetime | None
