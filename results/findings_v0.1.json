@@ -1,0 +1,3778 @@
+{
+  "engine_version": "0.1.0",
+  "project_id": "PRJ-CCAI-001",
+  "data_date": "2026-08-15",
+  "rule_count": 20,
+  "finding_count": 85,
+  "findings": [
+    {
+      "finding_id": "FND-48657346D67AB3FA",
+      "rule_id": "CST-002",
+      "rule_name": "Actual + Commitment Exceeds Budget",
+      "category": "cost",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "title": "Actual + Commitment Exceeds Budget",
+      "description": "WBS 3.2 actual plus outstanding commitment exceeds budget.",
+      "metrics": {
+        "budget": "18000000000",
+        "actual": "16595674000",
+        "outstanding_commitment": "6200000000",
+        "exposure": "22795674000",
+        "exposure_ratio": "1.266426333333333333333333333"
+      },
+      "business_impact": "Forward-looking overrun exposure even if actual spend has not yet exceeded budget.",
+      "recommendation": "Review open PO values, remaining scope, pending variations, and potential decommitment.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Commitments",
+          "source_rows": [
+            7
+          ],
+          "record_ids": [
+            "COM-004"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "exposure": "22795674000",
+            "budget": "18000000000"
+          },
+          "aggregation": {
+            "record_count": 1
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "actual + max(committed - invoiced, 0) > budget",
+        "left": "22795674000",
+        "right": "18000000000",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-D0BAE2E6C1C262BA",
+      "rule_id": "CST-003",
+      "rule_name": "Cost Spike vs Recent Run Rate",
+      "category": "cost",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "title": "Cost Spike vs Recent Run Rate",
+      "description": "WBS 3.1 current-period cost is materially above its recent run rate.",
+      "metrics": {
+        "current_period": "2026-08",
+        "current_cost": "5056023000",
+        "recent_average": "791446000",
+        "ratio": "6.388336033033207571963216695"
+      },
+      "business_impact": "Potential acceleration, bulk procurement, coding issue, or emerging cost risk.",
+      "recommendation": "Inspect high-value transactions, PO releases, procurement timing, and coding changes.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            62,
+            72
+          ],
+          "record_ids": [
+            "ACT-0059",
+            "ACT-9006"
+          ],
+          "fields": {
+            "wbs_code": "3.1",
+            "period": "2026-08"
+          },
+          "aggregation": {
+            "record_count": 2
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "current >= recent_average * multiplier",
+        "current": "5056023000",
+        "threshold": "1028879800.0",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-F43FA91C19D48D80",
+      "rule_id": "CST-003",
+      "rule_name": "Cost Spike vs Recent Run Rate",
+      "category": "cost",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "title": "Cost Spike vs Recent Run Rate",
+      "description": "WBS 3.2 current-period cost is materially above its recent run rate.",
+      "metrics": {
+        "current_period": "2026-08",
+        "current_cost": "7800000000",
+        "recent_average": "1936121666.666666666666666667",
+        "ratio": "4.028672440523279786996857118"
+      },
+      "business_impact": "Potential acceleration, bulk procurement, coding issue, or emerging cost risk.",
+      "recommendation": "Inspect high-value transactions, PO releases, procurement timing, and coding changes.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            74,
+            75,
+            76
+          ],
+          "record_ids": [
+            "ACT-9008",
+            "ACT-9009",
+            "ACT-9010"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "period": "2026-08"
+          },
+          "aggregation": {
+            "record_count": 3
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "current >= recent_average * multiplier",
+        "current": "7800000000",
+        "threshold": "2516958166.666666666666666667",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-EDFA17A5614C270D",
+      "rule_id": "CST-003",
+      "rule_name": "Cost Spike vs Recent Run Rate",
+      "category": "cost",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "title": "Cost Spike vs Recent Run Rate",
+      "description": "WBS 3.3 current-period cost is materially above its recent run rate.",
+      "metrics": {
+        "current_period": "2026-08",
+        "current_cost": "3800000000",
+        "recent_average": "972926000",
+        "ratio": "3.905744116202054421405122281"
+      },
+      "business_impact": "Potential acceleration, bulk procurement, coding issue, or emerging cost risk.",
+      "recommendation": "Inspect high-value transactions, PO releases, procurement timing, and coding changes.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            73
+          ],
+          "record_ids": [
+            "ACT-9007"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "period": "2026-08"
+          },
+          "aggregation": {
+            "record_count": 1
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "current >= recent_average * multiplier",
+        "current": "3800000000",
+        "threshold": "1264803800.0",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-7AD85997CB0AA3F6",
+      "rule_id": "CST-004",
+      "rule_name": "Vendor Concentration Risk",
+      "category": "cost",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "vendor",
+      "entity_id": "V002",
+      "title": "Vendor Concentration Risk",
+      "description": "Vendor V002 represents 72.7% of WBS 3.1 actual cost.",
+      "metrics": {
+        "vendor": "V002",
+        "wbs_code": "3.1",
+        "vendor_actual": "6173659000",
+        "wbs_actual": "8490690000",
+        "share": "0.7271092219831368239801476676"
+      },
+      "business_impact": "Commercial concentration and change/claim dependency may be high.",
+      "recommendation": "Review scope dependency, outstanding commitments, commercial exposure, and alternatives.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            26,
+            53,
+            62,
+            72
+          ],
+          "record_ids": [
+            "ACT-0023",
+            "ACT-0050",
+            "ACT-0059",
+            "ACT-9006"
+          ],
+          "fields": {
+            "vendor_id": "V002",
+            "wbs_code": "3.1"
+          },
+          "aggregation": {
+            "record_count": 4
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "vendor_wbs_actual / wbs_actual >= threshold",
+        "value": "0.7271092219831368239801476676",
+        "threshold": 0.4,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-C4CF1EC8D6093438",
+      "rule_id": "CST-004",
+      "rule_name": "Vendor Concentration Risk",
+      "category": "cost",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "vendor",
+      "entity_id": "V003",
+      "title": "Vendor Concentration Risk",
+      "description": "Vendor V003 represents 45.4% of WBS 5.0 actual cost.",
+      "metrics": {
+        "vendor": "V003",
+        "wbs_code": "5.0",
+        "vendor_actual": "1096528000",
+        "wbs_actual": "2414431000",
+        "share": "0.4541558652949701192537703500"
+      },
+      "business_impact": "Commercial concentration and change/claim dependency may be high.",
+      "recommendation": "Review scope dependency, outstanding commitments, commercial exposure, and alternatives.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            12,
+            57,
+            66
+          ],
+          "record_ids": [
+            "ACT-0009",
+            "ACT-0054",
+            "ACT-0063"
+          ],
+          "fields": {
+            "vendor_id": "V003",
+            "wbs_code": "5.0"
+          },
+          "aggregation": {
+            "record_count": 3
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "vendor_wbs_actual / wbs_actual >= threshold",
+        "value": "0.4541558652949701192537703500",
+        "threshold": 0.4,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-41BA5B75EB632B5C",
+      "rule_id": "CST-004",
+      "rule_name": "Vendor Concentration Risk",
+      "category": "cost",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "vendor",
+      "entity_id": "V004",
+      "title": "Vendor Concentration Risk",
+      "description": "Vendor V004 represents 100.0% of WBS 9.9 actual cost.",
+      "metrics": {
+        "vendor": "V004",
+        "wbs_code": "9.9",
+        "vendor_actual": "310000000",
+        "wbs_actual": "310000000",
+        "share": "1"
+      },
+      "business_impact": "Commercial concentration and change/claim dependency may be high.",
+      "recommendation": "Review scope dependency, outstanding commitments, commercial exposure, and alternatives.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            70
+          ],
+          "record_ids": [
+            "ACT-9004"
+          ],
+          "fields": {
+            "vendor_id": "V004",
+            "wbs_code": "9.9"
+          },
+          "aggregation": {
+            "record_count": 1
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "vendor_wbs_actual / wbs_actual >= threshold",
+        "value": "1",
+        "threshold": 0.4,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-47C6A30FC804EBFD",
+      "rule_id": "CST-004",
+      "rule_name": "Vendor Concentration Risk",
+      "category": "cost",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "vendor",
+      "entity_id": "V005",
+      "title": "Vendor Concentration Risk",
+      "description": "Vendor V005 represents 77.6% of WBS 3.2 actual cost.",
+      "metrics": {
+        "vendor": "V005",
+        "wbs_code": "3.2",
+        "vendor_actual": "12883207000",
+        "wbs_actual": "16595674000",
+        "share": "0.7762991126482720737946527511"
+      },
+      "business_impact": "Commercial concentration and change/claim dependency may be high.",
+      "recommendation": "Review scope dependency, outstanding commitments, commercial exposure, and alternatives.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            9,
+            18,
+            54,
+            67,
+            68,
+            74,
+            75,
+            76
+          ],
+          "record_ids": [
+            "ACT-0006",
+            "ACT-0015",
+            "ACT-0051",
+            "ACT-9001",
+            "ACT-9002",
+            "ACT-9008",
+            "ACT-9009",
+            "ACT-9010"
+          ],
+          "fields": {
+            "vendor_id": "V005",
+            "wbs_code": "3.2"
+          },
+          "aggregation": {
+            "record_count": 8
+          }
+        }
+      ],
+      "calculation": {
+        "formula": "vendor_wbs_actual / wbs_actual >= threshold",
+        "value": "0.7762991126482720737946527511",
+        "threshold": 0.4,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-6A66BEA5169B22E1",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0003",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0003 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1507957000",
+        "wbs_budget": "28000000000",
+        "wbs_share": "0.05385560714285714285714285714",
+        "project_share": "0.0137087"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            6
+          ],
+          "record_ids": [
+            "ACT-0003"
+          ],
+          "fields": {
+            "wbs_code": "2.1",
+            "vendor_id": "V006",
+            "po_number": "PO-1003",
+            "amount": "1507957000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-FCCA627DE3FCC9D8",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0007",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0007 is material relative to its budget context.",
+      "metrics": {
+        "amount": "742476000",
+        "wbs_budget": "14000000000",
+        "wbs_share": "0.053034",
+        "project_share": "0.006749781818181818181818181818"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            10
+          ],
+          "record_ids": [
+            "ACT-0007"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "vendor_id": "V002",
+            "po_number": "PO-1007",
+            "amount": "742476000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-D7AAFB9078E70BBB",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0009",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0009 is material relative to its budget context.",
+      "metrics": {
+        "amount": "449181000",
+        "wbs_budget": "8000000000",
+        "wbs_share": "0.056147625",
+        "project_share": "0.004083463636363636363636363636"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            12
+          ],
+          "record_ids": [
+            "ACT-0009"
+          ],
+          "fields": {
+            "wbs_code": "5.0",
+            "vendor_id": "V003",
+            "po_number": "PO-1009",
+            "amount": "449181000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-330E28800175B8C7",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0010",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0010 is material relative to its budget context.",
+      "metrics": {
+        "amount": "262190000",
+        "wbs_budget": "5000000000",
+        "wbs_share": "0.052438",
+        "project_share": "0.002383545454545454545454545455"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            13
+          ],
+          "record_ids": [
+            "ACT-0010"
+          ],
+          "fields": {
+            "wbs_code": "1.1",
+            "vendor_id": "V002",
+            "po_number": "PO-1010",
+            "amount": "262190000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-337EB2C9C98F6FE2",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0013",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0013 is material relative to its budget context.",
+      "metrics": {
+        "amount": "918664000",
+        "wbs_budget": "16000000000",
+        "wbs_share": "0.0574165",
+        "project_share": "0.008351490909090909090909090909"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            16
+          ],
+          "record_ids": [
+            "ACT-0013"
+          ],
+          "fields": {
+            "wbs_code": "2.2",
+            "vendor_id": "V003",
+            "po_number": "PO-1013",
+            "amount": "918664000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-148297A51671496B",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0014",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0014 is material relative to its budget context.",
+      "metrics": {
+        "amount": "672851000",
+        "wbs_budget": "12000000000",
+        "wbs_share": "0.05607091666666666666666666667",
+        "project_share": "0.006116827272727272727272727273"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            17
+          ],
+          "record_ids": [
+            "ACT-0014"
+          ],
+          "fields": {
+            "wbs_code": "3.1",
+            "vendor_id": "V003",
+            "po_number": "PO-1014",
+            "amount": "672851000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-3241C875A873114F",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0017",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0017 is material relative to its budget context.",
+      "metrics": {
+        "amount": "293409000",
+        "wbs_budget": "5000000000",
+        "wbs_share": "0.0586818",
+        "project_share": "0.002667354545454545454545454545"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            20
+          ],
+          "record_ids": [
+            "ACT-0017"
+          ],
+          "fields": {
+            "wbs_code": "4.0",
+            "vendor_id": "V005",
+            "po_number": "PO-1017",
+            "amount": "293409000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-38400A5115C10512",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0019",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0019 is material relative to its budget context.",
+      "metrics": {
+        "amount": "256044000",
+        "wbs_budget": "5000000000",
+        "wbs_share": "0.0512088",
+        "project_share": "0.002327672727272727272727272727"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            22
+          ],
+          "record_ids": [
+            "ACT-0019"
+          ],
+          "fields": {
+            "wbs_code": "1.1",
+            "vendor_id": "V001",
+            "po_number": "PO-1019",
+            "amount": "256044000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-FA7D96F4F3AEAAE4",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0020",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0020 is material relative to its budget context.",
+      "metrics": {
+        "amount": "230709000",
+        "wbs_budget": "4000000000",
+        "wbs_share": "0.05767725",
+        "project_share": "0.002097354545454545454545454545"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            23
+          ],
+          "record_ids": [
+            "ACT-0020"
+          ],
+          "fields": {
+            "wbs_code": "1.2",
+            "vendor_id": "V001",
+            "po_number": "PO-1020",
+            "amount": "230709000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-4285428B79BDC5F2",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0023",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0023 is material relative to its budget context.",
+      "metrics": {
+        "amount": "618070000",
+        "wbs_budget": "12000000000",
+        "wbs_share": "0.05150583333333333333333333333",
+        "project_share": "0.005618818181818181818181818182"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            26
+          ],
+          "record_ids": [
+            "ACT-0023"
+          ],
+          "fields": {
+            "wbs_code": "3.1",
+            "vendor_id": "V002",
+            "po_number": "PO-1023",
+            "amount": "618070000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-3BD9BAADF0BCCCC2",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0025",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0025 is material relative to its budget context.",
+      "metrics": {
+        "amount": "748593000",
+        "wbs_budget": "14000000000",
+        "wbs_share": "0.05347092857142857142857142857",
+        "project_share": "0.006805390909090909090909090909"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            28
+          ],
+          "record_ids": [
+            "ACT-0025"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "vendor_id": "V005",
+            "po_number": "PO-1025",
+            "amount": "748593000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-1212C2560F5E6ABC",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0030",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0030 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1668927000",
+        "wbs_budget": "28000000000",
+        "wbs_share": "0.05960453571428571428571428571",
+        "project_share": "0.01517206363636363636363636364"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            33
+          ],
+          "record_ids": [
+            "ACT-0030"
+          ],
+          "fields": {
+            "wbs_code": "2.1",
+            "vendor_id": "V002",
+            "po_number": "PO-1030",
+            "amount": "1668927000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-3FF325D30EBD066A",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0034",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0034 is material relative to its budget context.",
+      "metrics": {
+        "amount": "755995000",
+        "wbs_budget": "14000000000",
+        "wbs_share": "0.05399964285714285714285714286",
+        "project_share": "0.006872681818181818181818181818"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            37
+          ],
+          "record_ids": [
+            "ACT-0034"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "vendor_id": "V002",
+            "po_number": "PO-1034",
+            "amount": "755995000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-BB307FA353BFAC85",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0035",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0035 is material relative to its budget context.",
+      "metrics": {
+        "amount": "270336000",
+        "wbs_budget": "5000000000",
+        "wbs_share": "0.0540672",
+        "project_share": "0.0024576"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            38
+          ],
+          "record_ids": [
+            "ACT-0035"
+          ],
+          "fields": {
+            "wbs_code": "4.0",
+            "vendor_id": "V003",
+            "po_number": "PO-1035",
+            "amount": "270336000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-E2D53CAB99DB79DD",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0038",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0038 is material relative to its budget context.",
+      "metrics": {
+        "amount": "231480000",
+        "wbs_budget": "4000000000",
+        "wbs_share": "0.05787",
+        "project_share": "0.002104363636363636363636363636"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            41
+          ],
+          "record_ids": [
+            "ACT-0038"
+          ],
+          "fields": {
+            "wbs_code": "1.2",
+            "vendor_id": "V001",
+            "po_number": "PO-1038",
+            "amount": "231480000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-9BA1856F5C845D9A",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0041",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0041 is material relative to its budget context.",
+      "metrics": {
+        "amount": "748449000",
+        "wbs_budget": "12000000000",
+        "wbs_share": "0.06237075",
+        "project_share": "0.006804081818181818181818181818"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            44
+          ],
+          "record_ids": [
+            "ACT-0041"
+          ],
+          "fields": {
+            "wbs_code": "3.1",
+            "vendor_id": "V005",
+            "po_number": "PO-1041",
+            "amount": "748449000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-ADF8DBEA69E53974",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0042",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0042 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1107647000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.06153594444444444444444444444",
+        "project_share": "0.01006951818181818181818181818"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            45
+          ],
+          "record_ids": [
+            "ACT-0042"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V003",
+            "po_number": "PO-1042",
+            "amount": "1107647000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-A37C481DDDC4B8F8",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0043",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0043 is material relative to its budget context.",
+      "metrics": {
+        "amount": "744670000",
+        "wbs_budget": "14000000000",
+        "wbs_share": "0.05319071428571428571428571429",
+        "project_share": "0.006769727272727272727272727273"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            46
+          ],
+          "record_ids": [
+            "ACT-0043"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "vendor_id": "V006",
+            "po_number": "PO-1043",
+            "amount": "744670000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-7732EED7B8349383",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0044",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0044 is material relative to its budget context.",
+      "metrics": {
+        "amount": "273933000",
+        "wbs_budget": "5000000000",
+        "wbs_share": "0.0547866",
+        "project_share": "0.0024903"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            47
+          ],
+          "record_ids": [
+            "ACT-0044"
+          ],
+          "fields": {
+            "wbs_code": "4.0",
+            "vendor_id": "V003",
+            "po_number": "PO-1044",
+            "amount": "273933000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-7F92C38CDED319FA",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0047",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0047 is material relative to its budget context.",
+      "metrics": {
+        "amount": "218262000",
+        "wbs_budget": "4000000000",
+        "wbs_share": "0.0545655",
+        "project_share": "0.0019842"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            50
+          ],
+          "record_ids": [
+            "ACT-0047"
+          ],
+          "fields": {
+            "wbs_code": "1.2",
+            "vendor_id": "V005",
+            "po_number": "PO-1047",
+            "amount": "218262000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-3F897C2E1C65AC71",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0048",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0048 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1629151000",
+        "wbs_budget": "28000000000",
+        "wbs_share": "0.05818396428571428571428571429",
+        "project_share": "0.01481046363636363636363636364"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            51
+          ],
+          "record_ids": [
+            "ACT-0048"
+          ],
+          "fields": {
+            "wbs_code": "2.1",
+            "vendor_id": "V001",
+            "po_number": "PO-1048",
+            "amount": "1629151000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-19D78A81EDDC64B1",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0051",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0051 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1097100000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.06095",
+        "project_share": "0.009973636363636363636363636364"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            54
+          ],
+          "record_ids": [
+            "ACT-0051"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V005",
+            "po_number": "PO-1051",
+            "amount": "1097100000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-D3098B43D6A5208F",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0055",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0055 is material relative to its budget context.",
+      "metrics": {
+        "amount": "303658000",
+        "wbs_budget": "5000000000",
+        "wbs_share": "0.0607316",
+        "project_share": "0.002760527272727272727272727273"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            58
+          ],
+          "record_ids": [
+            "ACT-0055"
+          ],
+          "fields": {
+            "wbs_code": "1.1",
+            "vendor_id": "V005",
+            "po_number": "PO-1055",
+            "amount": "303658000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-BC321895D102D240",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0057",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0057 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1531445000",
+        "wbs_budget": "28000000000",
+        "wbs_share": "0.05469446428571428571428571429",
+        "project_share": "0.01392222727272727272727272727"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            60
+          ],
+          "record_ids": [
+            "ACT-0057"
+          ],
+          "fields": {
+            "wbs_code": "2.1",
+            "vendor_id": "V005",
+            "po_number": "PO-1057",
+            "amount": "1531445000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-C62D66C3DD21BD23",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0060",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0060 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1103618000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.06131211111111111111111111111",
+        "project_share": "0.01003289090909090909090909091"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            63
+          ],
+          "record_ids": [
+            "ACT-0060"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V004",
+            "po_number": "PO-1060",
+            "amount": "1103618000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-8F56AD7838AF17C2",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0061",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0061 is material relative to its budget context.",
+      "metrics": {
+        "amount": "730272000",
+        "wbs_budget": "14000000000",
+        "wbs_share": "0.05216228571428571428571428571",
+        "project_share": "0.006638836363636363636363636364"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            64
+          ],
+          "record_ids": [
+            "ACT-0061"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "vendor_id": "V006",
+            "po_number": "PO-1061",
+            "amount": "730272000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-67FD1E44CFA7F8CD",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-0062",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-0062 is material relative to its budget context.",
+      "metrics": {
+        "amount": "311692000",
+        "wbs_budget": "5000000000",
+        "wbs_share": "0.0623384",
+        "project_share": "0.002833563636363636363636363636"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            65
+          ],
+          "record_ids": [
+            "ACT-0062"
+          ],
+          "fields": {
+            "wbs_code": "4.0",
+            "vendor_id": "V004",
+            "po_number": "PO-1062",
+            "amount": "311692000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-30EADA6B1218B8B7",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9001",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-9001 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1250000000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.06944444444444444444444444444",
+        "project_share": "0.01136363636363636363636363636"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            67
+          ],
+          "record_ids": [
+            "ACT-9001"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V005",
+            "po_number": "PO-7788",
+            "amount": "1250000000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-8904AE6F01EAD396",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9002",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-9002 is material relative to its budget context.",
+      "metrics": {
+        "amount": "1250000000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.06944444444444444444444444444",
+        "project_share": "0.01136363636363636363636363636"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            68
+          ],
+          "record_ids": [
+            "ACT-9002"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V005",
+            "po_number": "PO-7788",
+            "amount": "1250000000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-B8F0709E495E5ABC",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9006",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-9006 is material relative to its budget context.",
+      "metrics": {
+        "amount": "4600000000",
+        "wbs_budget": "12000000000",
+        "wbs_share": "0.3833333333333333333333333333",
+        "project_share": "0.04181818181818181818181818182"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            72
+          ],
+          "record_ids": [
+            "ACT-9006"
+          ],
+          "fields": {
+            "wbs_code": "3.1",
+            "vendor_id": "V002",
+            "po_number": "PO-7793",
+            "amount": "4600000000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-B532C8F3E0F9F36D",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9007",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-9007 is material relative to its budget context.",
+      "metrics": {
+        "amount": "3800000000",
+        "wbs_budget": "14000000000",
+        "wbs_share": "0.2714285714285714285714285714",
+        "project_share": "0.03454545454545454545454545455"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            73
+          ],
+          "record_ids": [
+            "ACT-9007"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "vendor_id": "V003",
+            "po_number": "PO-7794",
+            "amount": "3800000000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-7DF815CA76592E94",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9008",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-9008 is material relative to its budget context.",
+      "metrics": {
+        "amount": "2900000000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.1611111111111111111111111111",
+        "project_share": "0.02636363636363636363636363636"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            74
+          ],
+          "record_ids": [
+            "ACT-9008"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V005",
+            "po_number": "PO-7795",
+            "amount": "2900000000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-12DC938457731EE8",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9009",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-9009 is material relative to its budget context.",
+      "metrics": {
+        "amount": "2600000000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.1444444444444444444444444444",
+        "project_share": "0.02363636363636363636363636364"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            75
+          ],
+          "record_ids": [
+            "ACT-9009"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V005",
+            "po_number": "PO-7796",
+            "amount": "2600000000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-5757A7D9F42D4DC5",
+      "rule_id": "CST-005",
+      "rule_name": "High-Value Transaction Outlier",
+      "category": "cost",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9010",
+      "title": "High-Value Transaction Outlier",
+      "description": "Transaction ACT-9010 is material relative to its budget context.",
+      "metrics": {
+        "amount": "2300000000",
+        "wbs_budget": "18000000000",
+        "wbs_share": "0.1277777777777777777777777778",
+        "project_share": "0.02090909090909090909090909091"
+      },
+      "business_impact": "Large transactions may contain quantity, price, coding, or timing anomalies.",
+      "recommendation": "Verify supporting document, approved scope, coding, and period allocation.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            76
+          ],
+          "record_ids": [
+            "ACT-9010"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "vendor_id": "V005",
+            "po_number": "PO-7797",
+            "amount": "2300000000"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "wbs_share >= threshold OR project_share >= threshold",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-D4C17D2128D7CF02",
+      "rule_id": "CST-006",
+      "rule_name": "High Cost with Low Progress",
+      "category": "cross_domain",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "title": "High Cost with Low Progress",
+      "description": "WBS 3.2 has high cost consumption with low physical progress.",
+      "metrics": {
+        "budget": "18000000000",
+        "actual": "16595674000",
+        "cost_pct": "0.9219818888888888888888888889",
+        "actual_progress": 0.32
+      },
+      "business_impact": "Potential quantity/price issue, low productivity, front-loaded procurement, or scope accounting risk.",
+      "recommendation": "Perform cost-to-progress reconciliation and validate quantity, productivity, and procurement timing.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            9,
+            18,
+            27,
+            36,
+            45,
+            54,
+            63,
+            67,
+            68,
+            74,
+            75,
+            76
+          ],
+          "record_ids": [
+            "ACT-0006",
+            "ACT-0015",
+            "ACT-0024",
+            "ACT-0033",
+            "ACT-0042",
+            "ACT-0051",
+            "ACT-0060",
+            "ACT-9001",
+            "ACT-9002",
+            "ACT-9008",
+            "ACT-9009",
+            "ACT-9010"
+          ],
+          "fields": {
+            "wbs_code": "3.2"
+          },
+          "aggregation": {
+            "record_count": 12
+          }
+        },
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            27
+          ],
+          "record_ids": [
+            "PRG-32-4"
+          ],
+          "fields": {
+            "actual_progress": 0.32,
+            "period": "2026-08-15"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "cost_pct >= 0.80 AND progress <= 0.50",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-AE0EFD3E8E900F11",
+      "rule_id": "DQ-001",
+      "rule_name": "Missing WBS Reference",
+      "category": "data_quality",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "record",
+      "entity_id": "ACT-9003",
+      "title": "Missing WBS Reference",
+      "description": "Actual_Cost record ACT-9003 has no WBS reference.",
+      "metrics": {
+        "missing_wbs_count": 1
+      },
+      "business_impact": "Weak traceability; cost/progress/schedule rollups may be incomplete or misleading.",
+      "recommendation": "Map the source WBS to the canonical WBS tree or correct the source record before analysis.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            69
+          ],
+          "record_ids": [
+            "ACT-9003"
+          ],
+          "fields": {
+            "wbs_code": null
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "field": "wbs_code",
+        "operator": "is_null",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-96466441F706BDEC",
+      "rule_id": "DQ-002",
+      "rule_name": "Duplicate Cost Transaction",
+      "category": "data_quality",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction_group",
+      "entity_id": "ACT-9001/ACT-9002",
+      "title": "Duplicate Cost Transaction",
+      "description": "2 probable duplicate cost transactions share the same normalized key.",
+      "metrics": {
+        "duplicate_count": 2,
+        "amount": "1250000000"
+      },
+      "business_impact": "Can inflate actual cost, commitments, vendor exposure, and forecasts.",
+      "recommendation": "Verify source duplicates against invoice/document number and remove or mark repeated rows.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            67,
+            68
+          ],
+          "record_ids": [
+            "ACT-9001",
+            "ACT-9002"
+          ],
+          "fields": {
+            "duplicate_key": [
+              "2026-07-18",
+              "3.2",
+              "V005",
+              "PO-7788",
+              "1250000000",
+              "mechanical erection invoice"
+            ],
+            "count": 2
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "operator": "group_count_gte",
+        "threshold": 2,
+        "result": 2
+      }
+    },
+    {
+      "finding_id": "FND-C0ECCA1CEDA994F4",
+      "rule_id": "DQ-003",
+      "rule_name": "Contradictory Date or Progress Values",
+      "category": "data_quality",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A9990",
+      "title": "Contradictory Date or Progress Values",
+      "description": "Activity A9990 contains contradictory dates or progress.",
+      "metrics": {
+        "finish_before_start": true,
+        "invalid_progress": true
+      },
+      "business_impact": "Can distort delay, SPI, progress, and health calculations.",
+      "recommendation": "Correct source values and re-import the affected dataset.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            16
+          ],
+          "record_ids": [
+            "A9990"
+          ],
+          "fields": {
+            "actual_start": "2026-06-20",
+            "actual_finish": "2026-06-10",
+            "planned_progress": 1.0,
+            "actual_progress": 1.15
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "operator": "or",
+        "conditions": {
+          "actual_start": "2026-06-20",
+          "actual_finish": "2026-06-10",
+          "planned_progress": 1.0,
+          "actual_progress": 1.15
+        },
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-80EBC914E3FDBACA",
+      "rule_id": "DQ-004",
+      "rule_name": "Orphan WBS Reference",
+      "category": "data_quality",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "record",
+      "entity_id": "ACT-9004",
+      "title": "Orphan WBS Reference",
+      "description": "Actual_Cost record ACT-9004 references unknown WBS 9.9.",
+      "metrics": {
+        "wbs_code": "9.9"
+      },
+      "business_impact": "Rollup leakage; affected costs/progress may disappear from management totals.",
+      "recommendation": "Create a mapping or add the missing WBS node after project-control approval.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            70
+          ],
+          "record_ids": [
+            "ACT-9004"
+          ],
+          "fields": {
+            "wbs_code": "9.9"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "operator": "not_in_wbs_master",
+        "value": "9.9",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-EA0AA60ADF17AC9A",
+      "rule_id": "DQ-005",
+      "rule_name": "Vendor Identity Inconsistency",
+      "category": "data_quality",
+      "severity": "observation",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9005",
+      "title": "Vendor Identity Inconsistency",
+      "description": "Vendor V004 uses inconsistent name 'PT Prima Logistik'.",
+      "metrics": {
+        "vendor_id": "V004",
+        "variant_count": 2
+      },
+      "business_impact": "Vendor concentration and cost-driver analysis can be understated or duplicated.",
+      "recommendation": "Create a canonical vendor mapping and standardize future imports.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            71
+          ],
+          "record_ids": [
+            "ACT-9005"
+          ],
+          "fields": {
+            "vendor_id": "V004",
+            "vendor_name": "PT Prima Logistik",
+            "canonical_normalized_name": "pt prima logistics"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "operator": "normalized_name_not_equal",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-735512977732F87D",
+      "rule_id": "PRG-001",
+      "rule_name": "WBS Progress Lag",
+      "category": "progress",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "2.1",
+      "title": "WBS Progress Lag",
+      "description": "WBS 2.1 is 18.0% behind planned progress.",
+      "metrics": {
+        "period": "2026-08-15",
+        "planned_progress": 1.0,
+        "actual_progress": 0.82,
+        "lag_pp": 0.18000000000000005
+      },
+      "business_impact": "Project delivery risk if gap persists.",
+      "recommendation": "Investigate workfront constraints, productivity, materials, resources, and schedule logic.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            15
+          ],
+          "record_ids": [
+            "PRG-21-4"
+          ],
+          "fields": {
+            "planned_progress": 1.0,
+            "actual_progress": 0.82
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.18000000000000005,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-9BEC230CD2919860",
+      "rule_id": "PRG-001",
+      "rule_name": "WBS Progress Lag",
+      "category": "progress",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "2.2",
+      "title": "WBS Progress Lag",
+      "description": "WBS 2.2 is 12.0% behind planned progress.",
+      "metrics": {
+        "period": "2026-08-15",
+        "planned_progress": 1.0,
+        "actual_progress": 0.88,
+        "lag_pp": 0.12
+      },
+      "business_impact": "Project delivery risk if gap persists.",
+      "recommendation": "Investigate workfront constraints, productivity, materials, resources, and schedule logic.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            19
+          ],
+          "record_ids": [
+            "PRG-22-4"
+          ],
+          "fields": {
+            "planned_progress": 1.0,
+            "actual_progress": 0.88
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.12,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-6F44F5084F415A83",
+      "rule_id": "PRG-001",
+      "rule_name": "WBS Progress Lag",
+      "category": "progress",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "title": "WBS Progress Lag",
+      "description": "WBS 3.1 is 39.0% behind planned progress.",
+      "metrics": {
+        "period": "2026-08-15",
+        "planned_progress": 1.0,
+        "actual_progress": 0.61,
+        "lag_pp": 0.39
+      },
+      "business_impact": "Project delivery risk if gap persists.",
+      "recommendation": "Investigate workfront constraints, productivity, materials, resources, and schedule logic.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            23
+          ],
+          "record_ids": [
+            "PRG-31-4"
+          ],
+          "fields": {
+            "planned_progress": 1.0,
+            "actual_progress": 0.61
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.39,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-568F80F96FA4661A",
+      "rule_id": "PRG-001",
+      "rule_name": "WBS Progress Lag",
+      "category": "progress",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "title": "WBS Progress Lag",
+      "description": "WBS 3.2 is 50.0% behind planned progress.",
+      "metrics": {
+        "period": "2026-08-15",
+        "planned_progress": 0.82,
+        "actual_progress": 0.32,
+        "lag_pp": 0.49999999999999994
+      },
+      "business_impact": "Project delivery risk if gap persists.",
+      "recommendation": "Investigate workfront constraints, productivity, materials, resources, and schedule logic.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            27
+          ],
+          "record_ids": [
+            "PRG-32-4"
+          ],
+          "fields": {
+            "planned_progress": 0.82,
+            "actual_progress": 0.32
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.49999999999999994,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-A9F014CE1356F819",
+      "rule_id": "PRG-001",
+      "rule_name": "WBS Progress Lag",
+      "category": "progress",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "title": "WBS Progress Lag",
+      "description": "WBS 3.3 is 43.0% behind planned progress.",
+      "metrics": {
+        "period": "2026-08-15",
+        "planned_progress": 0.7,
+        "actual_progress": 0.27,
+        "lag_pp": 0.42999999999999994
+      },
+      "business_impact": "Project delivery risk if gap persists.",
+      "recommendation": "Investigate workfront constraints, productivity, materials, resources, and schedule logic.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            31
+          ],
+          "record_ids": [
+            "PRG-33-4"
+          ],
+          "fields": {
+            "planned_progress": 0.7,
+            "actual_progress": 0.27
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.42999999999999994,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-2E31C34FA1F22798",
+      "rule_id": "PRG-002",
+      "rule_name": "Progress Above 100 Percent",
+      "category": "progress",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "5.0",
+      "title": "Progress Above 100 Percent",
+      "description": "Progress for 5.0 exceeds 100 percent.",
+      "metrics": {
+        "planned_progress": 0.88,
+        "actual_progress": 1.08
+      },
+      "business_impact": "Can distort project progress and health calculations.",
+      "recommendation": "Correct source encoding and re-import.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            39
+          ],
+          "record_ids": [
+            "PRG-50-4"
+          ],
+          "fields": {
+            "planned_progress": 0.88,
+            "actual_progress": 1.08
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress > 1 OR actual_progress > 1",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-83674D88D94A546F",
+      "rule_id": "PRG-003",
+      "rule_name": "Cost Rising While Progress Flat",
+      "category": "cross_domain",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "title": "Cost Rising While Progress Flat",
+      "description": "WBS 3.2 cost rose while physical progress remained nearly flat.",
+      "metrics": {
+        "previous_cost": "3603618000",
+        "current_cost": "7800000000",
+        "cost_change_pct": "1.164491352857045336103882265",
+        "previous_progress": 0.3,
+        "current_progress": 0.32,
+        "progress_change_pp": 0.020000000000000018
+      },
+      "business_impact": "Possible productivity loss, stalled workfront, advance procurement, or coding issue.",
+      "recommendation": "Reconcile cost to installed quantities/progress and investigate top spend drivers.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            74,
+            75,
+            76
+          ],
+          "record_ids": [
+            "ACT-9008",
+            "ACT-9009",
+            "ACT-9010"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "period": "2026-08"
+          },
+          "aggregation": null
+        },
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            26
+          ],
+          "record_ids": [
+            "PRG-32-3"
+          ],
+          "fields": {
+            "actual_progress": 0.3
+          },
+          "aggregation": null
+        },
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            27
+          ],
+          "record_ids": [
+            "PRG-32-4"
+          ],
+          "fields": {
+            "actual_progress": 0.32
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "cost_change >= 20% AND progress_change <= 2pp",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-764BAB53A6454C9C",
+      "rule_id": "PRG-003",
+      "rule_name": "Cost Rising While Progress Flat",
+      "category": "cross_domain",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "title": "Cost Rising While Progress Flat",
+      "description": "WBS 3.3 cost rose while physical progress remained nearly flat.",
+      "metrics": {
+        "previous_cost": "730272000",
+        "current_cost": "3800000000",
+        "cost_change_pct": "4.203540598571491170413215898",
+        "previous_progress": 0.25,
+        "current_progress": 0.27,
+        "progress_change_pp": 0.020000000000000018
+      },
+      "business_impact": "Possible productivity loss, stalled workfront, advance procurement, or coding issue.",
+      "recommendation": "Reconcile cost to installed quantities/progress and investigate top spend drivers.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            73
+          ],
+          "record_ids": [
+            "ACT-9007"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "period": "2026-08"
+          },
+          "aggregation": null
+        },
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            30
+          ],
+          "record_ids": [
+            "PRG-33-3"
+          ],
+          "fields": {
+            "actual_progress": 0.25
+          },
+          "aggregation": null
+        },
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            31
+          ],
+          "record_ids": [
+            "PRG-33-4"
+          ],
+          "fields": {
+            "actual_progress": 0.27
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "cost_change >= 20% AND progress_change <= 2pp",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-89300C4B695A6F34",
+      "rule_id": "PRG-003",
+      "rule_name": "Cost Rising While Progress Flat",
+      "category": "cross_domain",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "4.0",
+      "title": "Cost Rising While Progress Flat",
+      "description": "WBS 4.0 cost rose while physical progress remained nearly flat.",
+      "metrics": {
+        "previous_cost": "0",
+        "current_cost": "311692000",
+        "cost_change_pct": "Infinity",
+        "previous_progress": 0.0,
+        "current_progress": 0.0,
+        "progress_change_pp": 0.0
+      },
+      "business_impact": "Possible productivity loss, stalled workfront, advance procurement, or coding issue.",
+      "recommendation": "Reconcile cost to installed quantities/progress and investigate top spend drivers.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Actual_Cost",
+          "source_rows": [
+            65
+          ],
+          "record_ids": [
+            "ACT-0062"
+          ],
+          "fields": {
+            "wbs_code": "4.0",
+            "period": "2026-08"
+          },
+          "aggregation": null
+        },
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            34
+          ],
+          "record_ids": [
+            "PRG-40-3"
+          ],
+          "fields": {
+            "actual_progress": 0.0
+          },
+          "aggregation": null
+        },
+        {
+          "source_sheet": "Progress",
+          "source_rows": [
+            35
+          ],
+          "record_ids": [
+            "PRG-40-4"
+          ],
+          "fields": {
+            "actual_progress": 0.0
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "cost_change >= 20% AND progress_change <= 2pp",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-0FAFC65ABC85F332",
+      "rule_id": "SCH-001",
+      "rule_name": "Overdue Activity",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "title": "Overdue Activity",
+      "description": "Activity A2000 is overdue by 31 days.",
+      "metrics": {
+        "overdue_days": 31,
+        "actual_progress": 0.82
+      },
+      "business_impact": "Schedule slippage and potential downstream impact.",
+      "recommendation": "Confirm actual field status, recovery plan, and downstream dependencies.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            6
+          ],
+          "record_ids": [
+            "A2000"
+          ],
+          "fields": {
+            "baseline_finish": "2026-07-15",
+            "actual_progress": 0.82,
+            "status": "In Progress",
+            "critical": true
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "incomplete AND baseline_finish < data_date",
+        "data_date": "2026-08-15",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-241B9EB1B5FFB5C3",
+      "rule_id": "SCH-001",
+      "rule_name": "Overdue Activity",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A2010",
+      "title": "Overdue Activity",
+      "description": "Activity A2010 is overdue by 46 days.",
+      "metrics": {
+        "overdue_days": 46,
+        "actual_progress": 0.88
+      },
+      "business_impact": "Schedule slippage and potential downstream impact.",
+      "recommendation": "Confirm actual field status, recovery plan, and downstream dependencies.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            7
+          ],
+          "record_ids": [
+            "A2010"
+          ],
+          "fields": {
+            "baseline_finish": "2026-06-30",
+            "actual_progress": 0.88,
+            "status": "In Progress",
+            "critical": false
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "incomplete AND baseline_finish < data_date",
+        "data_date": "2026-08-15",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-5E97CF07360F8C7B",
+      "rule_id": "SCH-001",
+      "rule_name": "Overdue Activity",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "title": "Overdue Activity",
+      "description": "Activity A3010 is overdue by 45 days.",
+      "metrics": {
+        "overdue_days": 45,
+        "actual_progress": 0.68
+      },
+      "business_impact": "Schedule slippage and potential downstream impact.",
+      "recommendation": "Confirm actual field status, recovery plan, and downstream dependencies.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            9
+          ],
+          "record_ids": [
+            "A3010"
+          ],
+          "fields": {
+            "baseline_finish": "2026-07-01",
+            "actual_progress": 0.68,
+            "status": "In Progress",
+            "critical": true
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "incomplete AND baseline_finish < data_date",
+        "data_date": "2026-08-15",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-92C954AC9549B705",
+      "rule_id": "SCH-001",
+      "rule_name": "Overdue Activity",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "title": "Overdue Activity",
+      "description": "Activity A3020 is overdue by 14 days.",
+      "metrics": {
+        "overdue_days": 14,
+        "actual_progress": 0.55
+      },
+      "business_impact": "Schedule slippage and potential downstream impact.",
+      "recommendation": "Confirm actual field status, recovery plan, and downstream dependencies.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            10
+          ],
+          "record_ids": [
+            "A3020"
+          ],
+          "fields": {
+            "baseline_finish": "2026-08-01",
+            "actual_progress": 0.55,
+            "status": "In Progress",
+            "critical": true
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "incomplete AND baseline_finish < data_date",
+        "data_date": "2026-08-15",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-E57A6753DA119F93",
+      "rule_id": "SCH-001",
+      "rule_name": "Overdue Activity",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "title": "Overdue Activity",
+      "description": "Activity A3040 is overdue by 5 days.",
+      "metrics": {
+        "overdue_days": 5,
+        "actual_progress": 0.42
+      },
+      "business_impact": "Schedule slippage and potential downstream impact.",
+      "recommendation": "Confirm actual field status, recovery plan, and downstream dependencies.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            12
+          ],
+          "record_ids": [
+            "A3040"
+          ],
+          "fields": {
+            "baseline_finish": "2026-08-10",
+            "actual_progress": 0.42,
+            "status": "In Progress",
+            "critical": true
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "incomplete AND baseline_finish < data_date",
+        "data_date": "2026-08-15",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-F4A9B98D664B86CC",
+      "rule_id": "SCH-002",
+      "rule_name": "Baseline Finish Slippage",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A1000",
+      "title": "Baseline Finish Slippage",
+      "description": "Activity A1000 finished 15 days after baseline.",
+      "metrics": {
+        "slippage_days": 15
+      },
+      "business_impact": "Evidence of schedule variance and possible milestone impact.",
+      "recommendation": "Capture delay reason, responsibility, and lesson/action if material.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            4
+          ],
+          "record_ids": [
+            "A1000"
+          ],
+          "fields": {
+            "baseline_finish": "2026-03-15",
+            "actual_finish": "2026-03-30"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "actual_finish - baseline_finish >= threshold",
+        "value": 15,
+        "threshold": 7,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-3F17A878C1A21F8E",
+      "rule_id": "SCH-002",
+      "rule_name": "Baseline Finish Slippage",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A1010",
+      "title": "Baseline Finish Slippage",
+      "description": "Activity A1010 finished 21 days after baseline.",
+      "metrics": {
+        "slippage_days": 21
+      },
+      "business_impact": "Evidence of schedule variance and possible milestone impact.",
+      "recommendation": "Capture delay reason, responsibility, and lesson/action if material.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            5
+          ],
+          "record_ids": [
+            "A1010"
+          ],
+          "fields": {
+            "baseline_finish": "2026-03-30",
+            "actual_finish": "2026-04-20"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "actual_finish - baseline_finish >= threshold",
+        "value": 21,
+        "threshold": 7,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-FCBAB617E524C8C4",
+      "rule_id": "SCH-002",
+      "rule_name": "Baseline Finish Slippage",
+      "category": "schedule",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3000",
+      "title": "Baseline Finish Slippage",
+      "description": "Activity A3000 finished 13 days after baseline.",
+      "metrics": {
+        "slippage_days": 13
+      },
+      "business_impact": "Evidence of schedule variance and possible milestone impact.",
+      "recommendation": "Capture delay reason, responsibility, and lesson/action if material.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            8
+          ],
+          "record_ids": [
+            "A3000"
+          ],
+          "fields": {
+            "baseline_finish": "2026-05-15",
+            "actual_finish": "2026-05-28"
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "actual_finish - baseline_finish >= threshold",
+        "value": 13,
+        "threshold": 7,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-DD2E8C50A4274DE7",
+      "rule_id": "SCH-003",
+      "rule_name": "Critical Activity Delay",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "title": "Critical Activity Delay",
+      "description": "Critical activity A2000 is delayed or at risk.",
+      "metrics": {
+        "overdue": true,
+        "late_finish": false,
+        "total_float_days": -12
+      },
+      "business_impact": "Potential direct impact to project completion or major milestone.",
+      "recommendation": "Escalate recovery plan, predecessors/successors, resources, and mitigation actions.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            6
+          ],
+          "record_ids": [
+            "A2000"
+          ],
+          "fields": {
+            "critical": true,
+            "baseline_finish": "2026-07-15",
+            "actual_finish": null,
+            "total_float_days": -12
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "critical AND (overdue OR late_finish OR negative_float)",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-5291424D3F047D0D",
+      "rule_id": "SCH-003",
+      "rule_name": "Critical Activity Delay",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "title": "Critical Activity Delay",
+      "description": "Critical activity A3010 is delayed or at risk.",
+      "metrics": {
+        "overdue": true,
+        "late_finish": false,
+        "total_float_days": -8
+      },
+      "business_impact": "Potential direct impact to project completion or major milestone.",
+      "recommendation": "Escalate recovery plan, predecessors/successors, resources, and mitigation actions.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            9
+          ],
+          "record_ids": [
+            "A3010"
+          ],
+          "fields": {
+            "critical": true,
+            "baseline_finish": "2026-07-01",
+            "actual_finish": null,
+            "total_float_days": -8
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "critical AND (overdue OR late_finish OR negative_float)",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-A5DFCF24A31F38B7",
+      "rule_id": "SCH-003",
+      "rule_name": "Critical Activity Delay",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "title": "Critical Activity Delay",
+      "description": "Critical activity A3020 is delayed or at risk.",
+      "metrics": {
+        "overdue": true,
+        "late_finish": false,
+        "total_float_days": -18
+      },
+      "business_impact": "Potential direct impact to project completion or major milestone.",
+      "recommendation": "Escalate recovery plan, predecessors/successors, resources, and mitigation actions.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            10
+          ],
+          "record_ids": [
+            "A3020"
+          ],
+          "fields": {
+            "critical": true,
+            "baseline_finish": "2026-08-01",
+            "actual_finish": null,
+            "total_float_days": -18
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "critical AND (overdue OR late_finish OR negative_float)",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-792C96F66D7F633F",
+      "rule_id": "SCH-003",
+      "rule_name": "Critical Activity Delay",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3030",
+      "title": "Critical Activity Delay",
+      "description": "Critical activity A3030 is delayed or at risk.",
+      "metrics": {
+        "overdue": false,
+        "late_finish": false,
+        "total_float_days": -10
+      },
+      "business_impact": "Potential direct impact to project completion or major milestone.",
+      "recommendation": "Escalate recovery plan, predecessors/successors, resources, and mitigation actions.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            11
+          ],
+          "record_ids": [
+            "A3030"
+          ],
+          "fields": {
+            "critical": true,
+            "baseline_finish": "2026-09-15",
+            "actual_finish": null,
+            "total_float_days": -10
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "critical AND (overdue OR late_finish OR negative_float)",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-CE2BD2FE9CC5FA1D",
+      "rule_id": "SCH-003",
+      "rule_name": "Critical Activity Delay",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "title": "Critical Activity Delay",
+      "description": "Critical activity A3040 is delayed or at risk.",
+      "metrics": {
+        "overdue": true,
+        "late_finish": false,
+        "total_float_days": -15
+      },
+      "business_impact": "Potential direct impact to project completion or major milestone.",
+      "recommendation": "Escalate recovery plan, predecessors/successors, resources, and mitigation actions.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            12
+          ],
+          "record_ids": [
+            "A3040"
+          ],
+          "fields": {
+            "critical": true,
+            "baseline_finish": "2026-08-10",
+            "actual_finish": null,
+            "total_float_days": -15
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "critical AND (overdue OR late_finish OR negative_float)",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-1CC2FE0CC4206A35",
+      "rule_id": "SCH-004",
+      "rule_name": "Activity Progress Lag",
+      "category": "schedule",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "title": "Activity Progress Lag",
+      "description": "Activity A2000 is 18.0% behind planned progress.",
+      "metrics": {
+        "planned_progress": 1.0,
+        "actual_progress": 0.82,
+        "lag_pp": 0.18000000000000005
+      },
+      "business_impact": "Early signal of schedule recovery requirement.",
+      "recommendation": "Validate field progress and determine root cause and recovery action.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            6
+          ],
+          "record_ids": [
+            "A2000"
+          ],
+          "fields": {
+            "planned_progress": 1.0,
+            "actual_progress": 0.82
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.18000000000000005,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-23C7A4F8A17AA952",
+      "rule_id": "SCH-004",
+      "rule_name": "Activity Progress Lag",
+      "category": "schedule",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A2010",
+      "title": "Activity Progress Lag",
+      "description": "Activity A2010 is 12.0% behind planned progress.",
+      "metrics": {
+        "planned_progress": 1.0,
+        "actual_progress": 0.88,
+        "lag_pp": 0.12
+      },
+      "business_impact": "Early signal of schedule recovery requirement.",
+      "recommendation": "Validate field progress and determine root cause and recovery action.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            7
+          ],
+          "record_ids": [
+            "A2010"
+          ],
+          "fields": {
+            "planned_progress": 1.0,
+            "actual_progress": 0.88
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.12,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-15FE884036EFC442",
+      "rule_id": "SCH-004",
+      "rule_name": "Activity Progress Lag",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "title": "Activity Progress Lag",
+      "description": "Activity A3010 is 32.0% behind planned progress.",
+      "metrics": {
+        "planned_progress": 1.0,
+        "actual_progress": 0.68,
+        "lag_pp": 0.31999999999999995
+      },
+      "business_impact": "Early signal of schedule recovery requirement.",
+      "recommendation": "Validate field progress and determine root cause and recovery action.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            9
+          ],
+          "record_ids": [
+            "A3010"
+          ],
+          "fields": {
+            "planned_progress": 1.0,
+            "actual_progress": 0.68
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.31999999999999995,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-9144FF2A89800355",
+      "rule_id": "SCH-004",
+      "rule_name": "Activity Progress Lag",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "title": "Activity Progress Lag",
+      "description": "Activity A3020 is 40.0% behind planned progress.",
+      "metrics": {
+        "planned_progress": 0.95,
+        "actual_progress": 0.55,
+        "lag_pp": 0.3999999999999999
+      },
+      "business_impact": "Early signal of schedule recovery requirement.",
+      "recommendation": "Validate field progress and determine root cause and recovery action.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            10
+          ],
+          "record_ids": [
+            "A3020"
+          ],
+          "fields": {
+            "planned_progress": 0.95,
+            "actual_progress": 0.55
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.3999999999999999,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-124B84B7B3644BD4",
+      "rule_id": "SCH-004",
+      "rule_name": "Activity Progress Lag",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3030",
+      "title": "Activity Progress Lag",
+      "description": "Activity A3030 is 36.0% behind planned progress.",
+      "metrics": {
+        "planned_progress": 0.7,
+        "actual_progress": 0.34,
+        "lag_pp": 0.35999999999999993
+      },
+      "business_impact": "Early signal of schedule recovery requirement.",
+      "recommendation": "Validate field progress and determine root cause and recovery action.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            11
+          ],
+          "record_ids": [
+            "A3030"
+          ],
+          "fields": {
+            "planned_progress": 0.7,
+            "actual_progress": 0.34
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.35999999999999993,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-F8B92A72505215F1",
+      "rule_id": "SCH-004",
+      "rule_name": "Activity Progress Lag",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "title": "Activity Progress Lag",
+      "description": "Activity A3040 is 48.0% behind planned progress.",
+      "metrics": {
+        "planned_progress": 0.9,
+        "actual_progress": 0.42,
+        "lag_pp": 0.48000000000000004
+      },
+      "business_impact": "Early signal of schedule recovery requirement.",
+      "recommendation": "Validate field progress and determine root cause and recovery action.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            12
+          ],
+          "record_ids": [
+            "A3040"
+          ],
+          "fields": {
+            "planned_progress": 0.9,
+            "actual_progress": 0.42
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.48000000000000004,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-973E30A7FFC60E04",
+      "rule_id": "SCH-004",
+      "rule_name": "Activity Progress Lag",
+      "category": "schedule",
+      "severity": "warning",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3050",
+      "title": "Activity Progress Lag",
+      "description": "Activity A3050 is 38.0% behind planned progress.",
+      "metrics": {
+        "planned_progress": 0.5,
+        "actual_progress": 0.12,
+        "lag_pp": 0.38
+      },
+      "business_impact": "Early signal of schedule recovery requirement.",
+      "recommendation": "Validate field progress and determine root cause and recovery action.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            13
+          ],
+          "record_ids": [
+            "A3050"
+          ],
+          "fields": {
+            "planned_progress": 0.5,
+            "actual_progress": 0.12
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "planned_progress - actual_progress >= threshold",
+        "value": 0.38,
+        "threshold": 0.1,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-5C9D2870C05BB490",
+      "rule_id": "SCH-005",
+      "rule_name": "Negative Total Float",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "title": "Negative Total Float",
+      "description": "Activity A2000 has -12 days total float.",
+      "metrics": {
+        "total_float_days": -12
+      },
+      "business_impact": "Activity requires schedule recovery or network review to protect milestones.",
+      "recommendation": "Review driving path, constraints, calendars, and recovery options.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            6
+          ],
+          "record_ids": [
+            "A2000"
+          ],
+          "fields": {
+            "total_float_days": -12
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "total_float_days < 0",
+        "value": -12,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-2ECD2656F6EE4F33",
+      "rule_id": "SCH-005",
+      "rule_name": "Negative Total Float",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "title": "Negative Total Float",
+      "description": "Activity A3010 has -8 days total float.",
+      "metrics": {
+        "total_float_days": -8
+      },
+      "business_impact": "Activity requires schedule recovery or network review to protect milestones.",
+      "recommendation": "Review driving path, constraints, calendars, and recovery options.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            9
+          ],
+          "record_ids": [
+            "A3010"
+          ],
+          "fields": {
+            "total_float_days": -8
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "total_float_days < 0",
+        "value": -8,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-AB5CA4493BDA0D11",
+      "rule_id": "SCH-005",
+      "rule_name": "Negative Total Float",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "title": "Negative Total Float",
+      "description": "Activity A3020 has -18 days total float.",
+      "metrics": {
+        "total_float_days": -18
+      },
+      "business_impact": "Activity requires schedule recovery or network review to protect milestones.",
+      "recommendation": "Review driving path, constraints, calendars, and recovery options.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            10
+          ],
+          "record_ids": [
+            "A3020"
+          ],
+          "fields": {
+            "total_float_days": -18
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "total_float_days < 0",
+        "value": -18,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-FCE8FED18E2E1BC3",
+      "rule_id": "SCH-005",
+      "rule_name": "Negative Total Float",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3030",
+      "title": "Negative Total Float",
+      "description": "Activity A3030 has -10 days total float.",
+      "metrics": {
+        "total_float_days": -10
+      },
+      "business_impact": "Activity requires schedule recovery or network review to protect milestones.",
+      "recommendation": "Review driving path, constraints, calendars, and recovery options.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            11
+          ],
+          "record_ids": [
+            "A3030"
+          ],
+          "fields": {
+            "total_float_days": -10
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "total_float_days < 0",
+        "value": -10,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-AEC9201FD6ADEA67",
+      "rule_id": "SCH-005",
+      "rule_name": "Negative Total Float",
+      "category": "schedule",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "title": "Negative Total Float",
+      "description": "Activity A3040 has -15 days total float.",
+      "metrics": {
+        "total_float_days": -15
+      },
+      "business_impact": "Activity requires schedule recovery or network review to protect milestones.",
+      "recommendation": "Review driving path, constraints, calendars, and recovery options.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            12
+          ],
+          "record_ids": [
+            "A3040"
+          ],
+          "fields": {
+            "total_float_days": -15
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "total_float_days < 0",
+        "value": -15,
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-475091820CA9AE05",
+      "rule_id": "XDOM-001",
+      "rule_name": "Schedule Delay with High Cost Exposure",
+      "category": "cross_domain",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "title": "Schedule Delay with High Cost Exposure",
+      "description": "WBS 3.1 combines schedule delay with high cost exposure.",
+      "metrics": {
+        "budget": "12000000000",
+        "actual": "8490690000",
+        "outstanding_commitment": "2100000000",
+        "exposure": "10590690000",
+        "exposure_ratio": "0.8825575"
+      },
+      "business_impact": "Higher probability of time and cost overrun occurring together.",
+      "recommendation": "Escalate WBS as integrated cost-schedule risk; review recovery, remaining budget, and forecast.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            9
+          ],
+          "record_ids": [
+            "A3010"
+          ],
+          "fields": {
+            "wbs_code": "3.1",
+            "delayed_count": 1
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "schedule_delay AND exposure_ratio >= 0.80",
+        "value": "0.8825575",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-5A77BF96675DDCE3",
+      "rule_id": "XDOM-001",
+      "rule_name": "Schedule Delay with High Cost Exposure",
+      "category": "cross_domain",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "title": "Schedule Delay with High Cost Exposure",
+      "description": "WBS 3.2 combines schedule delay with high cost exposure.",
+      "metrics": {
+        "budget": "18000000000",
+        "actual": "16595674000",
+        "outstanding_commitment": "6200000000",
+        "exposure": "22795674000",
+        "exposure_ratio": "1.266426333333333333333333333"
+      },
+      "business_impact": "Higher probability of time and cost overrun occurring together.",
+      "recommendation": "Escalate WBS as integrated cost-schedule risk; review recovery, remaining budget, and forecast.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            10,
+            11
+          ],
+          "record_ids": [
+            "A3020",
+            "A3030"
+          ],
+          "fields": {
+            "wbs_code": "3.2",
+            "delayed_count": 2
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "schedule_delay AND exposure_ratio >= 0.80",
+        "value": "1.266426333333333333333333333",
+        "result": true
+      }
+    },
+    {
+      "finding_id": "FND-E4FD3DDA57B2BE7D",
+      "rule_id": "XDOM-001",
+      "rule_name": "Schedule Delay with High Cost Exposure",
+      "category": "cross_domain",
+      "severity": "critical",
+      "project_id": "PRJ-CCAI-001",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "title": "Schedule Delay with High Cost Exposure",
+      "description": "WBS 3.3 combines schedule delay with high cost exposure.",
+      "metrics": {
+        "budget": "14000000000",
+        "actual": "8875799000",
+        "outstanding_commitment": "3600000000",
+        "exposure": "12475799000",
+        "exposure_ratio": "0.8911285"
+      },
+      "business_impact": "Higher probability of time and cost overrun occurring together.",
+      "recommendation": "Escalate WBS as integrated cost-schedule risk; review recovery, remaining budget, and forecast.",
+      "confidence": 1.0,
+      "evidence": [
+        {
+          "source_sheet": "Schedule",
+          "source_rows": [
+            12
+          ],
+          "record_ids": [
+            "A3040"
+          ],
+          "fields": {
+            "wbs_code": "3.3",
+            "delayed_count": 1
+          },
+          "aggregation": null
+        }
+      ],
+      "calculation": {
+        "formula": "schedule_delay AND exposure_ratio >= 0.80",
+        "value": "0.8911285",
+        "result": true
+      }
+    }
+  ]
+}
+

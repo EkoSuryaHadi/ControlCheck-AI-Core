@@ -1,0 +1,248 @@
+{
+  "dataset_version": "0.1",
+  "project_id": "PRJ-CCAI-001",
+  "data_date": "2026-08-15",
+  "expected_finding_count": 24,
+  "expected_findings": [
+    {
+      "expected_id": "EXP-001",
+      "rule_id": "DQ-001",
+      "category": "Data Quality",
+      "severity": "Critical",
+      "source": "Actual_Cost",
+      "entity": "ACT-9003",
+      "finding_title": "Missing WBS Reference",
+      "why_expected": "Transaction has no WBS code."
+    },
+    {
+      "expected_id": "EXP-002",
+      "rule_id": "DQ-002",
+      "category": "Data Quality",
+      "severity": "Warning",
+      "source": "Actual_Cost",
+      "entity": "ACT-9001/ACT-9002",
+      "finding_title": "Duplicate Cost Transaction",
+      "why_expected": "Same date/WBS/vendor/PO/description/amount."
+    },
+    {
+      "expected_id": "EXP-003",
+      "rule_id": "DQ-003",
+      "category": "Data Quality",
+      "severity": "Critical",
+      "source": "Schedule",
+      "entity": "A9990",
+      "finding_title": "Contradictory Date / Progress",
+      "why_expected": "Actual finish precedes actual start and progress exceeds 100%."
+    },
+    {
+      "expected_id": "EXP-004",
+      "rule_id": "DQ-004",
+      "category": "Data Quality",
+      "severity": "Critical",
+      "source": "Actual_Cost",
+      "entity": "ACT-9004",
+      "finding_title": "Orphan WBS Reference",
+      "why_expected": "WBS 9.9 is not in WBS master."
+    },
+    {
+      "expected_id": "EXP-005",
+      "rule_id": "DQ-005",
+      "category": "Data Quality",
+      "severity": "Warning",
+      "source": "Actual_Cost",
+      "entity": "ACT-9005",
+      "finding_title": "Vendor Identity Inconsistency",
+      "why_expected": "Vendor ID V004 has inconsistent spelling."
+    },
+    {
+      "expected_id": "EXP-006",
+      "rule_id": "CST-001",
+      "category": "Cost",
+      "severity": "Critical",
+      "source": "Actual_Cost",
+      "entity": "3.1",
+      "finding_title": "Actual Cost Exceeds Budget",
+      "why_expected": "Cumulative actual should exceed WBS budget after planted outlier."
+    },
+    {
+      "expected_id": "EXP-007",
+      "rule_id": "CST-001",
+      "category": "Cost",
+      "severity": "Critical",
+      "source": "Actual_Cost",
+      "entity": "3.2",
+      "finding_title": "Actual Cost Exceeds Budget",
+      "why_expected": "Cumulative actual should exceed WBS budget."
+    },
+    {
+      "expected_id": "EXP-008",
+      "rule_id": "CST-002",
+      "category": "Cost",
+      "severity": "Critical",
+      "source": "Actual_Cost+Commitments",
+      "entity": "3.2",
+      "finding_title": "Actual + Commitment Exceeds Budget",
+      "why_expected": "Actual plus open commitment exceeds WBS budget."
+    },
+    {
+      "expected_id": "EXP-009",
+      "rule_id": "CST-002",
+      "category": "Cost",
+      "severity": "Warning",
+      "source": "Actual_Cost+Commitments",
+      "entity": "3.3",
+      "finding_title": "Actual + Commitment Exceeds Budget",
+      "why_expected": "Actual plus open commitment approaches/exceeds budget."
+    },
+    {
+      "expected_id": "EXP-010",
+      "rule_id": "CST-003",
+      "category": "Cost",
+      "severity": "Warning",
+      "source": "Actual_Cost",
+      "entity": "3.3",
+      "finding_title": "Cost Spike vs Recent Run Rate",
+      "why_expected": "August cost materially exceeds recent run-rate."
+    },
+    {
+      "expected_id": "EXP-011",
+      "rule_id": "CST-004",
+      "category": "Cost",
+      "severity": "Warning",
+      "source": "Actual_Cost",
+      "entity": "V005",
+      "finding_title": "Vendor Concentration Risk",
+      "why_expected": "Large recent share of WBS 3.2 spend goes to V005."
+    },
+    {
+      "expected_id": "EXP-012",
+      "rule_id": "CST-005",
+      "category": "Cost",
+      "severity": "Critical",
+      "source": "Actual_Cost",
+      "entity": "ACT-9006",
+      "finding_title": "High-Value Transaction Outlier",
+      "why_expected": "Transaction materially exceeds peer transactions."
+    },
+    {
+      "expected_id": "EXP-013",
+      "rule_id": "CST-006",
+      "category": "Cross-domain",
+      "severity": "Critical",
+      "source": "Actual_Cost+Progress",
+      "entity": "3.2",
+      "finding_title": "High Cost with Low Progress",
+      "why_expected": "High cost consumption while actual progress remains low."
+    },
+    {
+      "expected_id": "EXP-014",
+      "rule_id": "SCH-001",
+      "category": "Schedule",
+      "severity": "Critical",
+      "source": "Schedule",
+      "entity": "A2000",
+      "finding_title": "Overdue Activity",
+      "why_expected": "Baseline finish passed and activity incomplete."
+    },
+    {
+      "expected_id": "EXP-015",
+      "rule_id": "SCH-001",
+      "category": "Schedule",
+      "severity": "Critical",
+      "source": "Schedule",
+      "entity": "A3020",
+      "finding_title": "Overdue Activity",
+      "why_expected": "Baseline finish passed and activity incomplete."
+    },
+    {
+      "expected_id": "EXP-016",
+      "rule_id": "SCH-002",
+      "category": "Schedule",
+      "severity": "Warning",
+      "source": "Schedule",
+      "entity": "A1000",
+      "finding_title": "Baseline Finish Slippage",
+      "why_expected": "Actual finish is after baseline finish."
+    },
+    {
+      "expected_id": "EXP-017",
+      "rule_id": "SCH-002",
+      "category": "Schedule",
+      "severity": "Warning",
+      "source": "Schedule",
+      "entity": "A1010",
+      "finding_title": "Baseline Finish Slippage",
+      "why_expected": "Actual finish is after baseline finish."
+    },
+    {
+      "expected_id": "EXP-018",
+      "rule_id": "SCH-003",
+      "category": "Schedule",
+      "severity": "Critical",
+      "source": "Schedule",
+      "entity": "A3020",
+      "finding_title": "Critical Activity Delay",
+      "why_expected": "Critical activity is late."
+    },
+    {
+      "expected_id": "EXP-019",
+      "rule_id": "SCH-004",
+      "category": "Schedule",
+      "severity": "Warning",
+      "source": "Schedule",
+      "entity": "A3040",
+      "finding_title": "Activity Progress Lag",
+      "why_expected": "Actual progress is far below planned progress."
+    },
+    {
+      "expected_id": "EXP-020",
+      "rule_id": "SCH-005",
+      "category": "Schedule",
+      "severity": "Critical",
+      "source": "Schedule",
+      "entity": "A3020",
+      "finding_title": "Negative Total Float",
+      "why_expected": "Total float is negative."
+    },
+    {
+      "expected_id": "EXP-021",
+      "rule_id": "PRG-001",
+      "category": "Progress",
+      "severity": "Warning",
+      "source": "Progress",
+      "entity": "3.2",
+      "finding_title": "WBS Progress Lag",
+      "why_expected": "Actual progress is far below planned."
+    },
+    {
+      "expected_id": "EXP-022",
+      "rule_id": "PRG-002",
+      "category": "Progress",
+      "severity": "Critical",
+      "source": "Progress",
+      "entity": "5.0",
+      "finding_title": "Progress Above 100 Percent",
+      "why_expected": "Actual progress is 108%."
+    },
+    {
+      "expected_id": "EXP-023",
+      "rule_id": "PRG-003",
+      "category": "Cross-domain",
+      "severity": "Critical",
+      "source": "Actual_Cost+Progress",
+      "entity": "3.1",
+      "finding_title": "Cost Rising While Progress Flat",
+      "why_expected": "Recent cost acceleration with limited progress gain."
+    },
+    {
+      "expected_id": "EXP-024",
+      "rule_id": "XDOM-001",
+      "category": "Cross-domain",
+      "severity": "Critical",
+      "source": "Schedule+Actual_Cost",
+      "entity": "3.2",
+      "finding_title": "Schedule Delay with High Cost Exposure",
+      "why_expected": "Delayed critical workstream also has high cost exposure."
+    }
+  ]
+}

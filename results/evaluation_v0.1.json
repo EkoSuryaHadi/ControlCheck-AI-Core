@@ -1,0 +1,588 @@
+{
+  "executed_rule_count": 20,
+  "deterministic": true,
+  "expected_count": 24,
+  "actual_count": 85,
+  "tp": 20,
+  "fp": 65,
+  "fn": 4,
+  "precision": 0.23529411764705882,
+  "recall": 0.8333333333333334,
+  "f1": 0.3669724770642202,
+  "false_positives": [
+    {
+      "finding_id": "FND-D0BAE2E6C1C262BA",
+      "rule_id": "CST-003",
+      "entity": "3.1",
+      "title": "Cost Spike vs Recent Run Rate"
+    },
+    {
+      "finding_id": "FND-F43FA91C19D48D80",
+      "rule_id": "CST-003",
+      "entity": "3.2",
+      "title": "Cost Spike vs Recent Run Rate"
+    },
+    {
+      "finding_id": "FND-7AD85997CB0AA3F6",
+      "rule_id": "CST-004",
+      "entity": "V002",
+      "title": "Vendor Concentration Risk"
+    },
+    {
+      "finding_id": "FND-C4CF1EC8D6093438",
+      "rule_id": "CST-004",
+      "entity": "V003",
+      "title": "Vendor Concentration Risk"
+    },
+    {
+      "finding_id": "FND-41BA5B75EB632B5C",
+      "rule_id": "CST-004",
+      "entity": "V004",
+      "title": "Vendor Concentration Risk"
+    },
+    {
+      "finding_id": "FND-6A66BEA5169B22E1",
+      "rule_id": "CST-005",
+      "entity": "ACT-0003",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-FCCA627DE3FCC9D8",
+      "rule_id": "CST-005",
+      "entity": "ACT-0007",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-D7AAFB9078E70BBB",
+      "rule_id": "CST-005",
+      "entity": "ACT-0009",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-330E28800175B8C7",
+      "rule_id": "CST-005",
+      "entity": "ACT-0010",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-337EB2C9C98F6FE2",
+      "rule_id": "CST-005",
+      "entity": "ACT-0013",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-148297A51671496B",
+      "rule_id": "CST-005",
+      "entity": "ACT-0014",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-3241C875A873114F",
+      "rule_id": "CST-005",
+      "entity": "ACT-0017",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-38400A5115C10512",
+      "rule_id": "CST-005",
+      "entity": "ACT-0019",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-FA7D96F4F3AEAAE4",
+      "rule_id": "CST-005",
+      "entity": "ACT-0020",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-4285428B79BDC5F2",
+      "rule_id": "CST-005",
+      "entity": "ACT-0023",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-3BD9BAADF0BCCCC2",
+      "rule_id": "CST-005",
+      "entity": "ACT-0025",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-1212C2560F5E6ABC",
+      "rule_id": "CST-005",
+      "entity": "ACT-0030",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-3FF325D30EBD066A",
+      "rule_id": "CST-005",
+      "entity": "ACT-0034",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-BB307FA353BFAC85",
+      "rule_id": "CST-005",
+      "entity": "ACT-0035",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-E2D53CAB99DB79DD",
+      "rule_id": "CST-005",
+      "entity": "ACT-0038",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-9BA1856F5C845D9A",
+      "rule_id": "CST-005",
+      "entity": "ACT-0041",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-ADF8DBEA69E53974",
+      "rule_id": "CST-005",
+      "entity": "ACT-0042",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-A37C481DDDC4B8F8",
+      "rule_id": "CST-005",
+      "entity": "ACT-0043",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-7732EED7B8349383",
+      "rule_id": "CST-005",
+      "entity": "ACT-0044",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-7F92C38CDED319FA",
+      "rule_id": "CST-005",
+      "entity": "ACT-0047",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-3F897C2E1C65AC71",
+      "rule_id": "CST-005",
+      "entity": "ACT-0048",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-19D78A81EDDC64B1",
+      "rule_id": "CST-005",
+      "entity": "ACT-0051",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-D3098B43D6A5208F",
+      "rule_id": "CST-005",
+      "entity": "ACT-0055",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-BC321895D102D240",
+      "rule_id": "CST-005",
+      "entity": "ACT-0057",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-C62D66C3DD21BD23",
+      "rule_id": "CST-005",
+      "entity": "ACT-0060",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-8F56AD7838AF17C2",
+      "rule_id": "CST-005",
+      "entity": "ACT-0061",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-67FD1E44CFA7F8CD",
+      "rule_id": "CST-005",
+      "entity": "ACT-0062",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-30EADA6B1218B8B7",
+      "rule_id": "CST-005",
+      "entity": "ACT-9001",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-8904AE6F01EAD396",
+      "rule_id": "CST-005",
+      "entity": "ACT-9002",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-B532C8F3E0F9F36D",
+      "rule_id": "CST-005",
+      "entity": "ACT-9007",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-7DF815CA76592E94",
+      "rule_id": "CST-005",
+      "entity": "ACT-9008",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-12DC938457731EE8",
+      "rule_id": "CST-005",
+      "entity": "ACT-9009",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-5757A7D9F42D4DC5",
+      "rule_id": "CST-005",
+      "entity": "ACT-9010",
+      "title": "High-Value Transaction Outlier"
+    },
+    {
+      "finding_id": "FND-735512977732F87D",
+      "rule_id": "PRG-001",
+      "entity": "2.1",
+      "title": "WBS Progress Lag"
+    },
+    {
+      "finding_id": "FND-9BEC230CD2919860",
+      "rule_id": "PRG-001",
+      "entity": "2.2",
+      "title": "WBS Progress Lag"
+    },
+    {
+      "finding_id": "FND-6F44F5084F415A83",
+      "rule_id": "PRG-001",
+      "entity": "3.1",
+      "title": "WBS Progress Lag"
+    },
+    {
+      "finding_id": "FND-A9F014CE1356F819",
+      "rule_id": "PRG-001",
+      "entity": "3.3",
+      "title": "WBS Progress Lag"
+    },
+    {
+      "finding_id": "FND-83674D88D94A546F",
+      "rule_id": "PRG-003",
+      "entity": "3.2",
+      "title": "Cost Rising While Progress Flat"
+    },
+    {
+      "finding_id": "FND-764BAB53A6454C9C",
+      "rule_id": "PRG-003",
+      "entity": "3.3",
+      "title": "Cost Rising While Progress Flat"
+    },
+    {
+      "finding_id": "FND-89300C4B695A6F34",
+      "rule_id": "PRG-003",
+      "entity": "4.0",
+      "title": "Cost Rising While Progress Flat"
+    },
+    {
+      "finding_id": "FND-241B9EB1B5FFB5C3",
+      "rule_id": "SCH-001",
+      "entity": "A2010",
+      "title": "Overdue Activity"
+    },
+    {
+      "finding_id": "FND-5E97CF07360F8C7B",
+      "rule_id": "SCH-001",
+      "entity": "A3010",
+      "title": "Overdue Activity"
+    },
+    {
+      "finding_id": "FND-E57A6753DA119F93",
+      "rule_id": "SCH-001",
+      "entity": "A3040",
+      "title": "Overdue Activity"
+    },
+    {
+      "finding_id": "FND-FCBAB617E524C8C4",
+      "rule_id": "SCH-002",
+      "entity": "A3000",
+      "title": "Baseline Finish Slippage"
+    },
+    {
+      "finding_id": "FND-DD2E8C50A4274DE7",
+      "rule_id": "SCH-003",
+      "entity": "A2000",
+      "title": "Critical Activity Delay"
+    },
+    {
+      "finding_id": "FND-5291424D3F047D0D",
+      "rule_id": "SCH-003",
+      "entity": "A3010",
+      "title": "Critical Activity Delay"
+    },
+    {
+      "finding_id": "FND-792C96F66D7F633F",
+      "rule_id": "SCH-003",
+      "entity": "A3030",
+      "title": "Critical Activity Delay"
+    },
+    {
+      "finding_id": "FND-CE2BD2FE9CC5FA1D",
+      "rule_id": "SCH-003",
+      "entity": "A3040",
+      "title": "Critical Activity Delay"
+    },
+    {
+      "finding_id": "FND-1CC2FE0CC4206A35",
+      "rule_id": "SCH-004",
+      "entity": "A2000",
+      "title": "Activity Progress Lag"
+    },
+    {
+      "finding_id": "FND-23C7A4F8A17AA952",
+      "rule_id": "SCH-004",
+      "entity": "A2010",
+      "title": "Activity Progress Lag"
+    },
+    {
+      "finding_id": "FND-15FE884036EFC442",
+      "rule_id": "SCH-004",
+      "entity": "A3010",
+      "title": "Activity Progress Lag"
+    },
+    {
+      "finding_id": "FND-9144FF2A89800355",
+      "rule_id": "SCH-004",
+      "entity": "A3020",
+      "title": "Activity Progress Lag"
+    },
+    {
+      "finding_id": "FND-124B84B7B3644BD4",
+      "rule_id": "SCH-004",
+      "entity": "A3030",
+      "title": "Activity Progress Lag"
+    },
+    {
+      "finding_id": "FND-973E30A7FFC60E04",
+      "rule_id": "SCH-004",
+      "entity": "A3050",
+      "title": "Activity Progress Lag"
+    },
+    {
+      "finding_id": "FND-5C9D2870C05BB490",
+      "rule_id": "SCH-005",
+      "entity": "A2000",
+      "title": "Negative Total Float"
+    },
+    {
+      "finding_id": "FND-2ECD2656F6EE4F33",
+      "rule_id": "SCH-005",
+      "entity": "A3010",
+      "title": "Negative Total Float"
+    },
+    {
+      "finding_id": "FND-FCE8FED18E2E1BC3",
+      "rule_id": "SCH-005",
+      "entity": "A3030",
+      "title": "Negative Total Float"
+    },
+    {
+      "finding_id": "FND-AEC9201FD6ADEA67",
+      "rule_id": "SCH-005",
+      "entity": "A3040",
+      "title": "Negative Total Float"
+    },
+    {
+      "finding_id": "FND-475091820CA9AE05",
+      "rule_id": "XDOM-001",
+      "entity": "3.1",
+      "title": "Schedule Delay with High Cost Exposure"
+    },
+    {
+      "finding_id": "FND-E4FD3DDA57B2BE7D",
+      "rule_id": "XDOM-001",
+      "entity": "3.3",
+      "title": "Schedule Delay with High Cost Exposure"
+    }
+  ],
+  "false_negatives": [
+    {
+      "expected_id": "EXP-006",
+      "rule_id": "CST-001",
+      "category": "Cost",
+      "severity": "Critical",
+      "source": "Actual_Cost",
+      "entity": "3.1",
+      "finding_title": "Actual Cost Exceeds Budget",
+      "why_expected": "Cumulative actual should exceed WBS budget after planted outlier."
+    },
+    {
+      "expected_id": "EXP-007",
+      "rule_id": "CST-001",
+      "category": "Cost",
+      "severity": "Critical",
+      "source": "Actual_Cost",
+      "entity": "3.2",
+      "finding_title": "Actual Cost Exceeds Budget",
+      "why_expected": "Cumulative actual should exceed WBS budget."
+    },
+    {
+      "expected_id": "EXP-009",
+      "rule_id": "CST-002",
+      "category": "Cost",
+      "severity": "Warning",
+      "source": "Actual_Cost+Commitments",
+      "entity": "3.3",
+      "finding_title": "Actual + Commitment Exceeds Budget",
+      "why_expected": "Actual plus open commitment approaches/exceeds budget."
+    },
+    {
+      "expected_id": "EXP-023",
+      "rule_id": "PRG-003",
+      "category": "Cross-domain",
+      "severity": "Critical",
+      "source": "Actual_Cost+Progress",
+      "entity": "3.1",
+      "finding_title": "Cost Rising While Progress Flat",
+      "why_expected": "Recent cost acceleration with limited progress gain."
+    }
+  ],
+  "severity_matches": 14,
+  "severity_mismatches": [
+    {
+      "rule_id": "CST-004",
+      "entity": "V005",
+      "expected": "warning",
+      "actual": "critical"
+    },
+    {
+      "rule_id": "DQ-005",
+      "entity": "ACT-9005",
+      "expected": "warning",
+      "actual": "observation"
+    },
+    {
+      "rule_id": "PRG-001",
+      "entity": "3.2",
+      "expected": "warning",
+      "actual": "critical"
+    },
+    {
+      "rule_id": "SCH-002",
+      "entity": "A1000",
+      "expected": "warning",
+      "actual": "critical"
+    },
+    {
+      "rule_id": "SCH-002",
+      "entity": "A1010",
+      "expected": "warning",
+      "actual": "critical"
+    },
+    {
+      "rule_id": "SCH-004",
+      "entity": "A3040",
+      "expected": "warning",
+      "actual": "critical"
+    }
+  ],
+  "per_rule": {
+    "CST-001": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 2
+    },
+    "CST-002": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 1
+    },
+    "CST-003": {
+      "tp": 1,
+      "fp": 2,
+      "fn": 0
+    },
+    "CST-004": {
+      "tp": 1,
+      "fp": 3,
+      "fn": 0
+    },
+    "CST-005": {
+      "tp": 1,
+      "fp": 33,
+      "fn": 0
+    },
+    "CST-006": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "DQ-001": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "DQ-002": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "DQ-003": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "DQ-004": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "DQ-005": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "PRG-001": {
+      "tp": 1,
+      "fp": 4,
+      "fn": 0
+    },
+    "PRG-002": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "PRG-003": {
+      "tp": 0,
+      "fp": 3,
+      "fn": 1
+    },
+    "SCH-001": {
+      "tp": 2,
+      "fp": 3,
+      "fn": 0
+    },
+    "SCH-002": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 0
+    },
+    "SCH-003": {
+      "tp": 1,
+      "fp": 4,
+      "fn": 0
+    },
+    "SCH-004": {
+      "tp": 1,
+      "fp": 6,
+      "fn": 0
+    },
+    "SCH-005": {
+      "tp": 1,
+      "fp": 4,
+      "fn": 0
+    },
+    "XDOM-001": {
+      "tp": 1,
+      "fp": 2,
+      "fn": 0
+    }
+  }
+}
+
