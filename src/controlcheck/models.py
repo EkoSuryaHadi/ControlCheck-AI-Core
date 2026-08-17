@@ -136,7 +136,7 @@ class Finding(RecordModel):
 
 
 class AuditResult(RecordModel):
-    engine_version: str = "0.1.0"
+    engine_version: str = "0.2.0"
     project_id: str
     data_date: date
     rule_count: int

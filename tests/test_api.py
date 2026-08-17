@@ -7,7 +7,7 @@ from controlcheck.api import create_app
 
 def test_health(sample_catalogue):
     client = TestClient(create_app(sample_catalogue))
-    assert client.get("/health").json() == {"status": "ok", "engine_version": "0.1.0"}
+    assert client.get("/health").json() == {"status": "ok", "engine_version": "0.2.0"}
 
 
 def test_audit_rejects_non_xlsx(sample_catalogue):

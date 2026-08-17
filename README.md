@@ -1,70 +1,109 @@
-# ControlCheck Core Engine v0.1
+# ControlCheck Core Engine v0.2
 
-ControlCheck is a deterministic project-control audit engine for EPC cost, schedule, progress, and data-quality data. It reads the supplied synthetic Excel workbook, executes 20 catalogue rules, attaches traceable evidence to every finding, and evaluates the results against the 24-item ground truth.
+ControlCheck is a deterministic project-control audit engine for EPC cost, schedule, progress, and data-quality data. It reads versioned Excel datasets, executes 20 catalogue rules, attaches traceable evidence to every finding, and evaluates results against governed ground truth.
 
-No LLM, frontend, or database is used.
+No LLM, frontend, or database is used in the core engine.
 
-## What is included
+## v0.2 validation alignment
 
-- Typed Excel loader with required-sheet and required-column validation
-- Five data-quality rules (`DQ-001`–`DQ-005`)
-- Six cost and cost/progress rules (`CST-001`–`CST-006`)
-- Five schedule rules (`SCH-001`–`SCH-005`)
-- Three progress/cross-domain rules (`PRG-001`–`PRG-003`)
-- One integrated cost/schedule rule (`XDOM-001`)
-- Evidence-enforcing finding builder and stable finding IDs
-- Deterministic registry and JSON output
-- Ground-truth evaluator with TP, FP, FN, precision, recall, F1, per-rule results, and severity comparison
-- Typer CLI and minimal FastAPI upload wrapper
-- Automated test suite
+Validation Alignment v0.2 adds:
 
-## Requirements
+- Structured runtime definitions for all 20 rules
+- Dataset, catalogue, and ground-truth compatibility preflight
+- Exhaustive adjudication of 89 v0.1 actual/expected rule–entity combinations
+- Golden Positive and Boundary / Negative workbooks
+- Exhaustive v0.2 ground truth with evidence anchors and metric expectations
+- Raw and exception-aware evaluation metrics
+- Separate severity and metric agreement reporting
+- CLI and FastAPI version-mismatch error contracts
+- Preserved v0.1 artifacts and SHA-256 manifest
+
+The core changes backed by adjudication are:
+
+- `CST-004` now evaluates at `WBS|VENDOR` grain.
+- `CST-005` requires both 25% of WBS budget and 3% of project budget.
+- `PRG-003` requires current-period cost of at least 1% of project budget.
+- Golden fixture values correct four planted-positive inconsistencies from v0.1.
+
+## Verified controlled-fixture result
+
+| Fixture | Expected | Actual | TP | FP | FN | Precision | Recall | Severity | Metrics |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Golden Positive | 59 | 59 | 59 | 0 | 0 | 100% | 100% | 100% | 100% |
+| Boundary / Negative | 0 | 0 | 0 | 0 | 0 | 100% | 100% | 100% | 100% |
+
+The boundary workbook contains 50 literal cases across 16 numeric rules. Empty-set precision and recall are 100% when both expected and actual full-engine finding sets are empty.
+
+These results prove agreement on controlled synthetic fixtures. They are **not a customer-accuracy claim** and do not predict performance on unseen projects.
+
+See `results/evaluation_summary_v0.2.md` for the interpretation and historical comparison.
+
+## Requirements and installation
 
 - Python 3.11 or newer
-
-Install in a virtual environment:
 
 ```powershell
 python -m pip install -e ".[dev]"
 ```
 
-## Input artifacts
+## v0.2 artifacts
 
-The commands use:
+```text
+data/
+├── ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx
+├── ControlCheck_AI_Boundary_Negative_Dataset_v0.2.xlsx
+├── controlcheck_rule_catalogue_v0.2.json
+├── controlcheck_golden_expected_findings_v0.2.json
+└── controlcheck_boundary_expected_findings_v0.2.json
 
-- `ControlCheck_AI_Synthetic_Project_Dataset_v0.1.xlsx`
-- `controlcheck_rule_catalogue_v0.1.json`
-- `controlcheck_expected_findings_v0.1.json`
+validation/
+├── adjudication_v0.2.csv
+├── v01_artifact_hashes.json
+└── previews/v0.2/
+```
 
-Put them in `data/`, or pass their existing absolute paths to the CLI. The source artifacts used for this evaluation were found in `C:\Users\USER\Downloads`.
+The v0.1 workbook, catalogue, ground truth, findings, evaluation, and checksum records remain unchanged for historical reproducibility.
 
 ## CLI
 
-After editable installation:
+After editable installation, run the Golden Positive fixture:
 
 ```powershell
-controlcheck run data\ControlCheck_AI_Synthetic_Project_Dataset_v0.1.xlsx `
-  --catalogue data\controlcheck_rule_catalogue_v0.1.json `
-  --output results\findings_v0.1.json
+controlcheck run data\ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx `
+  --catalogue data\controlcheck_rule_catalogue_v0.2.json `
+  --output results\findings_v0.2.json
 ```
 
 ```powershell
-controlcheck evaluate data\ControlCheck_AI_Synthetic_Project_Dataset_v0.1.xlsx `
-  --catalogue data\controlcheck_rule_catalogue_v0.1.json `
-  --ground-truth data\controlcheck_expected_findings_v0.1.json `
-  --output results\evaluation_v0.1.json
+controlcheck evaluate data\ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx `
+  --catalogue data\controlcheck_rule_catalogue_v0.2.json `
+  --ground-truth data\controlcheck_golden_expected_findings_v0.2.json `
+  --output results\evaluation_v0.2.json `
+  --strict
 ```
 
-Without installation, set `PYTHONPATH=src` and run `python -m controlcheck.cli` with the same subcommands.
+Run the Boundary / Negative fixture:
 
-Use `--strict` on `evaluate` when CI must fail unless both precision and recall equal `1.0`. Normal evaluation exits successfully even when labels disagree, so the diagnostic JSON is always produced.
+```powershell
+controlcheck evaluate data\ControlCheck_AI_Boundary_Negative_Dataset_v0.2.xlsx `
+  --catalogue data\controlcheck_rule_catalogue_v0.2.json `
+  --ground-truth data\controlcheck_boundary_expected_findings_v0.2.json `
+  --output results\boundary_evaluation_v0.2.json `
+  --strict
+```
+
+Without installation, add `src` to Python's import path and invoke `controlcheck.cli` with the same arguments.
+
+`--strict` requires precision, recall, severity accuracy, and metric accuracy of 100%, with zero unreviewed labels. Normal evaluation still writes diagnostics when quality gates fail.
+
+## Version compatibility
+
+The engine compares the dataset, catalogue, and ground-truth major/minor versions before executing rules. A mismatch returns `incompatible_artifact_versions` through both CLI and API; rule execution and output writing do not proceed.
 
 ## FastAPI
 
-Set the catalogue path and start the app:
-
 ```powershell
-$env:CONTROLCHECK_CATALOGUE = "data\controlcheck_rule_catalogue_v0.1.json"
+$env:CONTROLCHECK_CATALOGUE = "data\controlcheck_rule_catalogue_v0.2.json"
 uvicorn controlcheck.api:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
@@ -73,56 +112,37 @@ Endpoints:
 - `GET /health`
 - `POST /v1/audits` with one `.xlsx` multipart upload
 
-The upload is capped at 25 MiB by default and processed from a bounded in-memory buffer.
+The upload is capped at 25 MiB by default and processed from a bounded in-memory buffer. Incompatible workbook/catalogue versions return HTTP 422 with a structured error code.
 
-## Finding contract
+## Finding and evaluation contracts
 
-Every finding includes:
+Every finding includes a stable ID, rule and entity identity, severity, deterministic metrics, business impact, recommendation, calculation trace, and at least one evidence item.
 
-- Stable finding, rule, project, and entity identifiers
-- Category, severity, deterministic description, metrics, impact, and recommendation
-- At least one evidence item with source sheet, row numbers, record IDs, and relevant values
-- Calculation trace with formula, operands/thresholds, and result
+Detection matching uses `(rule_id, normalized_entity)`. The v0.2 evaluator reports:
 
-The builder rejects a finding with no evidence.
+- TP, FP, FN, precision, recall, and F1
+- Raw and exception-aware counts
+- Approved exceptions without hiding them from raw reporting
+- Severity accuracy and mismatches
+- Metric accuracy and mismatches
+- Unreviewed label count
+- Per-rule reconciliation
+- Repeated-run determinism
 
-## Evaluation identity
-
-Detection matching uses `(rule_id, normalized_entity)`. Composite entities such as `ACT-9001/ACT-9002` are order-independent. Severity is deliberately evaluated separately because some supplied severity labels conflict with the catalogue defaults.
-
-## Verified baseline result
-
-Using the catalogue literally against the supplied workbook:
-
-- Expected labels: 24
-- Unique actual findings: 85
-- True positives: 20
-- False positives: 65
-- False negatives: 4
-- Precision: 0.2353
-- Recall: 0.8333
-- F1: 0.3670
-- Deterministic repeated run: yes
-
-The large FP count is primarily caused by the ground truth selecting only planted examples while catalogue thresholds also match many unlabelled records. For example, `CST-005` says a transaction at or above 5% of WBS budget is material; many ordinary synthetic transactions cross that threshold, but only `ACT-9006` is labelled. The engine does not suppress catalogue-valid findings merely to improve the test score.
-
-The four false negatives are:
-
-- `CST-001 / 3.1`: workbook actual is below its budget.
-- `CST-001 / 3.2`: workbook actual is below its budget.
-- `CST-002 / 3.3`: actual plus outstanding (committed minus invoiced) is below the catalogue condition under the workbook values.
-- `PRG-003 / 3.1`: latest progress increases by 3 percentage points, above the catalogue maximum of 2 points.
-
-See `results/evaluation_v0.1.json` for the complete FP/FN and per-rule lists.
-
-## Tests
+## Development and verification
 
 ```powershell
 python -m pytest -q -p no:cacheprovider
 python -m compileall -q src
 ```
 
-The suite covers loader validation, evidence invariants, deterministic ordering, all 20 rules, threshold boundaries, evaluator matching, CLI workflows, API uploads, and the supplied-artifact regression.
+Rebuild the validation workbooks with the bundled artifact-tool runtime:
+
+```powershell
+node tools\build_validation_workbooks.mjs
+```
+
+The builder exports both workbooks, inspection logs, and rendered previews for every sheet.
 
 ## Package layout
 
@@ -131,6 +151,9 @@ src/controlcheck/
 ├── loader.py
 ├── models.py
 ├── config.py
+├── versioning.py
+├── ground_truth.py
+├── adjudication.py
 ├── builders.py
 ├── engine.py
 ├── evaluation.py
