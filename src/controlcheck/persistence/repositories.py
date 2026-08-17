@@ -5,7 +5,17 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import ProjectRecord
+from .models import OrganizationRecord, ProjectRecord
+
+
+class OrganizationRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def get(self, organization_id: UUID) -> OrganizationRecord | None:
+        return self.session.scalar(
+            select(OrganizationRecord).where(OrganizationRecord.id == organization_id)
+        )
 
 
 class ProjectRepository:
