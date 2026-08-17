@@ -136,6 +136,26 @@ python -m pytest -q -p no:cacheprovider
 python -m compileall -q src
 ```
 
+## PostgreSQL persistence API (Phase 4A)
+
+Start the local PostgreSQL 16 service and apply the executable schema:
+
+```powershell
+podman compose up -d postgres
+$env:CONTROLCHECK_DATABASE_URL = "postgresql+psycopg://controlcheck:controlcheck@127.0.0.1:54329/controlcheck"
+alembic upgrade head
+```
+
+Run FastAPI with the validated v0.2 catalogue and local upload storage:
+
+```powershell
+$env:CONTROLCHECK_CATALOGUE = "data\controlcheck_rule_catalogue_v0.2.json"
+$env:CONTROLCHECK_UPLOAD_ROOT = "var\uploads"
+uvicorn controlcheck.api:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+Durable endpoints require `X-Organization-ID: <uuid>`. This is an explicit development tenant context, not authentication. Login and complete RBAC are deferred. The primary workflow is project creation followed by `POST /v1/projects/{project_id}/analysis-runs`; run history, findings, evidence, filters, and finding status are then available through the `/v1` resources documented by FastAPI OpenAPI.
+
 Rebuild the validation workbooks with the bundled artifact-tool runtime:
 
 ```powershell

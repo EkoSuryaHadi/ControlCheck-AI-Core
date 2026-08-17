@@ -20,8 +20,10 @@ from .errors import ControlCheckApplicationError
 from .loader import WorkbookSchemaError
 from .models import AuditResult
 from .persistence.repositories import AnalysisRepository, FindingRepository, OrganizationRepository, ProjectRepository
+from .persistence.database import create_session_factory
 from .service import run_audit
-from .storage import FileStorage
+from .settings import PersistenceSettings
+from .storage import FileStorage, LocalFileStorage
 from .versioning import VersionCompatibilityError
 
 
@@ -256,4 +258,17 @@ def create_app(
     return application
 
 
-app = create_app()
+def create_configured_app() -> FastAPI:
+    catalogue = _default_catalogue()
+    try:
+        settings = PersistenceSettings.from_env()
+    except RuntimeError:
+        return create_app(catalogue)
+    return create_app(
+        catalogue,
+        session_factory=create_session_factory(settings.database_url),
+        storage=LocalFileStorage(settings.upload_root),
+    )
+
+
+app = create_configured_app()
