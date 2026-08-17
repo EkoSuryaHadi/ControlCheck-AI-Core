@@ -1,0 +1,1274 @@
+{
+  "schema_version": "0.2",
+  "dataset_version": "0.2",
+  "catalogue_version": "0.2",
+  "project_id": "PRJ-CCAI-001",
+  "data_date": "2026-08-15",
+  "expected_finding_count": 59,
+  "expected_findings": [
+    {
+      "expected_id": "GOLD-EXP-001",
+      "rule_id": "CST-001",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "severity": "warning",
+      "metric_expectations": {
+        "budget": "8000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-005"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-001|3.1",
+      "rationale": "Literal cumulative actual exceeds the adjudicated WBS budget.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-002",
+      "rule_id": "CST-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "severity": "warning",
+      "metric_expectations": {
+        "budget": "16000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-006"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-001|3.2",
+      "rationale": "Literal cumulative actual exceeds the adjudicated WBS budget.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-003",
+      "rule_id": "CST-002",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "severity": "critical",
+      "metric_expectations": {
+        "budget": "8000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-005"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-002|3.1",
+      "rationale": "Literal actual plus remaining open commitment exceeds WBS budget.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-004",
+      "rule_id": "CST-002",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "severity": "critical",
+      "metric_expectations": {
+        "budget": "16000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-006"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-002|3.2",
+      "rationale": "Literal actual plus remaining open commitment exceeds WBS budget.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-005",
+      "rule_id": "CST-002",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "severity": "warning",
+      "metric_expectations": {
+        "budget": "14000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-007"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-002|3.3",
+      "rationale": "Literal actual plus remaining open commitment exceeds WBS budget.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-006",
+      "rule_id": "CST-003",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "severity": "warning",
+      "metric_expectations": {
+        "current_period": "2026-08"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-0059",
+            "ACT-9006"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-003|3.1",
+      "rationale": "August cost is at least 130% of the recent run rate and clears project materiality.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-007",
+      "rule_id": "CST-003",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "severity": "warning",
+      "metric_expectations": {
+        "current_period": "2026-08"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9008",
+            "ACT-9009",
+            "ACT-9010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-003|3.2",
+      "rationale": "August cost is at least 130% of the recent run rate and clears project materiality.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-008",
+      "rule_id": "CST-003",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "severity": "warning",
+      "metric_expectations": {
+        "current_period": "2026-08"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9007"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-003|3.3",
+      "rationale": "August cost is at least 130% of the recent run rate and clears project materiality.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-009",
+      "rule_id": "CST-004",
+      "entity_type": "vendor_wbs",
+      "entity_id": "3.1|V002",
+      "severity": "critical",
+      "metric_expectations": {
+        "wbs_code": "3.1",
+        "vendor": "V002"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-0023",
+            "ACT-0050",
+            "ACT-0059",
+            "ACT-9006"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-004|3.1|V002",
+      "rationale": "Vendor share within the declared WBS|VENDOR grain meets the catalogue band.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-010",
+      "rule_id": "CST-004",
+      "entity_type": "vendor_wbs",
+      "entity_id": "3.2|V005",
+      "severity": "critical",
+      "metric_expectations": {
+        "wbs_code": "3.2",
+        "vendor": "V005"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-0006",
+            "ACT-0015",
+            "ACT-0051",
+            "ACT-9001",
+            "ACT-9002",
+            "ACT-9008",
+            "ACT-9009",
+            "ACT-9010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-004|3.2|V005",
+      "rationale": "Vendor share within the declared WBS|VENDOR grain meets the catalogue band.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-011",
+      "rule_id": "CST-004",
+      "entity_type": "vendor_wbs",
+      "entity_id": "3.3|V003",
+      "severity": "warning",
+      "metric_expectations": {
+        "wbs_code": "3.3",
+        "vendor": "V003"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9007"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-004|3.3|V003",
+      "rationale": "Vendor share within the declared WBS|VENDOR grain meets the catalogue band.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-012",
+      "rule_id": "CST-004",
+      "entity_type": "vendor_wbs",
+      "entity_id": "4.0|V004",
+      "severity": "warning",
+      "metric_expectations": {
+        "wbs_code": "4.0",
+        "vendor": "V004"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-0008",
+            "ACT-0026",
+            "ACT-0062"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-004|4.0|V004",
+      "rationale": "Vendor share within the declared WBS|VENDOR grain meets the catalogue band.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-013",
+      "rule_id": "CST-004",
+      "entity_type": "vendor_wbs",
+      "entity_id": "5.0|V003",
+      "severity": "warning",
+      "metric_expectations": {
+        "wbs_code": "5.0",
+        "vendor": "V003"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-0009",
+            "ACT-0054",
+            "ACT-0063"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-004|5.0|V003",
+      "rationale": "Vendor share within the declared WBS|VENDOR grain meets the catalogue band.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-014",
+      "rule_id": "CST-004",
+      "entity_type": "vendor_wbs",
+      "entity_id": "9.9|V004",
+      "severity": "critical",
+      "metric_expectations": {
+        "wbs_code": "9.9",
+        "vendor": "V004"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9004"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-004|9.9|V004",
+      "rationale": "Vendor share within the declared WBS|VENDOR grain meets the catalogue band.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-015",
+      "rule_id": "CST-005",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9006",
+      "severity": "critical",
+      "metric_expectations": {
+        "amount": "4600000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9006"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-005|ACT-9006",
+      "rationale": "Transaction meets both 25% WBS-share and 3% project-share thresholds.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-016",
+      "rule_id": "CST-005",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9007",
+      "severity": "critical",
+      "metric_expectations": {
+        "amount": "3800000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9007"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-005|ACT-9007",
+      "rationale": "Transaction meets both 25% WBS-share and 3% project-share thresholds.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-017",
+      "rule_id": "CST-006",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.32
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-32-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#CST-006|3.2",
+      "rationale": "Cost consumption is at least 80% while physical progress is at most 50%.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-018",
+      "rule_id": "DQ-001",
+      "entity_type": "record",
+      "entity_id": "ACT-9003",
+      "severity": "critical",
+      "metric_expectations": {
+        "missing_wbs_count": 1
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9003"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#DQ-001|ACT-9003",
+      "rationale": "Source transaction has no WBS code.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-019",
+      "rule_id": "DQ-002",
+      "entity_type": "transaction_group",
+      "entity_id": "ACT-9001/ACT-9002",
+      "severity": "warning",
+      "metric_expectations": {
+        "duplicate_count": 2
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9001",
+            "ACT-9002"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#DQ-002|ACT-9001/ACT-9002",
+      "rationale": "The two transaction rows share the full normalized duplicate key.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-020",
+      "rule_id": "DQ-003",
+      "entity_type": "activity",
+      "entity_id": "A9990",
+      "severity": "critical",
+      "metric_expectations": {
+        "invalid_progress": true
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A9990"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#DQ-003|A9990",
+      "rationale": "The activity has contradictory dates and progress above 100 percent.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-021",
+      "rule_id": "DQ-004",
+      "entity_type": "record",
+      "entity_id": "ACT-9004",
+      "severity": "critical",
+      "metric_expectations": {
+        "wbs_code": "9.9"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9004"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#DQ-004|ACT-9004",
+      "rationale": "Source transaction references WBS 9.9, which is absent from the WBS master.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-022",
+      "rule_id": "DQ-005",
+      "entity_type": "transaction",
+      "entity_id": "ACT-9005",
+      "severity": "observation",
+      "metric_expectations": {
+        "vendor_id": "V004"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Actual_Cost",
+          "record_ids": [
+            "ACT-9005"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#DQ-005|ACT-9005",
+      "rationale": "Vendor V004 has more than one normalized name variant.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-023",
+      "rule_id": "PRG-001",
+      "entity_type": "wbs",
+      "entity_id": "2.1",
+      "severity": "warning",
+      "metric_expectations": {
+        "actual_progress": 0.82
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-21-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-001|2.1",
+      "rationale": "Latest actual progress trails plan by at least 10 percentage points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-024",
+      "rule_id": "PRG-001",
+      "entity_type": "wbs",
+      "entity_id": "2.2",
+      "severity": "warning",
+      "metric_expectations": {
+        "actual_progress": 0.88
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-22-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-001|2.2",
+      "rationale": "Latest actual progress trails plan by at least 10 percentage points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-025",
+      "rule_id": "PRG-001",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.6
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-31-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-001|3.1",
+      "rationale": "Latest actual progress trails plan by at least 10 percentage points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-026",
+      "rule_id": "PRG-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.32
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-32-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-001|3.2",
+      "rationale": "Latest actual progress trails plan by at least 10 percentage points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-027",
+      "rule_id": "PRG-001",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.27
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-33-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-001|3.3",
+      "rationale": "Latest actual progress trails plan by at least 10 percentage points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-028",
+      "rule_id": "PRG-002",
+      "entity_type": "wbs",
+      "entity_id": "5.0",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 1.08
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-50-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-002|5.0",
+      "rationale": "Latest actual progress is 108 percent.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-029",
+      "rule_id": "PRG-003",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "severity": "critical",
+      "metric_expectations": {
+        "current_progress": 0.6
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-31-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-003|3.1",
+      "rationale": "Current-period cost rises materially while progress changes by no more than 2 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-030",
+      "rule_id": "PRG-003",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "severity": "critical",
+      "metric_expectations": {
+        "current_progress": 0.32
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-32-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-003|3.2",
+      "rationale": "Current-period cost rises materially while progress changes by no more than 2 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-031",
+      "rule_id": "PRG-003",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "severity": "critical",
+      "metric_expectations": {
+        "current_progress": 0.27
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Progress",
+          "record_ids": [
+            "PRG-33-4"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#PRG-003|3.3",
+      "rationale": "Current-period cost rises materially while progress changes by no more than 2 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-032",
+      "rule_id": "SCH-001",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.82
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A2000"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-001|A2000",
+      "rationale": "Activity is incomplete after baseline finish at the data date.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-033",
+      "rule_id": "SCH-001",
+      "entity_type": "activity",
+      "entity_id": "A2010",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.88
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A2010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-001|A2010",
+      "rationale": "Activity is incomplete after baseline finish at the data date.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-034",
+      "rule_id": "SCH-001",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.68
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-001|A3010",
+      "rationale": "Activity is incomplete after baseline finish at the data date.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-035",
+      "rule_id": "SCH-001",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.55
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3020"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-001|A3020",
+      "rationale": "Activity is incomplete after baseline finish at the data date.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-036",
+      "rule_id": "SCH-001",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.42
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3040"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-001|A3040",
+      "rationale": "Activity is incomplete after baseline finish at the data date.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-037",
+      "rule_id": "SCH-002",
+      "entity_type": "activity",
+      "entity_id": "A1000",
+      "severity": "critical",
+      "metric_expectations": {
+        "slippage_days": 15
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A1000"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-002|A1000",
+      "rationale": "Actual finish is at least 7 days later than baseline finish.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-038",
+      "rule_id": "SCH-002",
+      "entity_type": "activity",
+      "entity_id": "A1010",
+      "severity": "critical",
+      "metric_expectations": {
+        "slippage_days": 21
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A1010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-002|A1010",
+      "rationale": "Actual finish is at least 7 days later than baseline finish.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-039",
+      "rule_id": "SCH-002",
+      "entity_type": "activity",
+      "entity_id": "A3000",
+      "severity": "warning",
+      "metric_expectations": {
+        "slippage_days": 13
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3000"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-002|A3000",
+      "rationale": "Actual finish is at least 7 days later than baseline finish.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-040",
+      "rule_id": "SCH-003",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -12
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A2000"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-003|A2000",
+      "rationale": "Critical activity has an overdue, late-finish, or negative-float condition.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-041",
+      "rule_id": "SCH-003",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -8
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-003|A3010",
+      "rationale": "Critical activity has an overdue, late-finish, or negative-float condition.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-042",
+      "rule_id": "SCH-003",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -18
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3020"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-003|A3020",
+      "rationale": "Critical activity has an overdue, late-finish, or negative-float condition.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-043",
+      "rule_id": "SCH-003",
+      "entity_type": "activity",
+      "entity_id": "A3030",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -10
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3030"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-003|A3030",
+      "rationale": "Critical activity has an overdue, late-finish, or negative-float condition.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-044",
+      "rule_id": "SCH-003",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -15
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3040"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-003|A3040",
+      "rationale": "Critical activity has an overdue, late-finish, or negative-float condition.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-045",
+      "rule_id": "SCH-004",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "severity": "warning",
+      "metric_expectations": {
+        "actual_progress": 0.82
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A2000"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-004|A2000",
+      "rationale": "Actual activity progress trails planned progress by at least 10 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-046",
+      "rule_id": "SCH-004",
+      "entity_type": "activity",
+      "entity_id": "A2010",
+      "severity": "warning",
+      "metric_expectations": {
+        "actual_progress": 0.88
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A2010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-004|A2010",
+      "rationale": "Actual activity progress trails planned progress by at least 10 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-047",
+      "rule_id": "SCH-004",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.68
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-004|A3010",
+      "rationale": "Actual activity progress trails planned progress by at least 10 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-048",
+      "rule_id": "SCH-004",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.55
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3020"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-004|A3020",
+      "rationale": "Actual activity progress trails planned progress by at least 10 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-049",
+      "rule_id": "SCH-004",
+      "entity_type": "activity",
+      "entity_id": "A3030",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.34
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3030"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-004|A3030",
+      "rationale": "Actual activity progress trails planned progress by at least 10 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-050",
+      "rule_id": "SCH-004",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "severity": "critical",
+      "metric_expectations": {
+        "actual_progress": 0.42
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3040"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-004|A3040",
+      "rationale": "Actual activity progress trails planned progress by at least 10 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-051",
+      "rule_id": "SCH-004",
+      "entity_type": "activity",
+      "entity_id": "A3050",
+      "severity": "warning",
+      "metric_expectations": {
+        "actual_progress": 0.12
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3050"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-004|A3050",
+      "rationale": "Actual activity progress trails planned progress by at least 10 points.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-052",
+      "rule_id": "SCH-005",
+      "entity_type": "activity",
+      "entity_id": "A2000",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -12
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A2000"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-005|A2000",
+      "rationale": "Total float is literally below zero.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-053",
+      "rule_id": "SCH-005",
+      "entity_type": "activity",
+      "entity_id": "A3010",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -8
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3010"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-005|A3010",
+      "rationale": "Total float is literally below zero.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-054",
+      "rule_id": "SCH-005",
+      "entity_type": "activity",
+      "entity_id": "A3020",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -18
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3020"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-005|A3020",
+      "rationale": "Total float is literally below zero.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-055",
+      "rule_id": "SCH-005",
+      "entity_type": "activity",
+      "entity_id": "A3030",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -10
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3030"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-005|A3030",
+      "rationale": "Total float is literally below zero.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-056",
+      "rule_id": "SCH-005",
+      "entity_type": "activity",
+      "entity_id": "A3040",
+      "severity": "critical",
+      "metric_expectations": {
+        "total_float_days": -15
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Schedule",
+          "record_ids": [
+            "A3040"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#SCH-005|A3040",
+      "rationale": "Total float is literally below zero.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-057",
+      "rule_id": "XDOM-001",
+      "entity_type": "wbs",
+      "entity_id": "3.1",
+      "severity": "critical",
+      "metric_expectations": {
+        "budget": "8000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-005"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#XDOM-001|3.1",
+      "rationale": "Delayed WBS also meets the integrated cost-exposure threshold.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-058",
+      "rule_id": "XDOM-001",
+      "entity_type": "wbs",
+      "entity_id": "3.2",
+      "severity": "critical",
+      "metric_expectations": {
+        "budget": "16000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-006"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#XDOM-001|3.2",
+      "rationale": "Delayed WBS also meets the integrated cost-exposure threshold.",
+      "exception_id": null
+    },
+    {
+      "expected_id": "GOLD-EXP-059",
+      "rule_id": "XDOM-001",
+      "entity_type": "wbs",
+      "entity_id": "3.3",
+      "severity": "critical",
+      "metric_expectations": {
+        "budget": "14000000000"
+      },
+      "evidence_anchors": [
+        {
+          "source_sheet": "Budget",
+          "record_ids": [
+            "BUD-007"
+          ]
+        }
+      ],
+      "adjudication_ref": "validation/adjudication_v0.2.csv#XDOM-001|3.3",
+      "rationale": "Delayed WBS also meets the integrated cost-exposure threshold.",
+      "exception_id": null
+    }
+  ],
+  "boundary_cases": []
+}

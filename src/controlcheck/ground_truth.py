@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from .versioning import ArtifactVersion
 
@@ -39,9 +39,30 @@ class ExpectedFindingV2(GroundTruthModel):
     entity_type: str
     entity_id: str
     severity: str
-    expected_metrics: dict[str, Any]
+    metric_expectations: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metric_expectations", "expected_metrics")
+    )
+    evidence_anchors: list[dict[str, Any]] = Field(default_factory=list)
+    adjudication_ref: str = ""
     rationale: str
     exception_id: str | None = None
+
+    @property
+    def match_key(self) -> tuple[str, str]:
+        return self.rule_id.upper(), self.entity_id.upper()
+
+
+class BoundaryCaseV2(GroundTruthModel):
+    case_id: str
+    rule_id: str
+    boundary_type: str
+    input_value: float
+    threshold_value: float
+    expected_trigger: bool
+    operator: str
+    entity_id: str
+    exception_id: str | None = None
+    rationale: str
 
 
 class GroundTruthV2(GroundTruthModel):
@@ -52,6 +73,7 @@ class GroundTruthV2(GroundTruthModel):
     data_date: date
     expected_finding_count: int
     expected_findings: list[ExpectedFindingV2]
+    boundary_cases: list[BoundaryCaseV2] = Field(default_factory=list)
 
 
 GroundTruth = GroundTruthV1 | GroundTruthV2
@@ -72,4 +94,3 @@ def load_ground_truth(path: Path | str) -> GroundTruth:
     if len(keys) != len(set(keys)):
         raise ValueError("Ground truth contains duplicate rule/entity keys")
     return result
-
