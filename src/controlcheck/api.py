@@ -10,12 +10,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, sessionmaker
 
 from . import __version__
-from .api_models import AnalysisRunResponse, ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext
+from .api_models import (
+    AnalysisRunListResponse, AnalysisRunResponse, EvidenceListResponse, EvidenceResponse,
+    FindingListResponse, FindingResponse, FindingStatusUpdate,
+    ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext,
+)
 from .application import AnalysisService
 from .errors import ControlCheckApplicationError
 from .loader import WorkbookSchemaError
 from .models import AuditResult
-from .persistence.repositories import OrganizationRepository, ProjectRepository
+from .persistence.repositories import AnalysisRepository, FindingRepository, OrganizationRepository, ProjectRepository
 from .service import run_audit
 from .storage import FileStorage
 from .versioning import VersionCompatibilityError
@@ -178,6 +182,76 @@ def create_app(
                     bytes(data),
                 )
                 return AnalysisRunResponse.model_validate(run)
+
+        @application.get(
+            "/v1/projects/{project_id}/analysis-runs",
+            response_model=AnalysisRunListResponse,
+        )
+        def list_analysis_runs(
+            project_id: UUID,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> AnalysisRunListResponse:
+            with session_factory() as session:
+                if ProjectRepository(session).get_scoped(tenant.organization_id, project_id) is None:
+                    raise ControlCheckApplicationError("project_not_found", "Project was not found for this organization", 404)
+                runs = AnalysisRepository(session).list_runs(tenant.organization_id, project_id)
+                return AnalysisRunListResponse(items=[AnalysisRunResponse.model_validate(run) for run in runs])
+
+        @application.get("/v1/analysis-runs/{run_id}", response_model=AnalysisRunResponse)
+        def get_analysis_run(run_id: UUID, tenant: TenantContext = Depends(require_tenant)) -> AnalysisRunResponse:
+            with session_factory() as session:
+                run = AnalysisRepository(session).get_run(tenant.organization_id, run_id)
+                if run is None:
+                    raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found", 404)
+                return AnalysisRunResponse.model_validate(run)
+
+        @application.get("/v1/analysis-runs/{run_id}/findings", response_model=FindingListResponse)
+        def list_findings(
+            run_id: UUID, rule_id: str | None = None, severity: str | None = None,
+            category: str | None = None, entity_id: str | None = None,
+            status: str | None = None, tenant: TenantContext = Depends(require_tenant),
+        ) -> FindingListResponse:
+            with session_factory() as session:
+                if AnalysisRepository(session).get_run(tenant.organization_id, run_id) is None:
+                    raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found", 404)
+                findings = FindingRepository(session).list_for_run(
+                    tenant.organization_id, run_id, rule_id=rule_id, severity=severity,
+                    category=category, entity_id=entity_id, status=status,
+                )
+                return FindingListResponse(items=[FindingResponse.model_validate(item) for item in findings])
+
+        @application.get("/v1/findings/{finding_id}", response_model=FindingResponse)
+        def get_finding(finding_id: UUID, tenant: TenantContext = Depends(require_tenant)) -> FindingResponse:
+            with session_factory() as session:
+                finding = FindingRepository(session).get(tenant.organization_id, finding_id)
+                if finding is None:
+                    raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
+                return FindingResponse.model_validate(finding)
+
+        @application.get("/v1/findings/{finding_id}/evidence", response_model=EvidenceListResponse)
+        def get_finding_evidence(finding_id: UUID, tenant: TenantContext = Depends(require_tenant)) -> EvidenceListResponse:
+            with session_factory() as session:
+                repository = FindingRepository(session)
+                if repository.get(tenant.organization_id, finding_id) is None:
+                    raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
+                evidence = repository.evidence(tenant.organization_id, finding_id)
+                return EvidenceListResponse(items=[EvidenceResponse.model_validate(item) for item in evidence])
+
+        @application.patch("/v1/findings/{finding_id}/status", response_model=FindingResponse)
+        def update_finding_status(
+            finding_id: UUID, payload: FindingStatusUpdate,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> FindingResponse:
+            with session_factory() as session:
+                repository = FindingRepository(session)
+                try:
+                    finding = repository.update_status(tenant.organization_id, finding_id, payload.status)
+                except ValueError as exc:
+                    raise ControlCheckApplicationError("invalid_finding_status", "Finding status is invalid", 422) from exc
+                if finding is None:
+                    raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
+                session.commit()
+                return FindingResponse.model_validate(finding)
 
     return application
 

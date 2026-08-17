@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -16,6 +16,7 @@ from .models import (
     ProjectRecord,
     RuleCatalogueVersionRecord,
     SourceFileRecord,
+    AuditLogRecord,
 )
 from ..models import AuditResult, ProjectDataset
 from ..storage import StoredObject
@@ -194,3 +195,85 @@ class AnalysisRepository:
         run.completed_at = datetime.now(timezone.utc)
         self.session.flush()
         return run
+
+    def list_runs(self, organization_id: UUID, project_id: UUID) -> list[AnalysisRunRecord]:
+        return list(self.session.scalars(
+            select(AnalysisRunRecord).where(
+                AnalysisRunRecord.organization_id == organization_id,
+                AnalysisRunRecord.project_id == project_id,
+            ).order_by(AnalysisRunRecord.started_at.desc(), AnalysisRunRecord.id.desc())
+        ))
+
+    def get_run(self, organization_id: UUID, run_id: UUID) -> AnalysisRunRecord | None:
+        return self.session.scalar(select(AnalysisRunRecord).where(
+            AnalysisRunRecord.organization_id == organization_id,
+            AnalysisRunRecord.id == run_id,
+        ))
+
+
+class FindingRepository:
+    VALID_STATUSES = {"open", "acknowledged", "resolved", "dismissed"}
+
+    def __init__(self, session: Session):
+        self.session = session
+
+    def list_for_run(
+        self, organization_id: UUID, run_id: UUID, *, rule_id: str | None = None,
+        severity: str | None = None, category: str | None = None,
+        entity_id: str | None = None, status: str | None = None,
+    ) -> list[FindingRecord]:
+        statement = select(FindingRecord).where(
+            FindingRecord.organization_id == organization_id,
+            FindingRecord.analysis_run_id == run_id,
+        )
+        for column, value in (
+            (FindingRecord.rule_id, rule_id), (FindingRecord.severity, severity),
+            (FindingRecord.category, category), (FindingRecord.entity_id, entity_id),
+            (FindingRecord.status, status),
+        ):
+            if value is not None:
+                statement = statement.where(column == value)
+        severity_order = case(
+            (FindingRecord.severity == "critical", 0),
+            (FindingRecord.severity == "warning", 1),
+            else_=2,
+        )
+        return list(self.session.scalars(statement.order_by(
+            severity_order, FindingRecord.rule_id, FindingRecord.entity_id
+        )))
+
+    def get(self, organization_id: UUID, finding_id: UUID) -> FindingRecord | None:
+        return self.session.scalar(select(FindingRecord).where(
+            FindingRecord.organization_id == organization_id,
+            FindingRecord.id == finding_id,
+        ))
+
+    def evidence(self, organization_id: UUID, finding_id: UUID) -> list[FindingEvidenceRecord]:
+        return list(self.session.scalars(
+            select(FindingEvidenceRecord)
+            .join(FindingRecord, FindingRecord.id == FindingEvidenceRecord.finding_id)
+            .where(
+                FindingRecord.organization_id == organization_id,
+                FindingEvidenceRecord.finding_id == finding_id,
+            )
+            .order_by(FindingEvidenceRecord.evidence_order)
+        ))
+
+    def update_status(self, organization_id: UUID, finding_id: UUID, status: str) -> FindingRecord | None:
+        finding = self.get(organization_id, finding_id)
+        if finding is None:
+            return None
+        if status not in self.VALID_STATUSES:
+            raise ValueError(status)
+        finding.status = status
+        finding.resolved_at = datetime.now(timezone.utc) if status in {"resolved", "dismissed"} else None
+        self.session.add(AuditLogRecord(
+            organization_id=organization_id,
+            project_id=finding.project_id,
+            event_type="finding.status_changed",
+            entity_type="finding",
+            entity_id=str(finding.id),
+            metadata_json={"status": status},
+        ))
+        self.session.flush()
+        return finding

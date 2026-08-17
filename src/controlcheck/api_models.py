@@ -45,3 +45,53 @@ class AnalysisRunResponse(BaseModel):
     safe_error_message: str | None
     started_at: datetime
     completed_at: datetime | None
+
+
+class AnalysisRunListResponse(BaseModel):
+    items: list[AnalysisRunResponse]
+
+
+class FindingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    analysis_run_id: UUID
+    engine_finding_id: str
+    rule_id: str
+    rule_name: str
+    entity_type: str
+    entity_id: str
+    category: str
+    severity: str
+    status: str
+    title: str
+    description: str
+    metrics: dict
+    calculation: dict
+    business_impact: str
+    recommendation: str
+    confidence: float
+    detected_at: datetime
+    resolved_at: datetime | None
+
+
+class FindingListResponse(BaseModel):
+    items: list[FindingResponse]
+
+
+class EvidenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    evidence_order: int
+    source_sheet: str
+    source_rows: list[int]
+    record_ids: list[str]
+    fields: dict
+    aggregation: dict | None
+
+
+class EvidenceListResponse(BaseModel):
+    items: list[EvidenceResponse]
+
+
+class FindingStatusUpdate(BaseModel):
+    status: str
