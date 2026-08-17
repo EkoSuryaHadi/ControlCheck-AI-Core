@@ -118,6 +118,7 @@ def load_workbook(path: Path | str | BinaryIO) -> ProjectDataset:
         commitments=commitments,
         schedule=schedule,
         progress=progress,
+        dataset_version=str(info.get("dataset_version", "0.1")),
     )
     book.close()
     return result

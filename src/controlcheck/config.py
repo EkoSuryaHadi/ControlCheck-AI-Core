@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from pathlib import Path
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from .versioning import ArtifactVersion
 
 
 class RuleDefinition(BaseModel):
@@ -25,10 +29,55 @@ class RuleDefinition(BaseModel):
 
 
 class RuleCatalogue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     version: str
     rules: list[RuleDefinition]
 
     def by_id(self, rule_id: str) -> RuleDefinition:
+        for rule in self.rules:
+            if rule.code == rule_id:
+                return rule
+        raise KeyError(f"Unknown rule: {rule_id}")
+
+
+class SeverityBand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    severity: str
+    min_value: Decimal | None = None
+    max_value: Decimal | None = None
+    metric: str | None = None
+
+
+class ExceptionSpec(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    exception_id: str
+    description: str
+    conditions: dict[str, Any]
+
+
+class RuleRuntimeV2(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    evaluation_grain: Literal[
+        "project", "wbs", "vendor_wbs", "transaction", "activity", "period_wbs"
+    ]
+    operator: str
+    thresholds: dict[str, float | int]
+    severity_bands: list[SeverityBand]
+    lookback_periods: int | None = None
+    materiality: dict[str, Decimal] = Field(default_factory=dict)
+    exclusions: list[ExceptionSpec] = Field(default_factory=list)
+
+
+class RuleDefinitionV2(RuleDefinition):
+    runtime: RuleRuntimeV2
+
+
+class RuleCatalogueV2(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: str
+    rules: list[RuleDefinitionV2]
+
+    def by_id(self, rule_id: str) -> RuleDefinitionV2:
         for rule in self.rules:
             if rule.code == rule_id:
                 return rule
@@ -52,5 +101,11 @@ class ThresholdConfig(BaseModel):
     cross_domain_exposure_pct: float = 0.80
 
 
-def load_catalogue(path: Path | str) -> RuleCatalogue:
-    return RuleCatalogue.model_validate(json.loads(Path(path).read_text(encoding="utf-8")))
+def load_catalogue(path: Path | str) -> RuleCatalogue | RuleCatalogueV2:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    version = ArtifactVersion.parse(payload.get("version", "")).major_minor
+    if version == "0.1":
+        return RuleCatalogue.model_validate(payload)
+    if version == "0.2":
+        return RuleCatalogueV2.model_validate(payload)
+    raise ValueError(f"Unsupported rule catalogue version: {payload.get('version')!r}")

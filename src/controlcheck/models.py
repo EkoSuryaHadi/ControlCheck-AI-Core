@@ -105,6 +105,7 @@ class ProjectDataset(RecordModel):
     commitments: list[CommitmentRecord]
     schedule: list[ScheduleActivity]
     progress: list[ProgressRecord]
+    dataset_version: str = "0.1"
 
 
 class EvidenceItem(RecordModel):
