@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 from decimal import Decimal
 
-from .base import BaseRule, row_evidence
+from ..builders import severity_from_runtime
+from .base import BaseRule, row_evidence, runtime_materiality, runtime_threshold
 
 
 def _latest(dataset):
@@ -19,18 +20,28 @@ class WBSProgressLagRule(BaseRule):
 
     def evaluate(self, dataset, context):
         findings = []
+        lag_min = float(runtime_threshold(
+            context, self.rule_id, "lag_pp_min", context.thresholds.progress_lag_pp,
+        ))
+        critical_min = float(runtime_threshold(
+            context, self.rule_id, "critical_lag_pp_min", context.thresholds.critical_progress_lag_pp,
+        ))
         for wbs, item in _latest(dataset).items():
             lag = item.planned_progress - item.actual_progress
-            if lag < context.thresholds.progress_lag_pp:
+            if lag < lag_min:
                 continue
+            definition = context.definition(self.rule_id)
             findings.append(self.finding(
                 dataset, context, entity_type="wbs", entity_id=wbs,
-                severity="critical" if lag >= context.thresholds.critical_progress_lag_pp else "warning",
+                severity=severity_from_runtime(
+                    definition, lag,
+                    "critical" if lag >= critical_min else "warning",
+                ),
                 description=f"WBS {wbs} is {lag:.1%} behind planned progress.",
                 metrics={"period": item.period, "planned_progress": item.planned_progress, "actual_progress": item.actual_progress, "lag_pp": lag},
                 evidence=[row_evidence("Progress", item.progress_id, item.source,
                                        {"planned_progress": item.planned_progress, "actual_progress": item.actual_progress})],
-                calculation={"formula": "planned_progress - actual_progress >= threshold", "value": lag, "threshold": context.thresholds.progress_lag_pp, "result": True},
+                calculation={"formula": "planned_progress - actual_progress >= threshold", "value": lag, "threshold": lag_min, "result": True},
             ))
         return findings
 
@@ -40,8 +51,9 @@ class ProgressAbove100Rule(BaseRule):
 
     def evaluate(self, dataset, context):
         findings = []
+        progress_max = float(runtime_threshold(context, self.rule_id, "progress_max", 1))
         for item in dataset.progress:
-            if item.actual_progress <= 1 and item.planned_progress <= 1:
+            if item.actual_progress <= progress_max and item.planned_progress <= progress_max:
                 continue
             findings.append(self.finding(
                 dataset, context, entity_type="wbs", entity_id=item.wbs_code or item.progress_id,
@@ -67,6 +79,16 @@ class CostRisingProgressFlatRule(BaseRule):
             if item.wbs_code:
                 cost_by_wbs_month[item.wbs_code][item.transaction_date.strftime("%Y-%m")] += item.actual_amount
         findings = []
+        cost_change_min = Decimal(str(runtime_threshold(
+            context, self.rule_id, "cost_change_pct_min", context.thresholds.rising_cost_change_pct,
+        )))
+        progress_change_max = float(runtime_threshold(
+            context, self.rule_id, "progress_change_pp_max", context.thresholds.flat_progress_change_pp,
+        ))
+        project_budget = sum((item.budget_amount for item in dataset.budgets), Decimal("0"))
+        current_materiality = project_budget * Decimal(str(runtime_materiality(
+            context, self.rule_id, "current_period_project_budget_min", 0,
+        )))
         for wbs, history in progress_by_wbs.items():
             history = sorted(history, key=lambda row: row.period)
             if len(history) < 2:
@@ -83,8 +105,9 @@ class CostRisingProgressFlatRule(BaseRule):
                 cost_change = Decimal("Infinity")
             else:
                 cost_change = Decimal("0")
-            if (cost_change < Decimal(str(context.thresholds.rising_cost_change_pct))
-                    or progress_change > context.thresholds.flat_progress_change_pp + 1e-9):
+            if (cost_change < cost_change_min
+                    or progress_change > progress_change_max + 1e-9
+                    or current_cost < current_materiality):
                 continue
             transactions = [x for x in dataset.actual_costs if x.wbs_code == wbs and x.transaction_date.strftime("%Y-%m") == current_month]
             from ..models import EvidenceItem

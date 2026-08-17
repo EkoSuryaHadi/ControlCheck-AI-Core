@@ -35,6 +35,16 @@ class BaseRule:
         )
 
 
+def runtime_threshold(context: RuleContext, rule_id: str, name: str, fallback: Any) -> Any:
+    runtime = getattr(context.definition(rule_id), "runtime", None)
+    return runtime.thresholds.get(name, fallback) if runtime is not None else fallback
+
+
+def runtime_materiality(context: RuleContext, rule_id: str, name: str, fallback: Any) -> Any:
+    runtime = getattr(context.definition(rule_id), "runtime", None)
+    return runtime.materiality.get(name, fallback) if runtime is not None else fallback
+
+
 def row_evidence(sheet: str, record_id: str, source: SourceRef,
                  fields: dict[str, Any]) -> EvidenceItem:
     return EvidenceItem(source_sheet=sheet, source_rows=[source.row_number],

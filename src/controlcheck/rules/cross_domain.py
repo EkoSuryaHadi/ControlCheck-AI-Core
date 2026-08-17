@@ -4,7 +4,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from ..models import EvidenceItem
-from .base import BaseRule, row_evidence
+from .base import BaseRule, row_evidence, runtime_threshold
 from .schedule import _overdue
 
 
@@ -27,13 +27,19 @@ class ScheduleDelayHighCostExposureRule(BaseRule):
             if item.wbs_code and (_overdue(item, dataset.data_date) or (item.critical and item.total_float_days < 0)):
                 delayed[item.wbs_code].append(item)
         findings = []
+        exposure_min = Decimal(str(runtime_threshold(
+            context, self.rule_id, "exposure_pct_min", context.thresholds.cross_domain_exposure_pct,
+        )))
+        actual_alternate_min = Decimal(str(runtime_threshold(
+            context, self.rule_id, "actual_pct_alternate_min", Decimal("0.90"),
+        )))
         for wbs, activities in delayed.items():
             budget = budgets[wbs]
             if budget <= 0:
                 continue
             exposure = actuals[wbs] + outstanding[wbs]
             ratio = exposure / budget
-            if ratio < Decimal(str(context.thresholds.cross_domain_exposure_pct)) and actuals[wbs] / budget <= Decimal("0.90"):
+            if ratio < exposure_min and actuals[wbs] / budget <= actual_alternate_min:
                 continue
             evidence = EvidenceItem(source_sheet="Schedule", source_rows=[x.source.row_number for x in activities],
                                     record_ids=[x.activity_id for x in activities], fields={"wbs_code": wbs, "delayed_count": len(activities)})
@@ -48,4 +54,3 @@ class ScheduleDelayHighCostExposureRule(BaseRule):
 
 
 CROSS_DOMAIN_RULES = (ScheduleDelayHighCostExposureRule(),)
-
