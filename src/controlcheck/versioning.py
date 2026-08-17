@@ -10,6 +10,8 @@ _VERSION_PATTERN = re.compile(r"^[vV]?(\d+)\.(\d+)(?:\.(\d+))?$")
 class VersionCompatibilityError(ValueError):
     """Raised when validation artifacts do not share a major/minor version."""
 
+    code = "incompatible_artifact_versions"
+
 
 @dataclass(frozen=True, order=True)
 class ArtifactVersion:
@@ -46,5 +48,6 @@ def assert_compatible(
         labelled["ground_truth"] = ArtifactVersion.parse(ground_truth_version).major_minor
     if len(set(labelled.values())) != 1:
         details = ", ".join(f"{name}={version}" for name, version in labelled.items())
-        raise VersionCompatibilityError(f"Incompatible artifact versions: {details}")
-
+        raise VersionCompatibilityError(
+            f"{VersionCompatibilityError.code}: Incompatible artifact versions: {details}"
+        )

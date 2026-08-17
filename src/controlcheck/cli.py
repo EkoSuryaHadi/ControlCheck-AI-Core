@@ -49,7 +49,11 @@ def evaluate_command(
         typer.echo(f"evaluation_failed: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"TP={report.tp} FP={report.fp} FN={report.fn} precision={report.precision:.3f} recall={report.recall:.3f}")
-    if strict and (report.precision < 1.0 or report.recall < 1.0):
+    strict_failed = report.precision < 1.0 or report.recall < 1.0
+    if hasattr(report, "severity_accuracy"):
+        strict_failed = strict_failed or report.severity_accuracy < 1.0 or report.metric_accuracy < 1.0
+        strict_failed = strict_failed or report.unreviewed_label_count > 0
+    if strict and strict_failed:
         raise typer.Exit(2)
 
 

@@ -10,6 +10,7 @@ from . import __version__
 from .loader import WorkbookSchemaError
 from .models import AuditResult
 from .service import run_audit
+from .versioning import VersionCompatibilityError
 
 
 DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -44,6 +45,8 @@ def create_app(catalogue_path: Path | str | None = None,
         try:
             return run_audit(BytesIO(data), catalogue)
         except WorkbookSchemaError as exc:
+            raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
+        except VersionCompatibilityError as exc:
             raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
 
     return application

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from .config import RuleCatalogue, ThresholdConfig
+from .config import RuleCatalogue, RuleCatalogueV2, ThresholdConfig
 from .models import AuditResult, Finding, ProjectDataset
 
 
@@ -14,7 +14,7 @@ class RuleLike(Protocol):
 
 @dataclass(frozen=True)
 class RuleContext:
-    catalogue: RuleCatalogue | None
+    catalogue: RuleCatalogue | RuleCatalogueV2 | None
     thresholds: ThresholdConfig = field(default_factory=ThresholdConfig)
 
     def definition(self, rule_id: str):
@@ -39,4 +39,3 @@ class ControlEngine:
             project_id=dataset.project.project_id, data_date=dataset.data_date,
             rule_count=len(self.rules), finding_count=len(findings), findings=findings,
         )
-
