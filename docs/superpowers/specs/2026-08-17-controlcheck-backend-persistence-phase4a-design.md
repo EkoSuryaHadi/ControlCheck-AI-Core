@@ -165,11 +165,12 @@ This endpoint remains stateless and preserves the current `AuditResult` response
 
 1. Validate tenant context, project ownership, extension, MIME type, and upload-size limit.
 2. Read the bounded upload, calculate SHA-256, and persist it through the storage adapter.
-3. In a short transaction, create source-file metadata, dataset snapshot, catalogue snapshot if absent, and a `running` analysis run.
-4. Execute the deterministic engine outside a long-lived database transaction.
-5. On success, start a new transaction and insert every finding and evidence row, then mark the run `succeeded` with counts and timing.
-6. On engine failure, mark the run `failed` with a stable safe error code. No finding or evidence rows may remain for the failed run.
-7. Re-uploading identical bytes is allowed as a new dataset snapshot and remains auditable through the repeated SHA-256.
+3. Load the workbook contract and require `Project_Info.project_id` to equal the target project's `code`. A mismatch fails closed before analysis with `workbook_project_mismatch`.
+4. In a short transaction, create source-file metadata, dataset snapshot, catalogue snapshot if absent, and a `running` analysis run.
+5. Execute the deterministic engine outside a long-lived database transaction.
+6. On success, start a new transaction and insert every finding and evidence row, then mark the run `succeeded` with counts and timing.
+7. On engine failure, mark the run `failed` with a stable safe error code. No finding or evidence rows may remain for the failed run.
+8. Re-uploading identical bytes is allowed as a new dataset snapshot and remains auditable through the repeated SHA-256.
 
 Phase 4A does not retry engine failures automatically and does not deduplicate uploads across projects.
 
@@ -201,6 +202,7 @@ Required stable codes are:
 - `unsupported_file_type`
 - `file_too_large`
 - `workbook_schema_error`
+- `workbook_project_mismatch`
 - `incompatible_artifact_versions`
 - `analysis_failed`
 - `persistence_error`
@@ -221,6 +223,7 @@ The primary end-to-end acceptance scenarios are:
 - Golden Positive workbook persists a successful run with 59 findings and complete evidence.
 - Boundary / Negative workbook persists a successful run with zero findings.
 - A failed engine execution persists a failed run and zero partial findings.
+- A workbook whose project ID differs from the target project code is rejected before analysis.
 - Every cross-tenant project, run, finding, and evidence request fails closed.
 - All existing 77 engine and documentation tests continue to pass.
 - Alembic upgrades an empty PostgreSQL database to head without errors.
