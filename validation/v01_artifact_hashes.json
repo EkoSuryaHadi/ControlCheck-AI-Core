@@ -1,0 +1,11 @@
+{
+  "algorithm": "SHA-256",
+  "captured_at": "2026-08-17",
+  "artifacts": {
+    "data/ControlCheck_AI_Synthetic_Project_Dataset_v0.1.xlsx": "341abfa2b80d3199f625782007f880f20ec9da4c92cdd335b9635efd112574f8",
+    "data/controlcheck_expected_findings_v0.1.json": "b57f1e9ff9d9c39b76e6cf9756cd9897b840e737e7ac2d21828b085663fb2842",
+    "data/controlcheck_rule_catalogue_v0.1.json": "e2d811a8a8fc2074c07f4a4f540b4f4083324b9de92d10ed2ab14afa33532e14",
+    "results/evaluation_v0.1.json": "638fa8ca53bdb1eea7fb5f374a202e4e3ffef819df5a586a9e5eef527612b54f",
+    "results/findings_v0.1.json": "331ffffebf971785724eaa2950d3d8243e07d4a8c99ab5b53fbb70c4e1c348d4"
+  }
+}
