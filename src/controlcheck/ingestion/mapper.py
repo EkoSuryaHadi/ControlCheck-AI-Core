@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field as dataclass_field, replace
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
@@ -68,6 +68,8 @@ class MappedSnapshot:
     domain_statuses: dict[str, DomainStatus]
     error_count: int
     warning_count: int
+    project_issues: tuple[RowIssue, ...] = ()
+    domain_issues: dict[str, tuple[RowIssue, ...]] = dataclass_field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -127,10 +129,14 @@ def _date(value: Any, field: str) -> date:
         raise _ScalarError("invalid_date", f"{field} is not a valid date")
     if isinstance(value, (int, float, Decimal)):
         try:
-            converted = from_excel(value)
-            return converted.date() if isinstance(converted, datetime) else converted
+            converted = from_excel(float(value))
         except (OverflowError, TypeError, ValueError):
             raise _ScalarError("invalid_date", f"{field} is not a valid Excel date") from None
+        if isinstance(converted, datetime):
+            return converted.date()
+        if isinstance(converted, date):
+            return converted
+        raise _ScalarError("invalid_date", f"{field} is not a valid Excel date")
     text = str(value).strip()
     try:
         return date.fromisoformat(text)
@@ -183,6 +189,11 @@ def _normalize_scalar(
 
     if column.scalar_type == "decimal":
         percentage_text = isinstance(value, str) and value.strip().endswith("%")
+        if percentage_text and column.normalization != "percentage_to_decimal":
+            raise _ScalarError(
+                "invalid_decimal",
+                f"{field} does not accept percentage syntax",
+            )
         decimal_value = _decimal(
             value.strip()[:-1] if percentage_text else value,
             field,
@@ -382,39 +393,117 @@ def _validate_wbs_rows(
         seen.add(row.record.wbs_code)
         result.append(row)
 
-    canonical_codes = {
-        row.record.wbs_code for row in result if isinstance(row.record, WBSNode)
+    nodes = {
+        row.record.wbs_code: row.record
+        for row in result
+        if isinstance(row.record, WBSNode)
     }
+    cycle_codes: set[str] = set()
+    visited: set[str] = set()
+    for start in nodes:
+        if start in visited:
+            continue
+        path: list[str] = []
+        positions: dict[str, int] = {}
+        current: str | None = start
+        while current is not None and current in nodes and current not in visited:
+            if current in positions:
+                cycle_codes.update(path[positions[current] :])
+                break
+            positions[current] = len(path)
+            path.append(current)
+            current = nodes[current].parent_wbs
+        visited.update(path)
+
+    invalid_codes = set(cycle_codes)
+    changed = True
+    while changed:
+        changed = False
+        for code, node in nodes.items():
+            if code in invalid_codes or node.parent_wbs is None:
+                continue
+            if node.parent_wbs not in nodes or node.parent_wbs in invalid_codes:
+                invalid_codes.add(code)
+                changed = True
+
     validated: list[CanonicalRowResult] = []
     for row in result:
-        if (
-            isinstance(row.record, WBSNode)
-            and row.record.parent_wbs is not None
-            and row.record.parent_wbs not in canonical_codes
-        ):
-            invalid_parent = _issue(
-                "invalid_wbs_parent",
-                f"WBS parent {row.record.parent_wbs} does not exist in the WBS master",
+        if not isinstance(row.record, WBSNode) or row.record.wbs_code not in invalid_codes:
+            validated.append(row)
+            continue
+        if row.record.wbs_code in cycle_codes:
+            invalid = _issue(
+                "cyclic_wbs_parent",
+                f"WBS code {row.record.wbs_code} participates in a parent cycle",
                 "parent_wbs",
             )
-            validated.append(
-                replace(
-                    row,
-                    record=None,
-                    issues=_sort_issues([*row.issues, invalid_parent], field_order),
-                )
-            )
         else:
-            validated.append(row)
+            invalid = _issue(
+                "invalid_wbs_parent",
+                f"WBS parent {row.record.parent_wbs} is not in the final WBS master",
+                "parent_wbs",
+            )
+        validated.append(
+            replace(
+                row,
+                record=None,
+                issues=_sort_issues([*row.issues, invalid], field_order),
+            )
+        )
     return validated
 
 
-def _project(values: dict[str, Any]) -> ProjectInfo | None:
-    project_id = str(values.get("project_id", "")).strip()
-    project_name = str(values.get("project_name", "")).strip()
-    if not project_id or not project_name:
-        return None
-    return ProjectInfo(project_id=project_id, project_name=project_name)
+def _project(values: dict[str, Any]) -> tuple[ProjectInfo | None, tuple[RowIssue, ...]]:
+    normalized: dict[str, str] = {}
+    issues: list[RowIssue] = []
+    for field in ("project_id", "project_name"):
+        raw = values.get(field)
+        if raw is None or not str(raw).strip():
+            issues.append(
+                _issue(
+                    "missing_project_value",
+                    f"Project metadata requires {field}",
+                    field,
+                )
+            )
+        else:
+            normalized[field] = str(raw).strip()
+    if issues:
+        return None, tuple(issues)
+    return ProjectInfo(**normalized), ()
+
+
+def _reject_duplicate_source_keys(
+    rows_by_domain: dict[str, list[CanonicalRowResult]],
+    profile: MappingProfileV1,
+) -> dict[str, list[CanonicalRowResult]]:
+    seen: set[str] = set()
+    result: dict[str, list[CanonicalRowResult]] = {}
+    for domain, rows in rows_by_domain.items():
+        field_order = {
+            column.target_field: index
+            for index, column in enumerate(profile.domains[domain].columns.values())
+        }
+        checked: list[CanonicalRowResult] = []
+        for row in rows:
+            if row.source_key in seen:
+                duplicate = _issue(
+                    "duplicate_source_key",
+                    f"Source key {row.source_key} is duplicated",
+                    None,
+                )
+                checked.append(
+                    replace(
+                        row,
+                        record=None,
+                        issues=_sort_issues([*row.issues, duplicate], field_order),
+                    )
+                )
+            else:
+                seen.add(row.source_key)
+                checked.append(row)
+        result[domain] = checked
+    return result
 
 
 def map_extracted_workbook(
@@ -426,15 +515,28 @@ def map_extracted_workbook(
         domain: [_map_row(row, profile) for row in extracted.rows_by_domain.get(domain, [])]
         for domain in profile.domains
     }
+    rows_by_domain = _reject_duplicate_source_keys(rows_by_domain, profile)
     rows_by_domain["wbs"] = _validate_wbs_rows(rows_by_domain["wbs"], profile)
 
     template_errors_by_domain = {
         domain: sum(issue.domain == domain for issue in extracted.template_errors)
         for domain in profile.domains
     }
+    domain_issues: dict[str, tuple[RowIssue, ...]] = {
+        domain: () for domain in profile.domains
+    }
+    if not extracted.rows_by_domain.get("wbs") and not template_errors_by_domain["wbs"]:
+        domain_issues["wbs"] = (
+            _issue(
+                "empty_wbs_master",
+                "WBS master must contain at least one governed row",
+                None,
+            ),
+        )
+
     domain_statuses: dict[str, DomainStatus] = {}
     for domain, rows in rows_by_domain.items():
-        if template_errors_by_domain[domain] or any(
+        if template_errors_by_domain[domain] or domain_issues[domain] or any(
             issue.severity is IssueSeverity.error
             for row in rows
             for issue in row.issues
@@ -456,13 +558,26 @@ def map_extracted_workbook(
         for row in rows
         for issue in row.issues
     ]
+    project, project_issues = _project(extracted.project_values)
+    snapshot_issues = [
+        *project_issues,
+        *(issue for issues in domain_issues.values() for issue in issues),
+    ]
     return MappedSnapshot(
-        project=_project(extracted.project_values),
+        project=project,
         rows_by_domain=rows_by_domain,
         domain_statuses=domain_statuses,
         error_count=len(extracted.template_errors)
-        + sum(issue.severity is IssueSeverity.error for issue in row_issues),
-        warning_count=sum(issue.severity is IssueSeverity.warning for issue in row_issues),
+        + sum(
+            issue.severity is IssueSeverity.error
+            for issue in [*row_issues, *snapshot_issues]
+        ),
+        warning_count=sum(
+            issue.severity is IssueSeverity.warning
+            for issue in [*row_issues, *snapshot_issues]
+        ),
+        project_issues=project_issues,
+        domain_issues=domain_issues,
     )
 
 
