@@ -187,8 +187,8 @@ git commit -m "feat: add phase4b canonical schema"
 def test_golden_extractor_retains_all_domain_rows(golden_bytes, mapping_profile):
     extracted = extract_workbook(golden_bytes, mapping_profile)
     assert {name: len(rows) for name, rows in extracted.rows_by_domain.items()} == {
-        "wbs": 14, "budget": 11, "actual_cost": 75,
-        "commitments": 8, "schedule": 15, "progress": 38,
+        "wbs": 12, "budget": 9, "actual_cost": 73,
+        "commitments": 6, "schedule": 13, "progress": 36,
     }
     assert extracted.template_errors == []
 
@@ -237,8 +237,8 @@ git commit -m "feat: extract lossless governed workbook rows"
 def test_golden_mapping_has_exact_canonical_counts(golden_bytes, mapping_profile):
     mapped = map_extracted_workbook(extract_workbook(golden_bytes, mapping_profile), mapping_profile)
     assert {name: len([r for r in rows if r.record is not None]) for name, rows in mapped.rows_by_domain.items()} == {
-        "wbs": 14, "budget": 11, "actual_cost": 75,
-        "commitments": 8, "schedule": 15, "progress": 38,
+        "wbs": 12, "budget": 9, "actual_cost": 73,
+        "commitments": 6, "schedule": 13, "progress": 36,
     }
     assert set(mapped.domain_statuses.values()) == {DomainStatus.valid}
 
@@ -291,9 +291,9 @@ git commit -m "feat: map governed rows to canonical domains"
 def test_golden_ingestion_persists_raw_and_canonical_rows(snapshot_service, golden_bytes, golden_project, db_session):
     snapshot = snapshot_service.ingest(ORG_ID, golden_project.id, "golden.xlsx", XLSX_MIME, golden_bytes)
     assert snapshot.status == "validated"
-    assert snapshot.row_count_raw == 161
-    assert snapshot.row_count_canonical == 161
-    assert count_rows(db_session, RawRowRecord, snapshot.id) == 161
+    assert snapshot.row_count_raw == 149
+    assert snapshot.row_count_canonical == 149
+    assert count_rows(db_session, RawRowRecord, snapshot.id) == 149
 
 
 def test_duplicate_upload_returns_existing_snapshot(snapshot_service, golden_bytes, golden_project):
@@ -478,7 +478,7 @@ def test_snapshot_upload_list_detail_and_analysis(snapshot_client, golden_file, 
     assert uploaded.status_code == 201
     snapshot = uploaded.json()
     assert snapshot["status"] == "validated"
-    assert snapshot["row_count_raw"] == 161
+    assert snapshot["row_count_raw"] == 149
     assert snapshot["domain_statuses"] == {
         "actual_cost": "valid", "budget": "valid", "commitments": "valid",
         "progress": "valid", "schedule": "valid", "wbs": "valid",
