@@ -4,7 +4,23 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -59,18 +75,316 @@ class SourceFileRecord(Base):
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class MappingProfileVersionRecord(Base):
+    __tablename__ = "mapping_profile_versions"
+    __table_args__ = (
+        UniqueConstraint("version", "sha256", name="uq_mapping_profile_version_hash"),
+        CheckConstraint("char_length(sha256) = 64", name="ck_mapping_profile_sha256"),
+    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    version: Mapped[str] = mapped_column(String(20))
+    sha256: Mapped[str] = mapped_column(String(64))
+    definition: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class DatasetSnapshotRecord(Base):
     __tablename__ = "dataset_snapshots"
-    __table_args__ = (CheckConstraint("status IN ('validated','failed')", name="ck_dataset_snapshots_status"),)
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('ingesting','validated','validated_with_errors','failed')",
+            name="ck_dataset_snapshots_status",
+        ),
+        CheckConstraint(
+            "row_count_raw >= 0 AND row_count_canonical >= 0",
+            name="ck_dataset_snapshots_row_counts",
+        ),
+        ForeignKeyConstraint(
+            ["id", "import_batch_id"],
+            ["import_batches.dataset_snapshot_id", "import_batches.id"],
+            name="fk_snapshots_snapshot_import_batch",
+            use_alter=True,
+        ),
+        Index(
+            "ux_dataset_snapshots_dedupe_key_not_null",
+            "dedupe_key",
+            unique=True,
+            postgresql_where=text("dedupe_key IS NOT NULL"),
+        ),
+    )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     source_file_id: Mapped[UUID] = mapped_column(ForeignKey("source_files.id", ondelete="RESTRICT"))
+    mapping_profile_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            "mapping_profile_versions.id",
+            name="fk_snapshots_mapping_profile",
+            ondelete="RESTRICT",
+        )
+    )
+    import_batch_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True))
     dataset_version: Mapped[str] = mapped_column(String(20))
     data_date: Mapped[date] = mapped_column(Date)
     source_project_id: Mapped[str] = mapped_column(String(100))
-    status: Mapped[str] = mapped_column(String(20), default="validated")
+    dedupe_key: Mapped[str | None] = mapped_column(String(64))
+    row_count_raw: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    row_count_canonical: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(String(30), default="ingesting", server_default="ingesting")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ImportBatchRecord(Base):
+    __tablename__ = "import_batches"
+    __table_args__ = (
+        UniqueConstraint("dataset_snapshot_id", name="uq_import_batches_snapshot"),
+        UniqueConstraint("dataset_snapshot_id", "id", name="uq_import_batches_snapshot_id"),
+        CheckConstraint("status IN ('ingesting','completed','failed')", name="ck_import_batches_status"),
+        CheckConstraint(
+            "rows_read >= 0 AND rows_valid >= 0 AND rows_warning >= 0 AND rows_rejected >= 0",
+            name="ck_import_batches_counts",
+        ),
+        CheckConstraint(
+            "rows_valid + rows_warning + rows_rejected <= rows_read",
+            name="ck_import_batches_count_totals",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    dataset_snapshot_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("dataset_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    mapping_profile_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("mapping_profile_versions.id", ondelete="RESTRICT")
+    )
+    status: Mapped[str] = mapped_column(String(20), default="ingesting", server_default="ingesting", index=True)
+    rows_read: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    rows_valid: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    rows_warning: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    rows_rejected: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    safe_error_code: Mapped[str | None] = mapped_column(String(80))
+    safe_error_message: Mapped[str | None] = mapped_column(Text)
+    error_summary: Mapped[dict | None] = mapped_column(JSONB)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DatasetDomainStatusRecord(Base):
+    __tablename__ = "dataset_domain_statuses"
+    __table_args__ = (
+        UniqueConstraint("dataset_snapshot_id", "domain", name="uq_dataset_domain_statuses_snapshot_domain"),
+        CheckConstraint("status IN ('valid','warning','blocked')", name="ck_dataset_domain_statuses_status"),
+        CheckConstraint(
+            "row_count_raw >= 0 AND row_count_canonical >= 0 AND error_count >= 0 AND warning_count >= 0",
+            name="ck_dataset_domain_statuses_counts",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    dataset_snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("dataset_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    domain: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    row_count_raw: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    row_count_canonical: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    error_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    warning_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    validation_summary: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RawRowRecord(Base):
+    __tablename__ = "raw_rows"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_snapshot_id",
+            "domain",
+            "source_row_number",
+            name="uq_raw_rows_snapshot_domain_row",
+        ),
+        UniqueConstraint("dataset_snapshot_id", "id", name="uq_raw_rows_snapshot_id"),
+        ForeignKeyConstraint(
+            ["dataset_snapshot_id", "import_batch_id"],
+            ["import_batches.dataset_snapshot_id", "import_batches.id"],
+            name="fk_raw_rows_snapshot_import_batch",
+        ),
+        CheckConstraint("source_row_number > 0", name="ck_raw_rows_source_row_number"),
+        CheckConstraint("char_length(row_hash) = 64", name="ck_raw_rows_hash"),
+        CheckConstraint(
+            "validation_status IN ('valid','warning','invalid')",
+            name="ck_raw_rows_validation_status",
+        ),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    dataset_snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("dataset_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    import_batch_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), index=True)
+    domain: Mapped[str] = mapped_column(String(30), index=True)
+    source_sheet: Mapped[str] = mapped_column(String(100))
+    source_row_number: Mapped[int] = mapped_column(Integer)
+    row_hash: Mapped[str] = mapped_column(String(64))
+    raw_data: Mapped[dict] = mapped_column(JSONB)
+    validation_status: Mapped[str] = mapped_column(String(20), default="valid", server_default="valid", index=True)
+    validation_errors: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WBSNodeRecord(Base):
+    __tablename__ = "wbs_nodes"
+    __table_args__ = (
+        UniqueConstraint("dataset_snapshot_id", "source_key", name="uq_wbs_nodes_snapshot_source_key"),
+        UniqueConstraint("raw_row_id", name="uq_wbs_nodes_raw_row_id"),
+        UniqueConstraint("dataset_snapshot_id", "id", name="uq_wbs_nodes_snapshot_id"),
+        ForeignKeyConstraint(
+            ["dataset_snapshot_id", "raw_row_id"],
+            ["raw_rows.dataset_snapshot_id", "raw_rows.id"],
+            name="fk_wbs_nodes_snapshot_raw_row",
+        ),
+        ForeignKeyConstraint(
+            ["dataset_snapshot_id", "parent_id"],
+            ["wbs_nodes.dataset_snapshot_id", "wbs_nodes.id"],
+            name="fk_wbs_nodes_snapshot_parent",
+        ),
+        CheckConstraint('"level" >= 1', name="ck_wbs_nodes_level"),
+    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    dataset_snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("dataset_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    raw_row_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    parent_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True))
+    source_key: Mapped[str] = mapped_column(String(300))
+    wbs_code: Mapped[str] = mapped_column(String(100))
+    wbs_name: Mapped[str] = mapped_column(String(250))
+    parent_wbs: Mapped[str | None] = mapped_column(String(100))
+    discipline: Mapped[str | None] = mapped_column(String(100))
+    level: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CanonicalFactMixin:
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    dataset_snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("dataset_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    raw_row_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    wbs_node_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), index=True)
+    source_key: Mapped[str] = mapped_column(String(300))
+    wbs_code: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+def _canonical_constraints(table_name: str) -> tuple[object, ...]:
+    return (
+        UniqueConstraint(
+            "dataset_snapshot_id",
+            "source_key",
+            name=f"uq_{table_name}_snapshot_source_key",
+        ),
+        UniqueConstraint("raw_row_id", name=f"uq_{table_name}_raw_row_id"),
+        ForeignKeyConstraint(
+            ["dataset_snapshot_id", "raw_row_id"],
+            ["raw_rows.dataset_snapshot_id", "raw_rows.id"],
+            name=f"fk_{table_name}_snapshot_raw_row",
+        ),
+        ForeignKeyConstraint(
+            ["dataset_snapshot_id", "wbs_node_id"],
+            ["wbs_nodes.dataset_snapshot_id", "wbs_nodes.id"],
+            name=f"fk_{table_name}_snapshot_wbs_node",
+        ),
+    )
+
+
+class BudgetRecordRecord(CanonicalFactMixin, Base):
+    __tablename__ = "budget_records"
+    __table_args__ = _canonical_constraints(__tablename__)
+    budget_id: Mapped[str] = mapped_column(String(300))
+    cost_code: Mapped[str | None] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(Text)
+    budget_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2))
+    status: Mapped[str] = mapped_column(String(50))
+    effective_date: Mapped[date] = mapped_column(Date)
+
+
+class ActualCostRecordRecord(CanonicalFactMixin, Base):
+    __tablename__ = "actual_cost_records"
+    __table_args__ = _canonical_constraints(__tablename__)
+    transaction_id: Mapped[str] = mapped_column(String(300))
+    transaction_date: Mapped[date] = mapped_column(Date)
+    cost_code: Mapped[str | None] = mapped_column(String(100))
+    vendor_id: Mapped[str | None] = mapped_column(String(100))
+    vendor_name: Mapped[str | None] = mapped_column(String(250))
+    po_number: Mapped[str | None] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(Text)
+    actual_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2))
+    status: Mapped[str] = mapped_column(String(50))
+
+
+class CommitmentRecordRecord(CanonicalFactMixin, Base):
+    __tablename__ = "commitment_records"
+    __table_args__ = _canonical_constraints(__tablename__)
+    commitment_id: Mapped[str] = mapped_column(String(300))
+    po_number: Mapped[str | None] = mapped_column(String(100))
+    vendor_id: Mapped[str | None] = mapped_column(String(100))
+    vendor_name: Mapped[str | None] = mapped_column(String(250))
+    committed_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2))
+    invoiced_amount: Mapped[Decimal] = mapped_column(Numeric(20, 2))
+    status: Mapped[str] = mapped_column(String(50))
+    commitment_date: Mapped[date] = mapped_column(Date)
+
+
+class ScheduleActivityRecord(CanonicalFactMixin, Base):
+    __tablename__ = "schedule_activities"
+    __table_args__ = _canonical_constraints(__tablename__) + (
+        CheckConstraint(
+            "planned_progress >= 0 AND planned_progress <= 1 AND actual_progress >= 0 AND actual_progress <= 1",
+            name="ck_schedule_activities_progress",
+        ),
+        CheckConstraint("baseline_finish >= baseline_start", name="ck_schedule_activities_baseline_dates"),
+        CheckConstraint(
+            "actual_finish IS NULL OR actual_start IS NULL OR actual_finish >= actual_start",
+            name="ck_schedule_activities_actual_dates",
+        ),
+    )
+    activity_id: Mapped[str] = mapped_column(String(300))
+    activity_name: Mapped[str] = mapped_column(String(500))
+    discipline: Mapped[str | None] = mapped_column(String(100))
+    baseline_start: Mapped[date] = mapped_column(Date)
+    baseline_finish: Mapped[date] = mapped_column(Date)
+    actual_start: Mapped[date | None] = mapped_column(Date)
+    actual_finish: Mapped[date | None] = mapped_column(Date)
+    planned_progress: Mapped[Decimal] = mapped_column(Numeric(7, 4))
+    actual_progress: Mapped[Decimal] = mapped_column(Numeric(7, 4))
+    total_float_days: Mapped[int] = mapped_column(Integer)
+    critical: Mapped[bool] = mapped_column(Boolean)
+    status: Mapped[str] = mapped_column(String(50))
+
+
+class ProgressRecordRecord(CanonicalFactMixin, Base):
+    __tablename__ = "progress_records"
+    __table_args__ = _canonical_constraints(__tablename__) + (
+        CheckConstraint(
+            "planned_progress >= 0 AND planned_progress <= 1 AND actual_progress >= 0 AND actual_progress <= 1",
+            name="ck_progress_records_progress",
+        ),
+        CheckConstraint("variance >= -1 AND variance <= 1", name="ck_progress_records_variance"),
+    )
+    progress_id: Mapped[str] = mapped_column(String(300))
+    period: Mapped[date] = mapped_column(Date)
+    planned_progress: Mapped[Decimal] = mapped_column(Numeric(7, 4))
+    actual_progress: Mapped[Decimal] = mapped_column(Numeric(7, 4))
+    variance: Mapped[Decimal] = mapped_column(Numeric(7, 4))
+    status: Mapped[str] = mapped_column(String(50))
 
 
 class RuleCatalogueVersionRecord(Base):
@@ -104,6 +418,8 @@ class AnalysisRunRecord(Base):
     status: Mapped[str] = mapped_column(String(20), default="running", index=True)
     rule_count: Mapped[int] = mapped_column(Integer, default=0)
     finding_count: Mapped[int] = mapped_column(Integer, default=0)
+    executed_rule_ids: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    skipped_rules: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     safe_error_code: Mapped[str | None] = mapped_column(String(80))
     safe_error_message: Mapped[str | None] = mapped_column(Text)
@@ -151,6 +467,7 @@ class FindingEvidenceRecord(Base):
     source_sheet: Mapped[str] = mapped_column(String(100))
     source_rows: Mapped[list] = mapped_column(JSONB)
     record_ids: Mapped[list] = mapped_column(JSONB)
+    raw_row_ids: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
     fields: Mapped[dict] = mapped_column(JSONB)
     aggregation: Mapped[dict | None] = mapped_column(JSONB)
 
