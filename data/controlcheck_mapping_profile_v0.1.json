@@ -1,9 +1,10 @@
 {
   "version": "0.1",
+  "row_indexing": "one_based",
   "domains": {
     "wbs": {
       "sheet_name": "WBS",
-      "header_row": 2,
+      "header_row": 3,
       "columns": {
         "wbs_code": {
           "source_header": "wbs_code",
@@ -49,7 +50,7 @@
     },
     "budget": {
       "sheet_name": "Budget",
-      "header_row": 2,
+      "header_row": 3,
       "columns": {
         "budget_id": {
           "source_header": "budget_id",
@@ -111,7 +112,7 @@
     },
     "actual_cost": {
       "sheet_name": "Actual_Cost",
-      "header_row": 2,
+      "header_row": 3,
       "columns": {
         "transaction_id": {
           "source_header": "transaction_id",
@@ -197,7 +198,7 @@
     },
     "commitments": {
       "sheet_name": "Commitments",
-      "header_row": 2,
+      "header_row": 3,
       "columns": {
         "commitment_id": {
           "source_header": "commitment_id",
@@ -275,7 +276,7 @@
     },
     "schedule": {
       "sheet_name": "Schedule",
-      "header_row": 2,
+      "header_row": 3,
       "columns": {
         "activity_id": {
           "source_header": "activity_id",
@@ -385,7 +386,7 @@
     },
     "progress": {
       "sheet_name": "Progress",
-      "header_row": 2,
+      "header_row": 3,
       "columns": {
         "progress_id": {
           "source_header": "progress_id",
@@ -447,4 +448,3 @@
     }
   }
 }
-

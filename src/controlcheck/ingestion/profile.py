@@ -35,6 +35,7 @@ class MappingProfileV1(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version: Literal["0.1"]
+    row_indexing: Literal["one_based"]
     domains: dict[DomainName, DomainProfile]
 
 
@@ -46,4 +47,3 @@ def load_mapping_profile(path: Path | str) -> MappingProfileV1:
 def mapping_profile_sha256(profile: MappingProfileV1) -> str:
     payload = json.dumps(profile.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
