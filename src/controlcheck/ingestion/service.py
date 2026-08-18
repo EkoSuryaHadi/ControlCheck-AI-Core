@@ -83,8 +83,8 @@ class SnapshotIngestionService:
 
     @staticmethod
     def _detached(session: Session, snapshot: DatasetSnapshotRecord) -> DatasetSnapshotRecord:
-        session.refresh(snapshot)
-        session.expunge(snapshot)
+        if snapshot in session:
+            session.expunge(snapshot)
         return snapshot
 
     def ingest(
@@ -175,7 +175,6 @@ class SnapshotIngestionService:
                     organization_id, project_id, snapshot.id, extracted, mapped
                 )
                 session.commit()
-                return self._detached(session, completed)
         except IntegrityError as exc:
             self.storage.delete(stored.key)
             if dedupe_key is not None and _is_dedupe_conflict(exc):
@@ -189,6 +188,7 @@ class SnapshotIngestionService:
         except Exception:
             self.storage.delete(stored.key)
             raise
+        return self._detached(session, completed)
 
 
 __all__ = ["SnapshotIngestionService"]

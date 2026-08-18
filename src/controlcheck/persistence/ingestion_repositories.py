@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,9 @@ from .models import (
 
 
 COMPLETED_SNAPSHOT_STATUSES = ("validated", "validated_with_errors")
+WBS_DEPENDENT_DOMAINS = frozenset(
+    {"budget", "actual_cost", "commitments", "schedule", "progress"}
+)
 
 
 class SnapshotImmutableError(RuntimeError):
@@ -240,6 +243,12 @@ class SnapshotRepository:
         mapped: MappedSnapshot,
         raw_rows: dict[tuple[str, int], RawRowRecord],
     ) -> None:
+        """Persist each valid source row using source identity, not business-ID uniqueness.
+
+        Repeated transaction, budget, activity, and other business identifiers remain
+        canonical so data-quality rules can inspect them. ``source_key`` plus exact
+        ``raw_row_id`` lineage is the persistence identity within a snapshot.
+        """
         snapshot = self._get_ingesting_scoped(organization_id, project_id, snapshot_id)
         wbs_by_code: dict[str, WBSNodeRecord] = {}
         wbs_pairs: list[tuple[WBSNodeRecord, WBSNode]] = []
@@ -339,9 +348,22 @@ class SnapshotRepository:
                 if issue.severity is IssueSeverity.warning
             ]
             domain_issues = mapped.domain_issues.get(domain, ())
+            dependency_issues: list[dict[str, Any]] = []
+            if (
+                domain in WBS_DEPENDENT_DOMAINS
+                and mapped.domain_statuses["wbs"].value == "blocked"
+            ):
+                dependency_issues.append(
+                    {
+                        "code": "blocked_by_wbs",
+                        "message": "Domain is blocked because the WBS domain is blocked",
+                        "dependency_domain": "wbs",
+                        "severity": IssueSeverity.error.value,
+                    }
+                )
             error_count = len(template_by_domain.get(domain, [])) + len(row_errors) + sum(
                 issue.severity is IssueSeverity.error for issue in domain_issues
-            )
+            ) + len(dependency_issues)
             warning_count = len(row_warnings) + sum(
                 issue.severity is IssueSeverity.warning for issue in domain_issues
             )
@@ -362,6 +384,7 @@ class SnapshotRepository:
                             for issue in template_by_domain.get(domain, [])
                         ],
                         "domain_issues": [_row_issue_payload(issue) for issue in domain_issues],
+                        "dependency_issues": dependency_issues,
                     },
                 )
             )
@@ -399,11 +422,53 @@ class SnapshotRepository:
     ) -> DatasetSnapshotRecord:
         snapshot = self._get_ingesting_scoped(organization_id, project_id, snapshot_id)
         batch = self._get_batch_scoped(organization_id, project_id, snapshot)
+        for model in (
+            CanonicalBudgetRecord,
+            CanonicalActualCostRecord,
+            CanonicalCommitmentRecord,
+            ScheduleActivityRecord,
+            ProgressRecordRecord,
+        ):
+            self.session.execute(
+                delete(model).where(
+                    model.organization_id == organization_id,
+                    model.project_id == project_id,
+                    model.dataset_snapshot_id == snapshot.id,
+                )
+            )
+        self.session.execute(
+            delete(WBSNodeRecord).where(
+                WBSNodeRecord.organization_id == organization_id,
+                WBSNodeRecord.project_id == project_id,
+                WBSNodeRecord.dataset_snapshot_id == snapshot.id,
+            )
+        )
+        self.session.execute(
+            delete(DatasetDomainStatusRecord).where(
+                DatasetDomainStatusRecord.organization_id == organization_id,
+                DatasetDomainStatusRecord.project_id == project_id,
+                DatasetDomainStatusRecord.dataset_snapshot_id == snapshot.id,
+            )
+        )
+        self.session.execute(
+            delete(RawRowRecord).where(
+                RawRowRecord.organization_id == organization_id,
+                RawRowRecord.project_id == project_id,
+                RawRowRecord.dataset_snapshot_id == snapshot.id,
+            )
+        )
         batch.status = "failed"
+        batch.rows_read = 0
+        batch.rows_valid = 0
+        batch.rows_warning = 0
+        batch.rows_rejected = 0
         batch.safe_error_code = code
         batch.safe_error_message = message
         batch.error_summary = error_summary
         batch.completed_at = datetime.now(timezone.utc)
+        snapshot.dedupe_key = None
+        snapshot.row_count_raw = 0
+        snapshot.row_count_canonical = 0
         snapshot.status = "failed"
         self.session.flush()
         return snapshot
