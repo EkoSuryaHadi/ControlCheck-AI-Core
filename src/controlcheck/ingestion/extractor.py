@@ -11,7 +11,7 @@ from typing import Any
 
 import openpyxl
 
-from .profile import MappingProfileV1
+from .profile import DomainProfile, MappingProfileV1
 from .types import ExtractedRow, ExtractedWorkbook, TemplateIssue
 
 
@@ -37,13 +37,24 @@ def _header(value: Any) -> str | None:
 
 
 def _unique_value_keys(headers: tuple[Any, ...]) -> list[str]:
-    counts: dict[str, int] = {}
+    literal_headers = {header for value in headers if (header := _header(value)) is not None}
+    used_keys: set[str] = set()
     keys: list[str] = []
     for position, value in enumerate(headers, start=1):
-        header = _header(value) or f"__unnamed_column_{position}"
-        counts[header] = counts.get(header, 0) + 1
-        occurrence = counts[header]
-        keys.append(header if occurrence == 1 else f"{header}__duplicate_{occurrence}")
+        header = _header(value)
+        base = header or f"__unnamed_column_{position}"
+        if header is not None and base not in used_keys:
+            key = base
+        elif header is None and base not in literal_headers and base not in used_keys:
+            key = base
+        else:
+            occurrence = 2
+            key = f"{base}__duplicate_{occurrence}"
+            while key in literal_headers or key in used_keys:
+                occurrence += 1
+                key = f"{base}__duplicate_{occurrence}"
+        used_keys.add(key)
+        keys.append(key)
     return keys
 
 
@@ -62,7 +73,7 @@ def _project_values(book: openpyxl.Workbook) -> dict[str, Any]:
         return {}
 
     result: dict[str, Any] = {}
-    for row in book["Project_Info"].iter_rows(values_only=True):
+    for row in book["Project_Info"].iter_rows(min_row=2, values_only=True):
         if not row:
             continue
         key = _header(row[0])
@@ -71,7 +82,12 @@ def _project_values(book: openpyxl.Workbook) -> dict[str, Any]:
     return result
 
 
-def _header_issues(domain: str, sheet_name: str, headers: tuple[Any, ...], profile) -> list[TemplateIssue]:
+def _header_issues(
+    domain: str,
+    sheet_name: str,
+    headers: tuple[Any, ...],
+    profile: DomainProfile,
+) -> list[TemplateIssue]:
     normalized_headers = [_header(value) for value in headers]
     present_headers = {header for header in normalized_headers if header is not None}
     expected_headers = {
