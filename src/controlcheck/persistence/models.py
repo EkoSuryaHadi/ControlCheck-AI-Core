@@ -305,7 +305,7 @@ def _canonical_constraints(table_name: str) -> tuple[object, ...]:
     )
 
 
-class BudgetRecordRecord(CanonicalFactMixin, Base):
+class CanonicalBudgetRecord(CanonicalFactMixin, Base):
     __tablename__ = "budget_records"
     __table_args__ = _canonical_constraints(__tablename__)
     budget_id: Mapped[str] = mapped_column(String(300))
@@ -316,7 +316,7 @@ class BudgetRecordRecord(CanonicalFactMixin, Base):
     effective_date: Mapped[date] = mapped_column(Date)
 
 
-class ActualCostRecordRecord(CanonicalFactMixin, Base):
+class CanonicalActualCostRecord(CanonicalFactMixin, Base):
     __tablename__ = "actual_cost_records"
     __table_args__ = _canonical_constraints(__tablename__)
     transaction_id: Mapped[str] = mapped_column(String(300))
@@ -330,7 +330,7 @@ class ActualCostRecordRecord(CanonicalFactMixin, Base):
     status: Mapped[str] = mapped_column(String(50))
 
 
-class CommitmentRecordRecord(CanonicalFactMixin, Base):
+class CanonicalCommitmentRecord(CanonicalFactMixin, Base):
     __tablename__ = "commitment_records"
     __table_args__ = _canonical_constraints(__tablename__)
     commitment_id: Mapped[str] = mapped_column(String(300))
