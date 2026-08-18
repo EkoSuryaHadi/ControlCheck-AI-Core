@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 from alembic import command
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import Numeric, create_engine, inspect, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 
@@ -436,6 +436,25 @@ def test_phase4b_database_contract_pins_checks_types_nullability_and_defaults(
                 sqltext = checks[constraint_name]
                 for column_name in columns:
                     assert re.search(rf"\b{column_name}\s*>=\s*0\b", sqltext)
+
+        progress_checks = {
+            "schedule_activities": "ck_schedule_activities_progress",
+            "progress_records": "ck_progress_records_progress",
+        }
+        for table_name, constraint_name in progress_checks.items():
+            sqltext = _checks_by_name(inspector, table_name)[constraint_name]
+            assert re.search(r"\bplanned_progress\s*>=\s*0\b", sqltext)
+            assert re.search(r"\bactual_progress\s*>=\s*0\b", sqltext)
+            assert not re.search(r"\bplanned_progress\s*<=", sqltext)
+            assert not re.search(r"\bactual_progress\s*<=", sqltext)
+            columns = _columns_by_name(inspector, table_name)
+            for column_name in ("planned_progress", "actual_progress"):
+                assert isinstance(columns[column_name]["type"], Numeric)
+                assert columns[column_name]["nullable"] is False
+
+        schedule_checks = _checks_by_name(inspector, "schedule_activities")
+        assert "ck_schedule_activities_baseline_dates" in schedule_checks
+        assert "ck_schedule_activities_actual_dates" not in schedule_checks
 
         uuid_columns = {
             "dataset_snapshots": {"mapping_profile_version_id", "import_batch_id"},

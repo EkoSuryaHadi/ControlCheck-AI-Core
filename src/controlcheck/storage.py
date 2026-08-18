@@ -17,6 +17,7 @@ class StoredObject:
 class FileStorage(Protocol):
     def put(self, organization_id: UUID, project_id: UUID, filename: str, data: bytes) -> StoredObject: ...
     def delete(self, key: str) -> None: ...
+    def exists(self, key: str) -> bool: ...
 
 
 class LocalFileStorage:
@@ -42,3 +43,6 @@ class LocalFileStorage:
     def delete(self, key: str) -> None:
         target = self._resolve_key(key)
         target.unlink(missing_ok=True)
+
+    def exists(self, key: str) -> bool:
+        return self._resolve_key(key).is_file()

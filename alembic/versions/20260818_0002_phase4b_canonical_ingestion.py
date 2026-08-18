@@ -372,14 +372,10 @@ def upgrade() -> None:
         sa.Column("status", sa.String(50), nullable=False),
         *_canonical_constraints("schedule_activities"),
         sa.CheckConstraint(
-            "planned_progress >= 0 AND planned_progress <= 1 AND actual_progress >= 0 AND actual_progress <= 1",
+            "planned_progress >= 0 AND actual_progress >= 0",
             name="ck_schedule_activities_progress",
         ),
         sa.CheckConstraint("baseline_finish >= baseline_start", name="ck_schedule_activities_baseline_dates"),
-        sa.CheckConstraint(
-            "actual_finish IS NULL OR actual_start IS NULL OR actual_finish >= actual_start",
-            name="ck_schedule_activities_actual_dates",
-        ),
     )
     op.create_table(
         "progress_records",
@@ -392,7 +388,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(50), nullable=False),
         *_canonical_constraints("progress_records"),
         sa.CheckConstraint(
-            "planned_progress >= 0 AND planned_progress <= 1 AND actual_progress >= 0 AND actual_progress <= 1",
+            "planned_progress >= 0 AND actual_progress >= 0",
             name="ck_progress_records_progress",
         ),
         sa.CheckConstraint("variance >= -1 AND variance <= 1", name="ck_progress_records_variance"),

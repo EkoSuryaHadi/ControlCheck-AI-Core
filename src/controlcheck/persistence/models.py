@@ -347,14 +347,10 @@ class ScheduleActivityRecord(CanonicalFactMixin, Base):
     __tablename__ = "schedule_activities"
     __table_args__ = _canonical_constraints(__tablename__) + (
         CheckConstraint(
-            "planned_progress >= 0 AND planned_progress <= 1 AND actual_progress >= 0 AND actual_progress <= 1",
+            "planned_progress >= 0 AND actual_progress >= 0",
             name="ck_schedule_activities_progress",
         ),
         CheckConstraint("baseline_finish >= baseline_start", name="ck_schedule_activities_baseline_dates"),
-        CheckConstraint(
-            "actual_finish IS NULL OR actual_start IS NULL OR actual_finish >= actual_start",
-            name="ck_schedule_activities_actual_dates",
-        ),
     )
     activity_id: Mapped[str] = mapped_column(String(300))
     activity_name: Mapped[str] = mapped_column(String(500))
@@ -374,7 +370,7 @@ class ProgressRecordRecord(CanonicalFactMixin, Base):
     __tablename__ = "progress_records"
     __table_args__ = _canonical_constraints(__tablename__) + (
         CheckConstraint(
-            "planned_progress >= 0 AND planned_progress <= 1 AND actual_progress >= 0 AND actual_progress <= 1",
+            "planned_progress >= 0 AND actual_progress >= 0",
             name="ck_progress_records_progress",
         ),
         CheckConstraint("variance >= -1 AND variance <= 1", name="ck_progress_records_variance"),
