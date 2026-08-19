@@ -138,7 +138,55 @@ class AnalysisRepository:
         self.session.flush()
         return run
 
-    def complete_run(self, run_id: UUID, audit: AuditResult, duration_ms: int) -> AnalysisRunRecord:
+    def start_snapshot_run(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        snapshot_id: UUID,
+        catalogue: RuleCatalogueVersionRecord,
+        engine_version: str,
+    ) -> AnalysisRunRecord:
+        snapshot = self.session.scalar(
+            select(DatasetSnapshotRecord).where(
+                DatasetSnapshotRecord.organization_id == organization_id,
+                DatasetSnapshotRecord.project_id == project_id,
+                DatasetSnapshotRecord.id == snapshot_id,
+            )
+        )
+        if snapshot is None:
+            raise LookupError(f"Dataset snapshot not found: {snapshot_id}")
+        source = self.session.scalar(
+            select(SourceFileRecord).where(
+                SourceFileRecord.organization_id == organization_id,
+                SourceFileRecord.project_id == project_id,
+                SourceFileRecord.id == snapshot.source_file_id,
+            )
+        )
+        if source is None:
+            raise LookupError(f"Source file metadata not found for snapshot: {snapshot_id}")
+        run = AnalysisRunRecord(
+            organization_id=organization_id,
+            project_id=project_id,
+            dataset_snapshot_id=snapshot.id,
+            catalogue_version_id=catalogue.id,
+            engine_version=engine_version,
+            workbook_sha256=source.sha256,
+            status="running",
+        )
+        self.session.add(run)
+        self.session.flush()
+        return run
+
+    def complete_run(
+        self,
+        run_id: UUID,
+        audit: AuditResult,
+        duration_ms: int,
+        *,
+        executed_rule_ids: list[str] | None = None,
+        skipped_rules: list[dict] | None = None,
+        raw_row_index: dict[tuple[str, int], int] | None = None,
+    ) -> AnalysisRunRecord:
         run = self.session.get(AnalysisRunRecord, run_id)
         if run is None:
             raise LookupError(f"Analysis run not found: {run_id}")
@@ -167,18 +215,30 @@ class AnalysisRepository:
             self.session.add(record)
             self.session.flush()
             for order, evidence in enumerate(payload["evidence"]):
+                raw_row_ids = []
+                if raw_row_index is not None:
+                    raw_row_ids = [
+                        raw_row_index[(evidence["source_sheet"], row_number)]
+                        for row_number in evidence["source_rows"]
+                        if (evidence["source_sheet"], row_number) in raw_row_index
+                    ]
                 self.session.add(FindingEvidenceRecord(
                     finding_id=record.id,
                     evidence_order=order,
                     source_sheet=evidence["source_sheet"],
                     source_rows=evidence["source_rows"],
                     record_ids=evidence["record_ids"],
+                    raw_row_ids=raw_row_ids,
                     fields=evidence["fields"],
                     aggregation=evidence.get("aggregation"),
                 ))
         run.status = "succeeded"
         run.rule_count = audit.rule_count
         run.finding_count = audit.finding_count
+        if executed_rule_ids is not None:
+            run.executed_rule_ids = executed_rule_ids
+        if skipped_rules is not None:
+            run.skipped_rules = skipped_rules
         run.duration_ms = duration_ms
         run.completed_at = datetime.now(timezone.utc)
         self.session.flush()

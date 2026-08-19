@@ -7,11 +7,13 @@ from alembic import command
 from sqlalchemy import func, select
 
 from controlcheck.application import AnalysisService
+from controlcheck.engine import ControlEngine
 from controlcheck.errors import ControlCheckApplicationError
 from controlcheck.persistence.database import create_session_factory
 from controlcheck.persistence.models import AnalysisRunRecord, FindingEvidenceRecord, FindingRecord, OrganizationRecord
 from controlcheck.persistence.repositories import ProjectRepository
 from controlcheck.storage import LocalFileStorage
+from controlcheck.rules import ALL_RULES
 
 
 ORG_ID = UUID("11111111-1111-1111-1111-111111111111")
@@ -34,12 +36,12 @@ def phase4_database(alembic_config, postgres_url):
     return session_factory, golden.id, boundary.id, mismatch.id
 
 
-def build_service(project_root, tmp_path, session_factory, audit_runner=None):
+def build_service(project_root, tmp_path, session_factory, engine=None):
     return AnalysisService(
         session_factory=session_factory,
         storage=LocalFileStorage(tmp_path),
         catalogue_path=project_root / "data" / "controlcheck_rule_catalogue_v0.2.json",
-        audit_runner=audit_runner,
+        engine=engine,
     )
 
 
@@ -92,10 +94,16 @@ def test_workbook_project_mismatch_creates_no_run(project_root, tmp_path, phase4
 def test_failed_engine_run_has_no_partial_findings(project_root, tmp_path, phase4_database):
     session_factory, golden_id, _, _ = phase4_database
 
-    def failing_runner(*args, **kwargs):
-        raise RuntimeError("unsafe internal detail")
+    class FailingEngine(ControlEngine):
+        def run_gated(self, *args, **kwargs):
+            raise RuntimeError("unsafe internal detail")
 
-    service = build_service(project_root, tmp_path, session_factory, audit_runner=failing_runner)
+    service = build_service(
+        project_root,
+        tmp_path,
+        session_factory,
+        engine=FailingEngine(ALL_RULES),
+    )
     data = (project_root / "data" / "ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx").read_bytes()
 
     with pytest.raises(ControlCheckApplicationError) as caught:

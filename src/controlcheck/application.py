@@ -2,22 +2,22 @@ from __future__ import annotations
 
 import hashlib
 import json
-from io import BytesIO
 from pathlib import Path
 from time import perf_counter
-from typing import Callable
 from uuid import UUID
 
 from sqlalchemy.orm import Session, sessionmaker
 
 from . import __version__
+from .config import ThresholdConfig, load_catalogue
+from .engine import ControlEngine, RuleContext
 from .errors import ControlCheckApplicationError
-from .loader import WorkbookSchemaError, load_workbook
-from .models import AuditResult
-from .persistence.repositories import AnalysisRepository, ProjectRepository
-from .service import run_audit
+from .ingestion.profile import load_mapping_profile
+from .ingestion.service import SnapshotIngestionService
+from .persistence.repositories import AnalysisRepository
+from .persistence.dataset_loader import DatabaseDatasetLoader
+from .rules import ALL_RULES
 from .storage import FileStorage
-from .versioning import VersionCompatibilityError
 
 
 class AnalysisService:
@@ -26,12 +26,80 @@ class AnalysisService:
         session_factory: sessionmaker[Session],
         storage: FileStorage,
         catalogue_path: Path | str,
-        audit_runner: Callable[..., AuditResult] | None = None,
+        engine: ControlEngine | None = None,
+        mapping_profile_path: Path | str | None = None,
     ):
         self.session_factory = session_factory
         self.storage = storage
         self.catalogue_path = Path(catalogue_path)
-        self.audit_runner = audit_runner or run_audit
+        self.engine = engine or ControlEngine(ALL_RULES)
+        self.mapping_profile_path = Path(mapping_profile_path) if mapping_profile_path else (
+            self.catalogue_path.parent / "controlcheck_mapping_profile_v0.1.json"
+        )
+
+    def run_snapshot(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        snapshot_id: UUID,
+    ):
+        loaded = DatabaseDatasetLoader(self.session_factory).load(
+            organization_id, project_id, snapshot_id
+        )
+        catalogue_bytes = self.catalogue_path.read_bytes()
+        catalogue_definition = json.loads(catalogue_bytes.decode("utf-8"))
+        catalogue_sha = hashlib.sha256(catalogue_bytes).hexdigest()
+        catalogue_runtime = load_catalogue(self.catalogue_path)
+        with self.session_factory() as session:
+            repository = AnalysisRepository(session)
+            catalogue = repository.get_or_create_catalogue(
+                catalogue_definition["version"], catalogue_sha, catalogue_definition
+            )
+            run = repository.start_snapshot_run(
+                organization_id,
+                project_id,
+                snapshot_id,
+                catalogue,
+                __version__,
+            )
+            session.commit()
+
+        started = perf_counter()
+        try:
+            execution = self.engine.run_gated(
+                loaded.snapshot,
+                RuleContext(catalogue=catalogue_runtime, thresholds=ThresholdConfig()),
+                loaded.domain_statuses,
+            )
+            duration_ms = max(0, round((perf_counter() - started) * 1000))
+            skipped_rules = [
+                {
+                    "rule_id": item.rule_id,
+                    "reason_code": item.reason_code,
+                    "blocked_domains": list(item.blocked_domains),
+                }
+                for item in execution.skipped_rules
+            ]
+            with self.session_factory() as session:
+                completed = AnalysisRepository(session).complete_run(
+                    run.id,
+                    execution.audit,
+                    duration_ms,
+                    executed_rule_ids=list(execution.executed_rule_ids),
+                    skipped_rules=skipped_rules,
+                    raw_row_index=loaded.raw_row_index,
+                )
+                session.commit()
+                return completed
+        except Exception as exc:
+            return self._persist_failure(
+                run.id,
+                "analysis_failed",
+                "Analysis could not be completed",
+                500,
+                started,
+                exc,
+            )
 
     def run(
         self,
@@ -41,70 +109,18 @@ class AnalysisService:
         content_type: str,
         data: bytes,
     ):
-        with self.session_factory() as session:
-            project = ProjectRepository(session).get_scoped(organization_id, project_id)
-        if project is None:
-            raise ControlCheckApplicationError(
-                "project_not_found", "Project was not found for this organization", 404
-            )
-
-        stored = self.storage.put(organization_id, project_id, filename, data)
-        try:
-            dataset = load_workbook(BytesIO(data))
-        except WorkbookSchemaError as exc:
-            self.storage.delete(stored.key)
-            raise ControlCheckApplicationError(exc.code, str(exc), 422) from exc
-        if dataset.project.project_id != project.code:
-            self.storage.delete(stored.key)
-            raise ControlCheckApplicationError(
-                "workbook_project_mismatch",
-                "Workbook project ID does not match the target project code",
-                422,
-            )
-
-        catalogue_bytes = self.catalogue_path.read_bytes()
-        catalogue_definition = json.loads(catalogue_bytes.decode("utf-8"))
-        catalogue_sha = hashlib.sha256(catalogue_bytes).hexdigest()
-        with self.session_factory() as session:
-            repository = AnalysisRepository(session)
-            try:
-                catalogue = repository.get_or_create_catalogue(
-                    catalogue_definition["version"], catalogue_sha, catalogue_definition
-                )
-                run = repository.start_run(
-                    organization_id,
-                    project_id,
-                    filename,
-                    content_type,
-                    stored,
-                    dataset,
-                    catalogue,
-                    __version__,
-                )
-                session.commit()
-            except Exception:
-                session.rollback()
-                self.storage.delete(stored.key)
-                raise
-
-        started = perf_counter()
-        try:
-            audit = self.audit_runner(BytesIO(data), self.catalogue_path)
-        except VersionCompatibilityError as exc:
-            return self._persist_failure(run.id, exc.code, str(exc), 422, started, exc)
-        except WorkbookSchemaError as exc:
-            return self._persist_failure(run.id, exc.code, str(exc), 422, started, exc)
-        except Exception as exc:
-            return self._persist_failure(
-                run.id, "analysis_failed", "Analysis could not be completed", 500, started, exc
-            )
-
-        duration_ms = max(0, round((perf_counter() - started) * 1000))
-        with self.session_factory() as session:
-            repository = AnalysisRepository(session)
-            completed = repository.complete_run(run.id, audit, duration_ms)
-            session.commit()
-            return completed
+        snapshot = SnapshotIngestionService(
+            self.session_factory,
+            self.storage,
+            load_mapping_profile(self.mapping_profile_path),
+        ).ingest(
+            organization_id,
+            project_id,
+            filename,
+            content_type,
+            data,
+        )
+        return self.run_snapshot(organization_id, project_id, snapshot.id)
 
     def _persist_failure(
         self,

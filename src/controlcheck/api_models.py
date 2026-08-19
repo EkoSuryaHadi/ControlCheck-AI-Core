@@ -40,6 +40,8 @@ class AnalysisRunResponse(BaseModel):
     status: str
     rule_count: int
     finding_count: int
+    executed_rule_ids: list[str]
+    skipped_rules: list[dict]
     duration_ms: int | None
     safe_error_code: str | None
     safe_error_message: str | None
@@ -85,6 +87,7 @@ class EvidenceResponse(BaseModel):
     source_sheet: str
     source_rows: list[int]
     record_ids: list[str]
+    raw_row_ids: list[int]
     fields: dict
     aggregation: dict | None
 
