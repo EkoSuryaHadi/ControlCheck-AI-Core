@@ -127,7 +127,7 @@ class DatasetSnapshotRecord(Base):
     dataset_version: Mapped[str] = mapped_column(String(20))
     data_date: Mapped[date] = mapped_column(Date)
     source_project_id: Mapped[str] = mapped_column(String(100))
-    source_project_name: Mapped[str | None] = mapped_column(String(255))
+    source_project_name: Mapped[str | None] = mapped_column(Text)
     dedupe_key: Mapped[str | None] = mapped_column(String(64))
     row_count_raw: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     row_count_canonical: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

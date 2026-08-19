@@ -377,7 +377,7 @@ Expected: fails because `DatabaseDatasetLoader` does not exist.
 
 - [ ] **Step 3: Implement deterministic scoped loading**
 
-Query the snapshot with organization/project predicates. Load each canonical table ordered by original source row. Recreate exact domain Pydantic models, including `SourceRef(sheet, row_number)`. Return a `(source_sheet, source_row_number) -> raw_row_id` index for later evidence lineage. Preserve the workbook `Project_Info.project_name` on the immutable snapshot rather than reconstructing it from mutable project-master data; Phase 4A rows may fall back to `projects.name`. Reject `ingesting` and `failed` snapshots with stable application errors.
+Query the snapshot with organization/project predicates. Load each canonical table ordered by original source row. Recreate exact domain Pydantic models, including `SourceRef(sheet, row_number)`. Return a `(source_sheet, source_row_number) -> raw_row_id` index for later evidence lineage. Preserve the workbook `Project_Info.project_name` losslessly in an unconstrained text column on the immutable snapshot rather than reconstructing it from mutable project-master data; Phase 4A rows may fall back to `projects.name`. Reject `ingesting` and `failed` snapshots with stable application errors.
 
 - [ ] **Step 4: Verify parity, tenant isolation, and no-file behavior**
 

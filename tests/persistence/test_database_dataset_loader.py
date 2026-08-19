@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
+import openpyxl
 import pytest
 from alembic import command
 from sqlalchemy import select
@@ -159,6 +161,43 @@ def test_db_loader_matches_legacy_loader_exactly(
     )
 
     assert actual.snapshot.model_dump(mode="json") == golden_dataset.model_dump(mode="json")
+
+
+@pytest.mark.parametrize(
+    "source_project_name",
+    ["  EPC Gas Compression Facility Expansion  ", "P" * 300],
+)
+def test_db_loader_preserves_source_project_name_losslessly(
+    source_project_name,
+    golden_bytes,
+    golden_project,
+    snapshot_service,
+    db_loader,
+    tmp_path,
+):
+    workbook = openpyxl.load_workbook(BytesIO(golden_bytes))
+    workbook["Project_Info"]["B3"] = source_project_name
+    stream = BytesIO()
+    workbook.save(stream)
+    changed_bytes = stream.getvalue()
+    changed_path = tmp_path / "project-name.xlsx"
+    changed_path.write_bytes(changed_bytes)
+
+    snapshot = snapshot_service.ingest(
+        golden_project.organization_id,
+        golden_project.id,
+        changed_path.name,
+        XLSX_MIME,
+        changed_bytes,
+    )
+    expected = load_workbook(changed_path)
+    actual = db_loader.load(
+        golden_project.organization_id,
+        golden_project.id,
+        snapshot.id,
+    )
+
+    assert actual.snapshot.project == expected.project
 
 
 def test_db_loader_never_reads_source_file(

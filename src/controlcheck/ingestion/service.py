@@ -119,8 +119,11 @@ class SnapshotIngestionService:
                 "Workbook project ID does not match the target project code",
                 422,
             )
-        source_project_name = _project_value(extracted.project_values, "project_name")
-        if source_project_name is None:
+        raw_source_project_name = extracted.project_values.get("project_name")
+        source_project_name = (
+            None if raw_source_project_name is None else str(raw_source_project_name)
+        )
+        if source_project_name is None or not source_project_name.strip():
             raise ControlCheckApplicationError(
                 "invalid_project_metadata",
                 "Workbook Project_Info must contain project_name",
