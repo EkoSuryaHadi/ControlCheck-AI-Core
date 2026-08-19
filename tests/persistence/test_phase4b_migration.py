@@ -215,6 +215,7 @@ def test_phase4b_upgrade_preserves_phase4a_data_and_adds_schema(alembic_config, 
             "dedupe_key",
             "row_count_raw",
             "row_count_canonical",
+            "source_project_name",
         } <= _column_names(inspector, "dataset_snapshots")
         assert {"executed_rule_ids", "skipped_rules"} <= _column_names(inspector, "analysis_runs")
         assert "raw_row_ids" in _column_names(inspector, "finding_evidence")

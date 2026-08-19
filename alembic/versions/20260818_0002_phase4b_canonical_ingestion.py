@@ -103,6 +103,7 @@ def upgrade() -> None:
         sa.Column("mapping_profile_version_id", postgresql.UUID(as_uuid=True)),
     )
     op.add_column("dataset_snapshots", sa.Column("dedupe_key", sa.String(64)))
+    op.add_column("dataset_snapshots", sa.Column("source_project_name", sa.String(255)))
     op.add_column(
         "dataset_snapshots",
         sa.Column("row_count_raw", sa.Integer, server_default="0", nullable=False),
@@ -474,6 +475,7 @@ def downgrade() -> None:
     )
     op.drop_column("dataset_snapshots", "row_count_canonical")
     op.drop_column("dataset_snapshots", "row_count_raw")
+    op.execute("ALTER TABLE dataset_snapshots DROP COLUMN IF EXISTS source_project_name")
     op.drop_column("dataset_snapshots", "dedupe_key")
     op.drop_column("dataset_snapshots", "mapping_profile_version_id")
     op.alter_column(

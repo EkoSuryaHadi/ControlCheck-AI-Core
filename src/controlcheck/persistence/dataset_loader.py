@@ -284,7 +284,7 @@ class DatabaseDatasetLoader:
             dataset = ProjectDataset(
                 project=ProjectInfo(
                     project_id=snapshot.source_project_id,
-                    project_name=project.name,
+                    project_name=snapshot.source_project_name or project.name,
                 ),
                 data_date=snapshot.data_date,
                 wbs_nodes=wbs_nodes,

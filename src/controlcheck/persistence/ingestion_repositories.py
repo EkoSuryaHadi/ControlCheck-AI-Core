@@ -115,6 +115,7 @@ class SnapshotRepository:
         dataset_version: str,
         data_date: date,
         source_project_id: str,
+        source_project_name: str,
         dedupe_key: str | None,
     ) -> DatasetSnapshotRecord:
         source = SourceFileRecord(
@@ -137,6 +138,7 @@ class SnapshotRepository:
             dataset_version=dataset_version,
             data_date=data_date,
             source_project_id=source_project_id,
+            source_project_name=source_project_name,
             dedupe_key=dedupe_key,
             status="ingesting",
         )

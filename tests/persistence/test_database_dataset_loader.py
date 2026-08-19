@@ -61,7 +61,8 @@ def golden_project(session_factory, golden_dataset) -> ProjectRecord:
         project = ProjectRecord(
             organization_id=organization.id,
             code=golden_dataset.project.project_id,
-            name=golden_dataset.project.project_name,
+            # The mutable project master name must not become snapshot evidence.
+            name="Golden project",
             currency="IDR",
         )
         session.add(project)
@@ -129,6 +130,7 @@ def _begin_snapshot(
             dataset_version="0.2",
             data_date=date(2026, 8, 15),
             source_project_id=golden_project.code,
+            source_project_name="EPC Gas Compression Facility Expansion",
             dedupe_key=None,
         )
         session.commit()

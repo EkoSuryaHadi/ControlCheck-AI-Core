@@ -119,6 +119,13 @@ class SnapshotIngestionService:
                 "Workbook project ID does not match the target project code",
                 422,
             )
+        source_project_name = _project_value(extracted.project_values, "project_name")
+        if source_project_name is None:
+            raise ControlCheckApplicationError(
+                "invalid_project_metadata",
+                "Workbook Project_Info must contain project_name",
+                422,
+            )
 
         profile_sha = mapping_profile_sha256(self.mapping_profile)
         normal_dedupe_key = _dedupe_key(
@@ -157,6 +164,7 @@ class SnapshotIngestionService:
                     dataset_version=dataset_version,
                     data_date=data_date,
                     source_project_id=source_project_id,
+                    source_project_name=source_project_name,
                     dedupe_key=dedupe_key,
                 )
                 raw_rows = repository.persist_raw_rows(

@@ -351,7 +351,7 @@ git commit -m "feat: persist immutable canonical snapshots"
 - Test: `tests/persistence/test_database_dataset_loader.py`
 
 **Interfaces:**
-- Produces `DatabaseDataset(snapshot: ProjectDataset, domain_statuses: dict[str, DomainStatus], raw_row_index: dict[tuple[str, int], UUID])`.
+- Produces `DatabaseDataset(snapshot: ProjectDataset, domain_statuses: dict[str, DomainStatus], raw_row_index: dict[tuple[str, int], int])`; raw-row IDs are PostgreSQL `BIGINT` lineage keys.
 - Produces `DatabaseDatasetLoader.load(organization_id, project_id, snapshot_id) -> DatabaseDataset`.
 
 - [ ] **Step 1: Write failing database-loader parity tests**
@@ -366,7 +366,7 @@ def test_db_loader_matches_legacy_loader_exactly(ingested_golden, golden_path, d
 def test_db_loader_never_reads_source_file(ingested_golden, db_loader, storage):
     storage.delete(ingested_golden.source_file.storage_key)
     loaded = db_loader.load(ORG_ID, ingested_golden.project_id, ingested_golden.id)
-    assert len(loaded.snapshot.actual_cost) == 75
+    assert len(loaded.snapshot.actual_costs) == 73
 ```
 
 - [ ] **Step 2: Run RED**
@@ -377,7 +377,7 @@ Expected: fails because `DatabaseDatasetLoader` does not exist.
 
 - [ ] **Step 3: Implement deterministic scoped loading**
 
-Query the snapshot with organization/project predicates. Load each canonical table ordered by original source row. Recreate exact domain Pydantic models, including `SourceRef(sheet, row_number)`. Return a `(source_sheet, source_row_number) -> raw_row_id` index for later evidence lineage. Reject `ingesting` and `failed` snapshots with stable application errors.
+Query the snapshot with organization/project predicates. Load each canonical table ordered by original source row. Recreate exact domain Pydantic models, including `SourceRef(sheet, row_number)`. Return a `(source_sheet, source_row_number) -> raw_row_id` index for later evidence lineage. Preserve the workbook `Project_Info.project_name` on the immutable snapshot rather than reconstructing it from mutable project-master data; Phase 4A rows may fall back to `projects.name`. Reject `ingesting` and `failed` snapshots with stable application errors.
 
 - [ ] **Step 4: Verify parity, tenant isolation, and no-file behavior**
 

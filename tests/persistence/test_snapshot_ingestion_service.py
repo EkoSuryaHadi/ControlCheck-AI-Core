@@ -178,6 +178,7 @@ def begin_ingesting_snapshot(
         dataset_version="0.2",
         data_date=date(2026, 8, 15),
         source_project_id="PRJ-CCAI-001",
+        source_project_name="EPC Gas Compression Facility Expansion",
         dedupe_key=dedupe_key,
     )
     return repository, snapshot, stored, extracted, mapped
