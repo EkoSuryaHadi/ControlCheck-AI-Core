@@ -325,10 +325,34 @@ function closeFindingModal() {
   if (modal) modal.style.display = "none";
 }
 
-// AI Copilot Chat
+// AI Copilot Chat & Sidebar Toggle
 function initChat() {
   const btnSend = document.getElementById("btn-send");
   const chatInput = document.getElementById("chat-input");
+  const btnToggle = document.getElementById("btn-toggle-copilot");
+  const btnClose = document.getElementById("btn-close-copilot");
+  const appContainer = document.querySelector(".app-container");
+
+  const toggleCopilot = (show = null) => {
+    if (!appContainer) return;
+    const isHidden = show === null ? !appContainer.classList.contains("copilot-hidden") : !show;
+    if (isHidden) {
+      appContainer.classList.add("copilot-hidden");
+      if (btnToggle) btnToggle.classList.remove("active");
+    } else {
+      appContainer.classList.remove("copilot-hidden");
+      if (btnToggle) btnToggle.classList.add("active");
+    }
+    localStorage.setItem("controlcheck_copilot_hidden", isHidden ? "1" : "0");
+  };
+
+  if (btnToggle) btnToggle.addEventListener("click", () => toggleCopilot());
+  if (btnClose) btnClose.addEventListener("click", () => toggleCopilot(false));
+
+  // Restore saved state
+  if (localStorage.getItem("controlcheck_copilot_hidden") === "1") {
+    toggleCopilot(false);
+  }
 
   if (btnSend && chatInput) {
     btnSend.addEventListener("click", () => sendChatMessage());
@@ -338,6 +362,7 @@ function initChat() {
   }
 
   document.querySelectorAll(".chip").forEach((chip) => {
+
     chip.addEventListener("click", (e) => {
       if (chatInput) {
         chatInput.value = e.target.textContent;

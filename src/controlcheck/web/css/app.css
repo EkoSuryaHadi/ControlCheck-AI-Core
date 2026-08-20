@@ -74,6 +74,15 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-container.copilot-hidden {
+  grid-template-columns: 260px 1fr 0px;
+}
+
+.app-container.copilot-hidden .ai-copilot-panel {
+  display: none;
 }
 
 /* Top Navigation Bar */
@@ -88,6 +97,29 @@ body {
   padding: 0 24px;
   z-index: 50;
 }
+
+.btn-icon-toggle {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.825rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-icon-toggle:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
 
 .brand-logo {
   display: flex;
@@ -459,8 +491,11 @@ body {
   border-radius: var(--radius-lg);
   font-size: 0.85rem;
   line-height: 1.5;
-  max-width: 90%;
+  max-width: 95%;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
+
 
 .bubble-user {
   background: var(--primary);
