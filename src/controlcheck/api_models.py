@@ -135,3 +135,31 @@ class HealthTrendListResponse(BaseModel):
     offset: int = 0
     has_more: bool = False
 
+
+class UserRegister(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=6, max_length=128)
+    full_name: str | None = None
+    organization_name: str | None = None
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    email: str
+    full_name: str | None
+    status: str
+    created_at: datetime
+
+

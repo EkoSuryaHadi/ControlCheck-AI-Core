@@ -16,15 +16,22 @@ from .api_models import (
     FindingListResponse, FindingResponse, FindingStatusUpdate,
     HealthSnapshotResponse, HealthTrendListResponse,
     ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext,
+    TokenResponse, UserLogin, UserRegister, UserResponse,
 )
 from .application import AnalysisService
+from .auth import (
+    create_access_token, create_refresh_token, decode_token,
+    hash_password, verify_password,
+)
 from .errors import ControlCheckApplicationError
 from .loader import WorkbookSchemaError
 from .logging import clear_log_context, configure_logging, get_logger, set_log_context
 from .models import AuditResult
 from .persistence.repositories import (
-    AnalysisRepository, FindingRepository, HealthRepository, OrganizationRepository, ProjectRepository
+    AnalysisRepository, FindingRepository, HealthRepository,
+    OrganizationRepository, ProjectRepository, UserRepository,
 )
+
 
 from .persistence.database import create_session_factory
 from .service import run_audit
@@ -95,10 +102,27 @@ def create_app(
         return JSONResponse(status_code=exc.status_code, content={"error": error})
 
 
-    def require_tenant(x_organization_id: str | None = Header(None)) -> TenantContext:
+    def require_tenant(
+        x_organization_id: str | None = Header(None),
+        authorization: str | None = Header(None),
+    ) -> TenantContext:
+        if authorization and authorization.startswith("Bearer "):
+            token = authorization[7:].strip()
+            try:
+                payload = decode_token(token)
+                org_str = payload.get("org_id")
+                if org_str:
+                    org_uuid = UUID(org_str)
+                    set_log_context(organization_id=str(org_uuid))
+                    return TenantContext(organization_id=org_uuid)
+            except Exception as exc:
+                raise ControlCheckApplicationError(
+                    "invalid_token", "Authentication token is invalid or expired", 401
+                ) from exc
+
         if x_organization_id is None:
             raise ControlCheckApplicationError(
-                "missing_tenant_context", "X-Organization-ID is required", 400
+                "missing_tenant_context", "X-Organization-ID or Authorization header is required", 400
             )
         try:
             org_uuid = UUID(x_organization_id)
@@ -139,6 +163,51 @@ def create_app(
             raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
 
     if session_factory is not None:
+        @application.post("/v1/auth/register", response_model=TokenResponse, status_code=201)
+        def register(payload: UserRegister) -> TokenResponse:
+            with session_factory() as session:
+                user_repo = UserRepository(session)
+                if user_repo.get_by_email(payload.email):
+                    raise ControlCheckApplicationError("email_already_registered", "Email is already in use", 409)
+                user = user_repo.create_user(
+                    email=payload.email,
+                    password_hash=hash_password(payload.password),
+                    full_name=payload.full_name,
+                )
+                org_id = None
+                role = None
+                if payload.organization_name:
+                    from .persistence.models import OrganizationRecord
+                    slug = payload.organization_name.strip().lower().replace(" ", "-")
+                    org = OrganizationRecord(name=payload.organization_name.strip(), slug=slug)
+                    session.add(org)
+                    session.flush()
+                    user_repo.add_org_member(org.id, user.id, role="org_admin")
+                    org_id = org.id
+                    role = "org_admin"
+                session.commit()
+                access_tok = create_access_token(user.id, user.email, organization_id=org_id, role=role)
+                refresh_tok = create_refresh_token(user.id)
+                return TokenResponse(access_token=access_tok, refresh_token=refresh_tok)
+
+        @application.post("/v1/auth/login", response_model=TokenResponse)
+        def login(payload: UserLogin) -> TokenResponse:
+            with session_factory() as session:
+                user_repo = UserRepository(session)
+                user = user_repo.get_by_email(payload.email)
+                if user is None or not verify_password(payload.password, user.password_hash):
+                    raise ControlCheckApplicationError("invalid_credentials", "Invalid email or password", 401)
+                from .persistence.models import OrganizationMemberRecord
+                from sqlalchemy import select
+                membership = session.scalar(
+                    select(OrganizationMemberRecord).where(OrganizationMemberRecord.user_id == user.id)
+                )
+                org_id = membership.organization_id if membership else None
+                role = membership.role if membership else None
+                access_tok = create_access_token(user.id, user.email, organization_id=org_id, role=role)
+                refresh_tok = create_refresh_token(user.id)
+                return TokenResponse(access_token=access_tok, refresh_token=refresh_tok)
+
         @application.post(
             "/v1/organizations/{organization_id}/projects",
             response_model=ProjectResponse,

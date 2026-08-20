@@ -20,16 +20,19 @@ from .models import (
     HealthSnapshotRecord,
     ImportBatchRecord,
     ImportColumnMappingRecord,
+    OrganizationMemberRecord,
     OrganizationRecord,
-
     ProgressRecordRecord,
+    ProjectMemberRecord,
     ProjectRecord,
     RawRowRecord,
     RuleCatalogueVersionRecord,
     ScheduleActivityRecord,
     SourceFileRecord,
+    UserRecord,
     WBSNodeRecord,
 )
+
 from ..ingestion.normalizer import CanonicalFactBundle
 from ..ingestion.raw_store import RawRowItem
 from ..models import AuditResult, ProjectDataset
@@ -531,5 +534,78 @@ class HealthRepository:
             .offset(offset)
         ))
         return items, total
+
+
+class UserRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def create_user(
+        self, email: str, password_hash: str, full_name: str | None = None
+    ) -> UserRecord:
+        user = UserRecord(
+            email=email.strip().lower(),
+            password_hash=password_hash,
+            full_name=full_name.strip() if full_name else None,
+            status="active",
+        )
+        self.session.add(user)
+        self.session.flush()
+        return user
+
+    def get_by_email(self, email: str) -> UserRecord | None:
+        return self.session.scalar(
+            select(UserRecord).where(UserRecord.email == email.strip().lower())
+        )
+
+    def get_by_id(self, user_id: UUID) -> UserRecord | None:
+        return self.session.scalar(
+            select(UserRecord).where(UserRecord.id == user_id)
+        )
+
+    def add_org_member(
+        self, organization_id: UUID, user_id: UUID, role: str = "org_member"
+    ) -> OrganizationMemberRecord:
+        member = OrganizationMemberRecord(
+            organization_id=organization_id,
+            user_id=user_id,
+            role=role,
+        )
+        self.session.add(member)
+        self.session.flush()
+        return member
+
+    def get_org_membership(
+        self, organization_id: UUID, user_id: UUID
+    ) -> OrganizationMemberRecord | None:
+        return self.session.scalar(
+            select(OrganizationMemberRecord).where(
+                OrganizationMemberRecord.organization_id == organization_id,
+                OrganizationMemberRecord.user_id == user_id,
+            )
+        )
+
+    def add_project_member(
+        self, project_id: UUID, user_id: UUID, role: str = "project_viewer"
+    ) -> ProjectMemberRecord:
+        member = ProjectMemberRecord(
+            project_id=project_id,
+            user_id=user_id,
+            role=role,
+        )
+        self.session.add(member)
+        self.session.flush()
+        return member
+
+    def get_project_membership(
+        self, project_id: UUID, user_id: UUID
+    ) -> ProjectMemberRecord | None:
+        return self.session.scalar(
+            select(ProjectMemberRecord).where(
+                ProjectMemberRecord.project_id == project_id,
+                ProjectMemberRecord.user_id == user_id,
+            )
+        )
+
 
 
