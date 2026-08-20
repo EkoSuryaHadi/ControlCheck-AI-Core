@@ -56,8 +56,12 @@ def _default_catalogue() -> Path:
     configured = os.environ.get("CONTROLCHECK_CATALOGUE")
     if configured:
         return Path(configured)
-    bundled = Path(__file__).resolve().parents[2] / "data" / "controlcheck_rule_catalogue_v0.1.json"
-    return bundled
+    data_dir = Path(__file__).resolve().parents[2] / "data"
+    v02 = data_dir / "controlcheck_rule_catalogue_v0.2.json"
+    if v02.exists():
+        return v02
+    return data_dir / "controlcheck_rule_catalogue_v0.1.json"
+
 
 
 def create_app(
@@ -203,10 +207,26 @@ def create_app(
                 raise HTTPException(413, {"code": "file_too_large", "max_bytes": max_upload_bytes})
         try:
             return run_audit(BytesIO(data), catalogue)
+        except VersionCompatibilityError:
+            # Fallback to check if a specific matching catalogue version exists in data/
+            try:
+                from .loader import load_workbook
+                from .config import load_catalogue, ThresholdConfig
+                from .engine import ControlEngine, RuleContext
+                from .rules import ALL_RULES
+                dataset = load_workbook(BytesIO(data))
+                data_dir = Path(__file__).resolve().parents[2] / "data"
+                matching = data_dir / f"controlcheck_rule_catalogue_v{dataset.dataset_version}.json"
+                if matching.exists():
+                    loaded_cat = load_catalogue(matching)
+                    context = RuleContext(catalogue=loaded_cat, thresholds=ThresholdConfig())
+                    return ControlEngine(ALL_RULES).run(dataset, context)
+            except Exception:
+                pass
+            raise HTTPException(422, {"code": "incompatible_artifact_versions", "message": "Incompatible workbook and catalogue versions"})
         except WorkbookSchemaError as exc:
             raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
-        except VersionCompatibilityError as exc:
-            raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
+
 
     if session_factory is not None:
         @application.post("/v1/auth/register", response_model=TokenResponse, status_code=201)

@@ -206,8 +206,11 @@ async function handleFileUpload(file) {
       method: "POST",
       body: formData,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    if (!res.ok) {
+      const errMsg = (data && (data.message || data.detail || (data.error && data.error.message))) || `HTTP ${res.status}`;
+      throw new Error(errMsg);
+    }
 
     state.findings = data.findings || [];
     calculateHealthFromFindings();
@@ -217,9 +220,10 @@ async function handleFileUpload(file) {
     // Notify AI Copilot
     addChatMessage("system", `Workbook <strong>${file.name}</strong> uploaded successfully. Detected ${state.findings.length} findings.`);
   } catch (err) {
-    if (uploadText) uploadText.textContent = `Demo Mode: Local audit parsed (${err.message})`;
+    if (uploadText) uploadText.textContent = `Upload Error: ${err.message}`;
   }
 }
+
 
 // Filters & Search
 function initFilters() {
