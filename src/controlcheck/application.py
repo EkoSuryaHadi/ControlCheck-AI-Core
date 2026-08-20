@@ -13,11 +13,15 @@ from sqlalchemy.orm import Session, sessionmaker
 from . import __version__
 from .errors import ControlCheckApplicationError
 from .loader import WorkbookSchemaError, load_workbook
+from .logging import get_logger, set_log_context
 from .models import AuditResult
 from .persistence.repositories import AnalysisRepository, ProjectRepository
 from .service import run_audit
 from .storage import FileStorage
 from .versioning import VersionCompatibilityError
+
+logger = get_logger("application")
+
 
 
 class AnalysisService:
@@ -40,10 +44,25 @@ class AnalysisService:
         filename: str,
         content_type: str,
         data: bytes,
+        idempotency_key: str | None = None,
     ):
+        set_log_context(organization_id=str(organization_id), project_id=str(project_id))
+        logger.info("Initiating analysis run for project %s (file: %s, size: %d bytes, idempotency_key: %s)", project_id, filename, len(data), idempotency_key)
+        
+        if idempotency_key:
+            with self.session_factory() as session:
+                existing_run = AnalysisRepository(session).get_run_by_idempotency_key(
+                    organization_id, project_id, idempotency_key
+                )
+                if existing_run is not None:
+                    logger.info("Idempotency match found for key %s, returning existing run %s", idempotency_key, existing_run.id)
+                    return existing_run
+
         with self.session_factory() as session:
             project = ProjectRepository(session).get_scoped(organization_id, project_id)
+
         if project is None:
+            logger.warning("Analysis rejected: project %s not found for org %s", project_id, organization_id)
             raise ControlCheckApplicationError(
                 "project_not_found", "Project was not found for this organization", 404
             )
@@ -52,15 +71,24 @@ class AnalysisService:
         try:
             dataset = load_workbook(BytesIO(data))
         except WorkbookSchemaError as exc:
+            logger.warning("Workbook schema validation error: %s", exc)
             self.storage.delete(stored.key)
             raise ControlCheckApplicationError(exc.code, str(exc), 422) from exc
         if dataset.project.project_id != project.code:
+            logger.warning(
+                "Workbook project code '%s' does not match registered project code '%s'",
+                dataset.project.project_id,
+                project.code,
+            )
             self.storage.delete(stored.key)
             raise ControlCheckApplicationError(
                 "workbook_project_mismatch",
                 "Workbook project ID does not match the target project code",
                 422,
             )
+
+        from .ingestion.raw_store import extract_raw_rows
+        raw_items = extract_raw_rows(BytesIO(data))
 
         catalogue_bytes = self.catalogue_path.read_bytes()
         catalogue_definition = json.loads(catalogue_bytes.decode("utf-8"))
@@ -80,21 +108,29 @@ class AnalysisService:
                     dataset,
                     catalogue,
                     __version__,
+                    raw_items=raw_items,
                 )
                 session.commit()
+                set_log_context(analysis_run_id=str(run.id))
+                logger.info("Created analysis run record %s (status=running)", run.id)
             except Exception:
+
                 session.rollback()
                 self.storage.delete(stored.key)
+                logger.exception("Failed to initialize analysis run record in database")
                 raise
 
         started = perf_counter()
         try:
             audit = self.audit_runner(BytesIO(data), self.catalogue_path)
         except VersionCompatibilityError as exc:
+            logger.warning("Analysis failed due to version compatibility: %s", exc)
             return self._persist_failure(run.id, exc.code, str(exc), 422, started, exc)
         except WorkbookSchemaError as exc:
+            logger.warning("Analysis failed due to workbook schema error: %s", exc)
             return self._persist_failure(run.id, exc.code, str(exc), 422, started, exc)
         except Exception as exc:
+            logger.exception("Unexpected error during audit engine execution")
             return self._persist_failure(
                 run.id, "analysis_failed", "Analysis could not be completed", 500, started, exc
             )
@@ -103,8 +139,42 @@ class AnalysisService:
         with self.session_factory() as session:
             repository = AnalysisRepository(session)
             completed = repository.complete_run(run.id, audit, duration_ms)
+
+            # Compute and persist health snapshot
+            from .health.scoring import compute_health_score
+            health_result = compute_health_score(audit.findings)
+            from .persistence.repositories import HealthRepository
+            HealthRepository(session).create_snapshot(
+                organization_id=organization_id,
+                project_id=project_id,
+                analysis_run_id=completed.id,
+                overall_score=health_result.overall_score,
+                cost_score=health_result.category_scores["COST"].score,
+                schedule_score=health_result.category_scores["SCHEDULE"].score,
+                progress_score=health_result.category_scores["PROGRESS"].score,
+                dq_score=health_result.category_scores["DATA_QUALITY"].score,
+                score_band=health_result.score_band,
+                component_breakdown=health_result.component_breakdown,
+                key_drivers=[d.__dict__ for d in health_result.top_drivers],
+                score_version=health_result.score_version,
+            )
+
+            if idempotency_key:
+                repository.record_idempotency(
+                    organization_id, project_id, completed.id, idempotency_key
+                )
             session.commit()
+            logger.info(
+                "Analysis run %s completed successfully in %d ms with %d findings (health score: %.2f - %s)",
+                run.id,
+                duration_ms,
+                audit.finding_count,
+                health_result.overall_score,
+                health_result.score_band,
+            )
             return completed
+
+
 
     def _persist_failure(
         self,
@@ -116,9 +186,11 @@ class AnalysisService:
         cause: Exception,
     ):
         duration_ms = max(0, round((perf_counter() - started) * 1000))
+        logger.error("Analysis run %s marked failed with code '%s' (%d ms)", run_id, code, duration_ms)
         with self.session_factory() as session:
             AnalysisRepository(session).fail_run(run_id, code, safe_message, duration_ms)
             session.commit()
         raise ControlCheckApplicationError(
             code, safe_message, status_code, analysis_run_id=run_id
         ) from cause
+

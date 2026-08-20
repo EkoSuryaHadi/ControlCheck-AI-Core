@@ -4,22 +4,37 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import case, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
+
 
 from .models import (
     AnalysisRunRecord,
+    AuditLogRecord,
+    BudgetRecordRecord,
+    CommitmentRecordRecord,
+    CostRecordRecord,
     DatasetSnapshotRecord,
     FindingEvidenceRecord,
     FindingRecord,
+    HealthSnapshotRecord,
+    ImportBatchRecord,
+    ImportColumnMappingRecord,
     OrganizationRecord,
+
+    ProgressRecordRecord,
     ProjectRecord,
+    RawRowRecord,
     RuleCatalogueVersionRecord,
+    ScheduleActivityRecord,
     SourceFileRecord,
-    AuditLogRecord,
+    WBSNodeRecord,
 )
+from ..ingestion.normalizer import CanonicalFactBundle
+from ..ingestion.raw_store import RawRowItem
 from ..models import AuditResult, ProjectDataset
 from ..storage import StoredObject
+
 
 
 class OrganizationRepository:
@@ -53,14 +68,22 @@ class ProjectRepository:
         self.session.flush()
         return project
 
-    def list_for_organization(self, organization_id: UUID) -> list[ProjectRecord]:
-        return list(
+    def list_for_organization(
+        self, organization_id: UUID, limit: int = 50, offset: int = 0
+    ) -> tuple[list[ProjectRecord], int]:
+        total = self.session.scalar(
+            select(func.count(ProjectRecord.id)).where(ProjectRecord.organization_id == organization_id)
+        ) or 0
+        items = list(
             self.session.scalars(
                 select(ProjectRecord)
                 .where(ProjectRecord.organization_id == organization_id)
                 .order_by(ProjectRecord.created_at, ProjectRecord.id)
+                .limit(limit)
+                .offset(offset)
             )
         )
+        return items, total
 
     def get_scoped(self, organization_id: UUID, project_id: UUID) -> ProjectRecord | None:
         return self.session.scalar(
@@ -102,6 +125,7 @@ class AnalysisRepository:
         dataset: ProjectDataset,
         catalogue: RuleCatalogueVersionRecord,
         engine_version: str,
+        raw_items: list[RawRowItem] | None = None,
     ) -> AnalysisRunRecord:
         source = SourceFileRecord(
             organization_id=organization_id,
@@ -125,6 +149,27 @@ class AnalysisRepository:
         )
         self.session.add(snapshot)
         self.session.flush()
+
+        if raw_items:
+            raw_row_map = RawRowRepository(self.session).persist_raw_rows(
+                organization_id, project_id, source.id, raw_items
+            )
+            from ..ingestion.normalizer import normalize_dataset_facts
+            bundle = normalize_dataset_facts(
+                organization_id, project_id, snapshot.id, dataset, raw_row_map
+            )
+            CanonicalFactRepository(self.session).persist_bundle(bundle)
+            batch = ImportBatchRecord(
+                organization_id=organization_id,
+                project_id=project_id,
+                source_file_id=source.id,
+                dataset_snapshot_id=snapshot.id,
+                status="completed",
+                row_count=len(raw_items),
+            )
+            self.session.add(batch)
+            self.session.flush()
+
         run = AnalysisRunRecord(
             organization_id=organization_id,
             project_id=project_id,
@@ -137,6 +182,7 @@ class AnalysisRepository:
         self.session.add(run)
         self.session.flush()
         return run
+
 
     def complete_run(self, run_id: UUID, audit: AuditResult, duration_ms: int) -> AnalysisRunRecord:
         run = self.session.get(AnalysisRunRecord, run_id)
@@ -196,19 +242,62 @@ class AnalysisRepository:
         self.session.flush()
         return run
 
-    def list_runs(self, organization_id: UUID, project_id: UUID) -> list[AnalysisRunRecord]:
-        return list(self.session.scalars(
+    def list_runs(
+        self, organization_id: UUID, project_id: UUID, limit: int = 50, offset: int = 0
+    ) -> tuple[list[AnalysisRunRecord], int]:
+        total = self.session.scalar(
+            select(func.count(AnalysisRunRecord.id)).where(
+                AnalysisRunRecord.organization_id == organization_id,
+                AnalysisRunRecord.project_id == project_id,
+            )
+        ) or 0
+        items = list(self.session.scalars(
             select(AnalysisRunRecord).where(
                 AnalysisRunRecord.organization_id == organization_id,
                 AnalysisRunRecord.project_id == project_id,
             ).order_by(AnalysisRunRecord.started_at.desc(), AnalysisRunRecord.id.desc())
+            .limit(limit)
+            .offset(offset)
         ))
+        return items, total
 
     def get_run(self, organization_id: UUID, run_id: UUID) -> AnalysisRunRecord | None:
         return self.session.scalar(select(AnalysisRunRecord).where(
             AnalysisRunRecord.organization_id == organization_id,
             AnalysisRunRecord.id == run_id,
         ))
+
+    def get_run_by_idempotency_key(
+        self, organization_id: UUID, project_id: UUID, idempotency_key: str
+    ) -> AnalysisRunRecord | None:
+        log = self.session.scalar(
+            select(AuditLogRecord).where(
+                AuditLogRecord.organization_id == organization_id,
+                AuditLogRecord.project_id == project_id,
+                AuditLogRecord.event_type == "analysis_run.created",
+                AuditLogRecord.metadata_json["idempotency_key"].astext == idempotency_key,
+            )
+        )
+        if log and log.entity_id:
+            try:
+                run_id = UUID(log.entity_id)
+                return self.get_run(organization_id, run_id)
+            except ValueError:
+                return None
+        return None
+
+    def record_idempotency(
+        self, organization_id: UUID, project_id: UUID, run_id: UUID, idempotency_key: str
+    ) -> None:
+        self.session.add(AuditLogRecord(
+            organization_id=organization_id,
+            project_id=project_id,
+            event_type="analysis_run.created",
+            entity_type="analysis_run",
+            entity_id=str(run_id),
+            metadata_json={"idempotency_key": idempotency_key},
+        ))
+        self.session.flush()
 
 
 class FindingRepository:
@@ -221,8 +310,13 @@ class FindingRepository:
         self, organization_id: UUID, run_id: UUID, *, rule_id: str | None = None,
         severity: str | None = None, category: str | None = None,
         entity_id: str | None = None, status: str | None = None,
-    ) -> list[FindingRecord]:
-        statement = select(FindingRecord).where(
+        limit: int = 50, offset: int = 0,
+    ) -> tuple[list[FindingRecord], int]:
+        base_statement = select(FindingRecord).where(
+            FindingRecord.organization_id == organization_id,
+            FindingRecord.analysis_run_id == run_id,
+        )
+        count_statement = select(func.count(FindingRecord.id)).where(
             FindingRecord.organization_id == organization_id,
             FindingRecord.analysis_run_id == run_id,
         )
@@ -232,15 +326,25 @@ class FindingRepository:
             (FindingRecord.status, status),
         ):
             if value is not None:
-                statement = statement.where(column == value)
+                base_statement = base_statement.where(column == value)
+                count_statement = count_statement.where(column == value)
+
+        total = self.session.scalar(count_statement) or 0
+
         severity_order = case(
             (FindingRecord.severity == "critical", 0),
             (FindingRecord.severity == "warning", 1),
             else_=2,
         )
-        return list(self.session.scalars(statement.order_by(
-            severity_order, FindingRecord.rule_id, FindingRecord.entity_id
-        )))
+        items = list(self.session.scalars(
+            base_statement.order_by(
+                severity_order, FindingRecord.rule_id, FindingRecord.entity_id
+            )
+            .limit(limit)
+            .offset(offset)
+        ))
+        return items, total
+
 
     def get(self, organization_id: UUID, finding_id: UUID) -> FindingRecord | None:
         return self.session.scalar(select(FindingRecord).where(
@@ -277,3 +381,155 @@ class FindingRepository:
         ))
         self.session.flush()
         return finding
+
+
+class RawRowRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def persist_raw_rows(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        source_file_id: UUID,
+        raw_items: list[RawRowItem],
+    ) -> dict[tuple[str, int], UUID]:
+        """Bulk inserts raw rows and returns a lookup map of (sheet_name, row_number) -> row_uuid."""
+        records = [
+            RawRowRecord(
+                id=item.id,
+                organization_id=organization_id,
+                project_id=project_id,
+                source_file_id=source_file_id,
+                sheet_name=item.sheet_name,
+                row_number=item.row_number,
+                raw_data=item.raw_data,
+            )
+            for item in raw_items
+        ]
+        self.session.add_all(records)
+        self.session.flush()
+        return {(r.sheet_name, r.row_number): r.id for r in records}
+
+    def list_for_file(
+        self,
+        organization_id: UUID,
+        source_file_id: UUID,
+        sheet_name: str | None = None,
+    ) -> list[RawRowRecord]:
+        stmt = select(RawRowRecord).where(
+            RawRowRecord.organization_id == organization_id,
+            RawRowRecord.source_file_id == source_file_id,
+        )
+        if sheet_name:
+            stmt = stmt.where(RawRowRecord.sheet_name == sheet_name)
+        return list(self.session.scalars(stmt.order_by(RawRowRecord.sheet_name, RawRowRecord.row_number)))
+
+
+class CanonicalFactRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def persist_bundle(self, bundle: CanonicalFactBundle) -> None:
+        """Persists all canonical fact records in the bundle."""
+        self.session.add_all(bundle.wbs_nodes)
+        self.session.add_all(bundle.budgets)
+        self.session.add_all(bundle.costs)
+        self.session.add_all(bundle.commitments)
+        self.session.add_all(bundle.schedules)
+        self.session.add_all(bundle.progress)
+        self.session.flush()
+
+    def get_wbs_nodes(self, organization_id: UUID, dataset_snapshot_id: UUID) -> list[WBSNodeRecord]:
+        return list(self.session.scalars(
+            select(WBSNodeRecord).where(
+                WBSNodeRecord.organization_id == organization_id,
+                WBSNodeRecord.dataset_snapshot_id == dataset_snapshot_id,
+            ).order_by(WBSNodeRecord.wbs_code)
+        ))
+
+    def get_budgets(self, organization_id: UUID, dataset_snapshot_id: UUID) -> list[BudgetRecordRecord]:
+        return list(self.session.scalars(
+            select(BudgetRecordRecord).where(
+                BudgetRecordRecord.organization_id == organization_id,
+                BudgetRecordRecord.dataset_snapshot_id == dataset_snapshot_id,
+            ).order_by(BudgetRecordRecord.budget_id)
+        ))
+
+    def get_costs(self, organization_id: UUID, dataset_snapshot_id: UUID) -> list[CostRecordRecord]:
+        return list(self.session.scalars(
+            select(CostRecordRecord).where(
+                CostRecordRecord.organization_id == organization_id,
+                CostRecordRecord.dataset_snapshot_id == dataset_snapshot_id,
+            ).order_by(CostRecordRecord.transaction_date, CostRecordRecord.transaction_id)
+        ))
+
+
+class HealthRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def create_snapshot(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        analysis_run_id: UUID,
+        overall_score: float,
+        cost_score: float,
+        schedule_score: float,
+        progress_score: float,
+        dq_score: float,
+        score_band: str,
+        component_breakdown: dict,
+        key_drivers: list,
+        score_version: str = "1.0",
+    ) -> HealthSnapshotRecord:
+        record = HealthSnapshotRecord(
+            organization_id=organization_id,
+            project_id=project_id,
+            analysis_run_id=analysis_run_id,
+            overall_score=overall_score,
+            cost_score=cost_score,
+            schedule_score=schedule_score,
+            progress_score=progress_score,
+            dq_score=dq_score,
+            score_band=score_band,
+            component_breakdown=component_breakdown,
+            key_drivers=key_drivers,
+            score_version=score_version,
+        )
+        self.session.add(record)
+        self.session.flush()
+        return record
+
+    def get_by_run(
+        self, organization_id: UUID, analysis_run_id: UUID
+    ) -> HealthSnapshotRecord | None:
+        return self.session.scalar(
+            select(HealthSnapshotRecord).where(
+                HealthSnapshotRecord.organization_id == organization_id,
+                HealthSnapshotRecord.analysis_run_id == analysis_run_id,
+            )
+        )
+
+    def list_trends(
+        self, organization_id: UUID, project_id: UUID, limit: int = 50, offset: int = 0
+    ) -> tuple[list[HealthSnapshotRecord], int]:
+        total = self.session.scalar(
+            select(func.count(HealthSnapshotRecord.id)).where(
+                HealthSnapshotRecord.organization_id == organization_id,
+                HealthSnapshotRecord.project_id == project_id,
+            )
+        ) or 0
+        items = list(self.session.scalars(
+            select(HealthSnapshotRecord).where(
+                HealthSnapshotRecord.organization_id == organization_id,
+                HealthSnapshotRecord.project_id == project_id,
+            )
+            .order_by(HealthSnapshotRecord.created_at.desc(), HealthSnapshotRecord.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ))
+        return items, total
+
+

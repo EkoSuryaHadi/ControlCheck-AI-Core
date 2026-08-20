@@ -28,6 +28,10 @@ class ProjectResponse(BaseModel):
 
 class ProjectListResponse(BaseModel):
     items: list[ProjectResponse]
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+    has_more: bool = False
 
 
 class AnalysisRunResponse(BaseModel):
@@ -49,6 +53,10 @@ class AnalysisRunResponse(BaseModel):
 
 class AnalysisRunListResponse(BaseModel):
     items: list[AnalysisRunResponse]
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+    has_more: bool = False
 
 
 class FindingResponse(BaseModel):
@@ -76,6 +84,11 @@ class FindingResponse(BaseModel):
 
 class FindingListResponse(BaseModel):
     items: list[FindingResponse]
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+    has_more: bool = False
+
 
 
 class EvidenceResponse(BaseModel):
@@ -95,3 +108,30 @@ class EvidenceListResponse(BaseModel):
 
 class FindingStatusUpdate(BaseModel):
     status: str
+
+
+class HealthSnapshotResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    analysis_run_id: UUID
+    overall_score: float
+    cost_score: float
+    schedule_score: float
+    progress_score: float
+    dq_score: float
+    score_band: str
+    component_breakdown: dict
+    key_drivers: list
+    score_version: str
+    created_at: datetime
+
+
+class HealthTrendListResponse(BaseModel):
+    items: list[HealthSnapshotResponse]
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+    has_more: bool = False
+
