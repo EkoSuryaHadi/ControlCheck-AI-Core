@@ -163,3 +163,47 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class AIAskRequest(BaseModel):
+    question: str = Field(min_length=2, max_length=2000)
+    conversation_id: UUID | None = None
+
+
+class AIAskResponse(BaseModel):
+    conversation_id: UUID
+    answer: str
+    key_evidence: list[dict] = []
+    impact: str
+    recommended_action: str
+    confidence: str = "high"
+    data_caveat: str | None = None
+    evidence_references: list[str] = []
+
+
+class AIConversationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    title: str
+    created_at: datetime
+
+
+class AIConversationListResponse(BaseModel):
+    items: list[AIConversationResponse]
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+    has_more: bool = False
+
+
+class AIMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    conversation_id: UUID
+    role: str
+    content: str
+    tool_calls: dict | list | None = None
+    created_at: datetime
+
+
+

@@ -12,12 +12,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from . import __version__
 from .api_models import (
+    AIAskRequest, AIAskResponse, AIConversationListResponse, AIConversationResponse, AIMessageResponse,
     AnalysisRunListResponse, AnalysisRunResponse, EvidenceListResponse, EvidenceResponse,
     FindingListResponse, FindingResponse, FindingStatusUpdate,
     HealthSnapshotResponse, HealthTrendListResponse,
     ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext,
     TokenResponse, UserLogin, UserRegister, UserResponse,
 )
+from .ai.assistant import ProjectAIAssistant
 from .application import AnalysisService
 from .auth import (
     create_access_token, create_refresh_token, decode_token,
@@ -28,9 +30,10 @@ from .loader import WorkbookSchemaError
 from .logging import clear_log_context, configure_logging, get_logger, set_log_context
 from .models import AuditResult
 from .persistence.repositories import (
-    AnalysisRepository, FindingRepository, HealthRepository,
+    AIRepository, AnalysisRepository, FindingRepository, HealthRepository,
     OrganizationRepository, ProjectRepository, UserRepository,
 )
+
 
 
 from .persistence.database import create_session_factory
@@ -427,6 +430,94 @@ def create_app(
                     offset=offset,
                     has_more=(offset + len(items) < total),
                 )
+
+        @application.post("/v1/projects/{project_id}/ai/ask", response_model=AIAskResponse)
+        def ask_project_ai(
+            project_id: UUID,
+            payload: AIAskRequest,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> AIAskResponse:
+            with session_factory() as session:
+                project = ProjectRepository(session).get_scoped(tenant.organization_id, project_id)
+                if project is None:
+                    raise ControlCheckApplicationError("project_not_found", "Project was not found for this organization", 404)
+
+                ai_repo = AIRepository(session)
+                conv_id = payload.conversation_id
+                if conv_id is None:
+                    conv = ai_repo.create_conversation(
+                        organization_id=tenant.organization_id,
+                        project_id=project_id,
+                        title=payload.question[:80],
+                    )
+                    conv_id = conv.id
+                else:
+                    conv = ai_repo.get_conversation(tenant.organization_id, conv_id)
+                    if conv is None:
+                        raise ControlCheckApplicationError("conversation_not_found", "Conversation was not found", 404)
+
+                # Record user question
+                ai_repo.add_message(conv_id, role="user", content=payload.question)
+
+                # Execute grounded reasoning
+                assistant = ProjectAIAssistant(tenant.organization_id, project_id, session)
+                result = assistant.ask(payload.question)
+
+                # Record assistant response
+                ai_repo.add_message(
+                    conv_id,
+                    role="assistant",
+                    content=result["answer"],
+                    tool_calls=result.get("key_evidence"),
+                )
+                session.commit()
+
+                return AIAskResponse(
+                    conversation_id=conv_id,
+                    answer=result["answer"],
+                    key_evidence=result.get("key_evidence", []),
+                    impact=result.get("impact", ""),
+                    recommended_action=result.get("recommended_action", ""),
+                    confidence=result.get("confidence", "high"),
+                    data_caveat=result.get("data_caveat"),
+                    evidence_references=result.get("evidence_references", []),
+                )
+
+        @application.get("/v1/projects/{project_id}/ai/conversations", response_model=AIConversationListResponse)
+        def list_project_ai_conversations(
+            project_id: UUID,
+            limit: int = 50,
+            offset: int = 0,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> AIConversationListResponse:
+            limit = max(1, min(limit, 200))
+            offset = max(0, offset)
+            with session_factory() as session:
+                if ProjectRepository(session).get_scoped(tenant.organization_id, project_id) is None:
+                    raise ControlCheckApplicationError("project_not_found", "Project was not found for this organization", 404)
+                items, total = AIRepository(session).list_conversations(
+                    tenant.organization_id, project_id, limit=limit, offset=offset
+                )
+                return AIConversationListResponse(
+                    items=[AIConversationResponse.model_validate(item) for item in items],
+                    total=total,
+                    limit=limit,
+                    offset=offset,
+                    has_more=(offset + len(items) < total),
+                )
+
+        @application.get("/v1/ai/conversations/{conversation_id}/messages", response_model=list[AIMessageResponse])
+        def list_conversation_messages(
+            conversation_id: UUID,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> list[AIMessageResponse]:
+            with session_factory() as session:
+                conv = AIRepository(session).get_conversation(tenant.organization_id, conversation_id)
+                if conv is None:
+                    raise ControlCheckApplicationError("conversation_not_found", "Conversation was not found", 404)
+                messages = AIRepository(session).list_messages(conversation_id)
+                return [AIMessageResponse.model_validate(m) for m in messages]
+
 
 
     return application

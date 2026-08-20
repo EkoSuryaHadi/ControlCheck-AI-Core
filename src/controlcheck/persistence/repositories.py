@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 
 from .models import (
+    AIConversationRecord,
+    AIMessageRecord,
     AnalysisRunRecord,
     AuditLogRecord,
     BudgetRecordRecord,
@@ -32,6 +34,7 @@ from .models import (
     UserRecord,
     WBSNodeRecord,
 )
+
 
 from ..ingestion.normalizer import CanonicalFactBundle
 from ..ingestion.raw_store import RawRowItem
@@ -606,6 +609,85 @@ class UserRepository:
                 ProjectMemberRecord.user_id == user_id,
             )
         )
+
+
+class AIRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def create_conversation(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        user_id: UUID | None = None,
+        title: str = "Project Audit Conversation",
+    ) -> AIConversationRecord:
+        conv = AIConversationRecord(
+            organization_id=organization_id,
+            project_id=project_id,
+            user_id=user_id,
+            title=title,
+        )
+        self.session.add(conv)
+        self.session.flush()
+        return conv
+
+    def get_conversation(
+        self, organization_id: UUID, conversation_id: UUID
+    ) -> AIConversationRecord | None:
+        return self.session.scalar(
+            select(AIConversationRecord).where(
+                AIConversationRecord.organization_id == organization_id,
+                AIConversationRecord.id == conversation_id,
+            )
+        )
+
+    def list_conversations(
+        self, organization_id: UUID, project_id: UUID, limit: int = 50, offset: int = 0
+    ) -> tuple[list[AIConversationRecord], int]:
+        total = self.session.scalar(
+            select(func.count(AIConversationRecord.id)).where(
+                AIConversationRecord.organization_id == organization_id,
+                AIConversationRecord.project_id == project_id,
+            )
+        ) or 0
+        items = list(self.session.scalars(
+            select(AIConversationRecord).where(
+                AIConversationRecord.organization_id == organization_id,
+                AIConversationRecord.project_id == project_id,
+            )
+            .order_by(AIConversationRecord.created_at.desc(), AIConversationRecord.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ))
+        return items, total
+
+    def add_message(
+        self,
+        conversation_id: UUID,
+        role: str,
+        content: str,
+        tool_calls: dict | list | None = None,
+        model_version: str = "deterministic-grounded-v1",
+    ) -> AIMessageRecord:
+        msg = AIMessageRecord(
+            conversation_id=conversation_id,
+            role=role,
+            content=content,
+            tool_calls=tool_calls,
+            model_version=model_version,
+        )
+        self.session.add(msg)
+        self.session.flush()
+        return msg
+
+    def list_messages(self, conversation_id: UUID) -> list[AIMessageRecord]:
+        return list(self.session.scalars(
+            select(AIMessageRecord).where(
+                AIMessageRecord.conversation_id == conversation_id
+            ).order_by(AIMessageRecord.created_at.asc(), AIMessageRecord.id.asc())
+        ))
+
 
 
 
