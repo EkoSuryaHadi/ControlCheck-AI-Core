@@ -99,6 +99,24 @@ body {
   gap: 12px;
 }
 
+.brand-logo-img {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.brand-logo-img:hover {
+  transform: scale(1.02);
+}
+
+[data-theme="dark"] .brand-logo-img {
+  background: rgba(255, 255, 255, 0.96);
+  padding: 3px 10px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
 .brand-title {
   font-size: 1.2rem;
   font-weight: 800;
@@ -108,6 +126,7 @@ body {
   align-items: center;
   gap: 6px;
 }
+
 
 .brand-pill {
   font-size: 0.65rem;
