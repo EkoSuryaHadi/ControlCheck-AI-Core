@@ -8,8 +8,10 @@ from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, sessionmaker
+
 
 
 from . import __version__
@@ -179,6 +181,15 @@ def create_app(
                     content={"status": "not_ready", "database": "unreachable", "error": str(exc)},
                 )
         return {"status": "ready", "database": "connected" if session_factory else "offline_mode"}
+
+    web_dir = Path(__file__).resolve().parent / "web"
+    if web_dir.exists():
+        application.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
+
+        @application.get("/", include_in_schema=False)
+        def index():
+            return FileResponse(web_dir / "index.html")
+
 
 
     @application.post("/v1/audits", response_model=AuditResult)
