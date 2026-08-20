@@ -37,6 +37,7 @@ def test_alembic_downgrade_and_second_upgrade(alembic_config, postgres_url):
         engine.dispose()
 
 
-def test_alembic_metadata_has_no_drift(alembic_config):
+def test_alembic_metadata_has_no_drift(alembic_config, postgres_url):
     command.upgrade(alembic_config, "head")
     command.check(alembic_config)
+

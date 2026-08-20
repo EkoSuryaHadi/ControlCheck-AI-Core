@@ -16,20 +16,6 @@ ORG_ID = UUID("11111111-1111-1111-1111-111111111111")
 OTHER_ORG_ID = UUID("22222222-2222-2222-2222-222222222222")
 
 
-@pytest.fixture(scope="session")
-def postgres_url() -> str:
-    return os.environ.get(
-        "CONTROLCHECK_TEST_DATABASE_URL",
-        "postgresql+psycopg://controlcheck:controlcheck@127.0.0.1:54329/controlcheck",
-    )
-
-
-@pytest.fixture()
-def alembic_config(project_root: Path, postgres_url: str) -> Config:
-    config = Config(str(project_root / "alembic.ini"))
-    config.set_main_option("script_location", str(project_root / "alembic"))
-    config.set_main_option("sqlalchemy.url", postgres_url)
-    return config
 
 
 @pytest.fixture()

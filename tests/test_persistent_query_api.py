@@ -20,15 +20,12 @@ ORG_ID = UUID("11111111-1111-1111-1111-111111111111")
 OTHER_ORG_ID = UUID("22222222-2222-2222-2222-222222222222")
 
 
-@pytest.fixture(scope="module")
-def query_context(project_root: Path, tmp_path_factory):
-    postgres_url = os.environ.get("CONTROLCHECK_TEST_DATABASE_URL", "postgresql+psycopg://controlcheck:controlcheck@127.0.0.1:54329/controlcheck")
-    config = Config(str(project_root / "alembic.ini"))
-    config.set_main_option("script_location", str(project_root / "alembic"))
-    config.set_main_option("sqlalchemy.url", postgres_url)
-    command.downgrade(config, "base")
-    command.upgrade(config, "head")
+@pytest.fixture()
+def query_context(alembic_config, postgres_url, project_root, tmp_path_factory):
+    command.downgrade(alembic_config, "base")
+    command.upgrade(alembic_config, "head")
     session_factory = create_session_factory(postgres_url)
+
     with session_factory() as session:
         session.add_all([
             OrganizationRecord(id=ORG_ID, name="Primary", slug=f"primary-{uuid4().hex[:8]}"),
