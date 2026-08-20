@@ -22,6 +22,7 @@ const state = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
   initDropZone();
   initFilters();
   initSearch();
@@ -29,6 +30,40 @@ document.addEventListener("DOMContentLoaded", () => {
   renderHealthGauge();
   loadMockInitialData();
 });
+
+// Dark / Light Theme Management
+function initTheme() {
+  const btnToggleTheme = document.getElementById("btn-toggle-theme");
+  const sunIcon = document.getElementById("theme-icon-sun");
+  const moonIcon = document.getElementById("theme-icon-moon");
+  const themeLabel = document.getElementById("theme-label");
+
+  const applyTheme = (theme) => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("controlcheck_theme", theme);
+    if (theme === "light") {
+      if (sunIcon) sunIcon.style.display = "inline-block";
+      if (moonIcon) moonIcon.style.display = "none";
+      if (themeLabel) themeLabel.textContent = "Light";
+    } else {
+      if (sunIcon) sunIcon.style.display = "none";
+      if (moonIcon) moonIcon.style.display = "inline-block";
+      if (themeLabel) themeLabel.textContent = "Dark";
+    }
+  };
+
+  const savedTheme = localStorage.getItem("controlcheck_theme") || "dark";
+  applyTheme(savedTheme);
+
+  if (btnToggleTheme) {
+    btnToggleTheme.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      const next = current === "dark" ? "light" : "dark";
+      applyTheme(next);
+    });
+  }
+}
+
 
 // Mock Initial Data for Instant Demonstration
 function loadMockInitialData() {
