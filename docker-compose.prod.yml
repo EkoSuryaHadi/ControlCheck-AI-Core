@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: controlcheck-api
+    restart: always
+    environment:
+      - CONTROLCHECK_DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-controlcheck}:${POSTGRES_PASSWORD:-controlcheck}@postgres:5432/${POSTGRES_DB:-controlcheck}
+      - CONTROLCHECK_JWT_SECRET=${CONTROLCHECK_JWT_SECRET:-change-this-in-production-use-openssl-rand-hex-32}
+      - CONTROLCHECK_CORS_ORIGINS=${CONTROLCHECK_CORS_ORIGINS:-https://app.controlcheck.ai,https://admin.controlcheck.ai}
+      - CONTROLCHECK_CATALOGUE=data/controlcheck_rule_catalogue_v0.2.json
+      - CONTROLCHECK_UPLOAD_ROOT=var/uploads
+      - CONTROLCHECK_STORAGE_BACKEND=${CONTROLCHECK_STORAGE_BACKEND:-local}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - app_uploads:/app/var/uploads
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: controlcheck-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-controlcheck}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-controlcheck}
+      POSTGRES_DB: ${POSTGRES_DB:-controlcheck}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-controlcheck} -d ${POSTGRES_DB:-controlcheck}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  app_uploads:

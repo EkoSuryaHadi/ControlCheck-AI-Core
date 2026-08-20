@@ -7,8 +7,10 @@ from time import perf_counter
 from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, sessionmaker
+
 
 from . import __version__
 from .api_models import (
@@ -65,6 +67,17 @@ def create_app(
     configure_logging()
     catalogue = Path(catalogue_path) if catalogue_path else _default_catalogue()
     application = FastAPI(title="ControlCheck Core API", version=__version__)
+
+    # Production CORS Middleware
+    cors_origins_env = os.environ.get("CONTROLCHECK_CORS_ORIGINS", "*")
+    origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins if origins else ["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @application.middleware("http")
     async def request_logging_middleware(request: Request, call_next):
@@ -148,6 +161,25 @@ def create_app(
     @application.get("/health")
     def health():
         return {"status": "ok", "engine_version": __version__}
+
+    @application.get("/health/live")
+    def health_live():
+        return {"status": "live", "engine_version": __version__}
+
+    @application.get("/health/ready")
+    def health_ready():
+        if session_factory is not None:
+            try:
+                with session_factory() as session:
+                    from sqlalchemy import text
+                    session.execute(text("SELECT 1"))
+            except Exception as exc:
+                return JSONResponse(
+                    status_code=503,
+                    content={"status": "not_ready", "database": "unreachable", "error": str(exc)},
+                )
+        return {"status": "ready", "database": "connected" if session_factory else "offline_mode"}
+
 
     @application.post("/v1/audits", response_model=AuditResult)
     async def audit(file: UploadFile) -> AuditResult:
