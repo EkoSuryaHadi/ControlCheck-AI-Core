@@ -1,5 +1,5 @@
 /**
- * ControlCheck AI — Frontend Dashboard Logic
+ * ControlCheck AI — Executive Analytics Command Center Logic
  */
 
 const state = {
@@ -8,9 +8,9 @@ const state = {
   findings: [],
   filteredFindings: [],
   activeCategory: "ALL",
-  activeSeverity: "ALL",
   searchQuery: "",
   conversationId: null,
+  expandedFindingId: null,
   currentPage: 1,
   pageSize: 5,
   health: {
@@ -25,17 +25,16 @@ const state = {
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  initDropZone();
+  initUpload();
   initFilters();
   initSearch();
   initPagination();
-  initChat();
+  initCopilotDrawer();
   renderHealthGauge();
   loadMockInitialData();
 });
 
-
-// Dark / Light Theme Management
+// Theme Management
 function initTheme() {
   const btnToggleTheme = document.getElementById("btn-toggle-theme");
   const sunIcon = document.getElementById("theme-icon-sun");
@@ -68,8 +67,47 @@ function initTheme() {
   }
 }
 
+// Slide-Over AI Copilot Drawer
+function initCopilotDrawer() {
+  const drawer = document.getElementById("copilot-drawer");
+  const backdrop = document.getElementById("copilot-backdrop");
+  const btnOpen = document.getElementById("btn-open-copilot");
+  const btnClose = document.getElementById("btn-close-copilot");
+  const btnSend = document.getElementById("btn-send");
+  const chatInput = document.getElementById("chat-input");
 
-// Mock Initial Data for Instant Demonstration
+  const openDrawer = () => {
+    if (drawer) drawer.classList.add("open");
+    if (backdrop) backdrop.classList.add("open");
+  };
+
+  const closeDrawer = () => {
+    if (drawer) drawer.classList.remove("open");
+    if (backdrop) backdrop.classList.remove("open");
+  };
+
+  if (btnOpen) btnOpen.addEventListener("click", openDrawer);
+  if (btnClose) btnClose.addEventListener("click", closeDrawer);
+  if (backdrop) backdrop.addEventListener("click", closeDrawer);
+
+  if (btnSend && chatInput) {
+    btnSend.addEventListener("click", () => sendChatMessage());
+    chatInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendChatMessage();
+    });
+  }
+
+  document.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", (e) => {
+      if (chatInput) {
+        chatInput.value = e.target.textContent;
+        sendChatMessage();
+      }
+    });
+  });
+}
+
+// Initial Mock Dataset for Demonstration
 function loadMockInitialData() {
   state.findings = [
     {
@@ -81,8 +119,8 @@ function loadMockInitialData() {
       entity_id: "1.0",
       title: "Actual Cost Exceeds Budget on WBS 1.0",
       description: "Actual costs (IDR 1,250,000,000) exceeded allocated budget (IDR 1,000,000,000) by 25%.",
-      business_impact: "Budget overrun risk and margin erosion.",
-      recommendation: "Review commitment approval workflows and conduct cost variance investigation.",
+      business_impact: "Budget overrun risk and margin erosion on primary structural package.",
+      recommendation: "Conduct cost variance investigation and tighten purchase order approval limits.",
       calculation: { actual_cost: 1250000000, budget: 1000000000, variance_pct: 25.0 },
       evidence: [{ source_sheet: "Actual Costs", source_rows: [12, 14, 18], record_ids: ["ACT-101", "ACT-102"] }],
     },
@@ -95,8 +133,8 @@ function loadMockInitialData() {
       entity_id: "ACT-040",
       title: "Foundation Work Overdue by 14 Days",
       description: "Activity ACT-040 is only 40% complete past its scheduled baseline finish date of 2026-08-01.",
-      business_impact: "Downstream delay on structural assembly milestone.",
-      recommendation: "Deploy additional subcontractor crew and fast-track steel deliveries.",
+      business_impact: "Critical path delay impacting subsequent structural assembly milestones.",
+      recommendation: "Deploy additional subcontractor shift and fast-track rebar deliveries.",
       calculation: { baseline_finish: "2026-08-01", progress_pct: 40.0, days_late: 14 },
       evidence: [{ source_sheet: "Schedule", source_rows: [42], record_ids: ["ACT-040"] }],
     },
@@ -131,10 +169,29 @@ function loadMockInitialData() {
   ];
 
   calculateHealthFromFindings();
+  updateCategoryCounts();
   applyFilters();
 }
 
-// Calculate Health Score dynamically based on PRD §13 formula
+// Compute Category Counts for Filter Chips
+function updateCategoryCounts() {
+  const counts = { ALL: state.findings.length, COST: 0, SCHEDULE: 0, PROGRESS: 0, DATA_QUALITY: 0 };
+  state.findings.forEach((f) => {
+    if (counts[f.category] !== undefined) counts[f.category]++;
+  });
+
+  const setC = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  setC("count-all", counts.ALL);
+  setC("count-cost", counts.COST);
+  setC("count-sched", counts.SCHEDULE);
+  setC("count-prog", counts.PROGRESS);
+  setC("count-dq", counts.DATA_QUALITY);
+}
+
+// Health Scoring Formula (PRD §13)
 function calculateHealthFromFindings() {
   const penalties = { COST: 0, SCHEDULE: 0, PROGRESS: 0, DATA_QUALITY: 0 };
   const weights = { critical: 15, warning: 5, observation: 1 };
@@ -167,7 +224,6 @@ function calculateHealthFromFindings() {
   renderDomainCards();
 }
 
-// Render Circular SVG Health Gauge
 function renderHealthGauge() {
   const gaugeValEl = document.getElementById("gauge-value");
   const gaugeBandEl = document.getElementById("gauge-band");
@@ -176,14 +232,15 @@ function renderHealthGauge() {
   if (!gaugeValEl || !gaugeCircle) return;
 
   gaugeValEl.textContent = state.health.overall.toFixed(0);
-  gaugeBandEl.textContent = state.health.band;
-  gaugeBandEl.className = `gauge-band-badge badge-${state.health.band.toLowerCase().replace(" ", "-")}`;
+  if (gaugeBandEl) {
+    gaugeBandEl.textContent = state.health.band;
+    gaugeBandEl.className = `kpi-badge badge-${state.health.band.toLowerCase().replace(" ", "-")}`;
+  }
 
-  const circumference = 2 * Math.PI * 52;
+  const circumference = 2 * Math.PI * 32; // radius 32
   const offset = circumference - (state.health.overall / 100) * circumference;
   gaugeCircle.style.strokeDashoffset = offset;
 
-  // Set color by band
   const colors = {
     Healthy: "#10b981",
     "Needs Attention": "#f59e0b",
@@ -209,22 +266,29 @@ function renderDomainCards() {
   setCard("dq", state.health.dq);
 }
 
-// Dropzone file upload handling
-function initDropZone() {
+// Upload & File Handling
+function initUpload() {
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
+  const btnQuickUpload = document.getElementById("btn-quick-upload");
+
+  if (btnQuickUpload && fileInput) {
+    btnQuickUpload.addEventListener("click", () => fileInput.click());
+  }
 
   if (!dropzone || !fileInput) return;
 
   dropzone.addEventListener("click", () => fileInput.click());
   dropzone.addEventListener("dragover", (e) => {
     e.preventDefault();
-    dropzone.classList.add("dragover");
+    dropzone.style.borderColor = "var(--primary)";
   });
-  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+  dropzone.addEventListener("dragleave", () => {
+    dropzone.style.borderColor = "rgba(59, 130, 246, 0.4)";
+  });
   dropzone.addEventListener("drop", (e) => {
     e.preventDefault();
-    dropzone.classList.remove("dragover");
+    dropzone.style.borderColor = "rgba(59, 130, 246, 0.4)";
     if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
   });
 
@@ -235,7 +299,7 @@ function initDropZone() {
 
 async function handleFileUpload(file) {
   const uploadText = document.getElementById("upload-status-text");
-  if (uploadText) uploadText.textContent = `Uploading & Analyzing "${file.name}"...`;
+  if (uploadText) uploadText.textContent = `Analyzing "${file.name}"...`;
 
   const formData = new FormData();
   formData.append("file", file);
@@ -253,24 +317,24 @@ async function handleFileUpload(file) {
 
     state.findings = data.findings || [];
     calculateHealthFromFindings();
+    updateCategoryCounts();
     applyFilters();
-    if (uploadText) uploadText.textContent = `Audit Complete! Loaded ${state.findings.length} findings from "${file.name}"`;
+    if (uploadText) uploadText.textContent = `✓ Audit Complete: Evaluated ${state.findings.length} findings from "${file.name}"`;
 
-    // Notify AI Copilot
-    addChatMessage("system", `Workbook <strong>${file.name}</strong> uploaded successfully. Detected ${state.findings.length} findings.`);
+    addChatMessage("system", `Loaded <strong>${file.name}</strong>. Evaluated ${state.findings.length} findings across 20 rules.`);
   } catch (err) {
     if (uploadText) uploadText.textContent = `Upload Error: ${err.message}`;
   }
 }
 
-
 // Filters & Search
 function initFilters() {
-  document.querySelectorAll(".filter-pill").forEach((pill) => {
-    pill.addEventListener("click", (e) => {
-      document.querySelectorAll(".filter-pill").forEach((p) => p.classList.remove("active"));
-      e.target.classList.add("active");
-      state.activeCategory = e.target.dataset.category || "ALL";
+  document.querySelectorAll(".filter-chip").forEach((chip) => {
+    chip.addEventListener("click", (e) => {
+      document.querySelectorAll(".filter-chip").forEach((p) => p.classList.remove("active"));
+      const target = e.target.closest(".filter-chip");
+      target.classList.add("active");
+      state.activeCategory = target.dataset.category || "ALL";
       applyFilters();
     });
   });
@@ -298,6 +362,7 @@ function applyFilters() {
   });
 
   state.currentPage = 1;
+  state.expandedFindingId = null;
   renderFindingsTable();
 }
 
@@ -325,14 +390,13 @@ function initPagination() {
   }
 }
 
+// Accordion Findings Table Rendering
 function renderFindingsTable() {
   const tbody = document.getElementById("findings-tbody");
-  const countEl = document.getElementById("finding-count");
   const infoEl = document.getElementById("pagination-info");
   const pagesContainer = document.getElementById("pagination-pages");
   const btnPrev = document.getElementById("btn-prev-page");
   const btnNext = document.getElementById("btn-next-page");
-  const paginationBar = document.getElementById("pagination-bar");
 
   if (!tbody) return;
 
@@ -340,35 +404,81 @@ function renderFindingsTable() {
   const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
 
   if (state.currentPage > totalPages) state.currentPage = totalPages;
-
-  if (countEl) countEl.textContent = `${total} Findings`;
   tbody.innerHTML = "";
 
   if (total === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">No findings matching current filters.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 36px;">No findings matching current filters.</td></tr>`;
     if (infoEl) infoEl.textContent = "Showing 0 findings";
-    if (paginationBar) paginationBar.style.display = "none";
     return;
   }
 
-  if (paginationBar) paginationBar.style.display = "flex";
-
-  // Slice 5 rows for current page
   const startIdx = (state.currentPage - 1) * state.pageSize;
   const endIdx = Math.min(startIdx + state.pageSize, total);
   const pageFindings = state.filteredFindings.slice(startIdx, endIdx);
 
   pageFindings.forEach((f) => {
+    const isExpanded = state.expandedFindingId === f.finding_id;
+
+    // Main Row
     const tr = document.createElement("tr");
+    tr.className = `finding-row ${isExpanded ? "expanded" : ""}`;
     tr.innerHTML = `
-      <td><span class="severity-tag tag-${f.severity}">${f.severity}</span></td>
+      <td><span class="accordion-chevron">▶</span></td>
+      <td><span class="severity-pill pill-${f.severity}">${f.severity}</span></td>
       <td><strong style="font-family: var(--font-mono); color: var(--primary);">${f.rule_id}</strong></td>
       <td><span style="font-family: var(--font-mono);">${f.entity_id}</span></td>
-      <td><strong>${f.title}</strong><div style="font-size: 0.75rem; color: var(--text-muted);">${f.description.substring(0, 80)}...</div></td>
-      <td><button class="btn-detail" style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); color: var(--text-secondary); padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;">Inspect</button></td>
+      <td>
+        <strong style="color: var(--text-primary); font-size: 0.85rem;">${f.title}</strong>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">${f.description.substring(0, 75)}...</div>
+      </td>
+      <td style="text-align: right;">
+        <button class="page-btn" style="font-size: 0.725rem;">${isExpanded ? "Collapse ▲" : "Expand ▼"}</button>
+      </td>
     `;
-    tr.addEventListener("click", () => openFindingModal(f));
+
+    tr.addEventListener("click", () => {
+      state.expandedFindingId = isExpanded ? null : f.finding_id;
+      renderFindingsTable();
+    });
+
     tbody.appendChild(tr);
+
+    // Accordion Drawer Row
+    if (isExpanded) {
+      const drawerTr = document.createElement("tr");
+      drawerTr.className = "accordion-drawer";
+      drawerTr.innerHTML = `
+        <td colspan="6" style="padding: 0;">
+          <div class="accordion-body">
+            
+            <div class="detail-card">
+              <div class="detail-title" style="color: var(--color-at-risk);">
+                ⚠️ Business Impact
+              </div>
+              <p style="color: var(--text-primary);">${f.business_impact || "No business impact documented."}</p>
+            </div>
+
+            <div class="detail-card">
+              <div class="detail-title" style="color: var(--color-healthy);">
+                💡 Actionable Recommendation
+              </div>
+              <p style="color: var(--text-primary);">${f.recommendation || "Review and reconcile."}</p>
+            </div>
+
+            <div class="detail-card" style="grid-column: 1 / -1;">
+              <div class="detail-title" style="color: var(--accent-cyan);">
+                🔍 Source Spreadsheet Lineage Trace
+              </div>
+              <div style="font-family: var(--font-mono); font-size: 0.75rem; background: var(--bg-surface-elevated); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); overflow-x: auto;">
+                ${JSON.stringify(f.evidence, null, 2)}
+              </div>
+            </div>
+
+          </div>
+        </td>
+      `;
+      tbody.appendChild(drawerTr);
+    }
   });
 
   // Update Pagination Controls
@@ -379,7 +489,6 @@ function renderFindingsTable() {
   if (btnPrev) btnPrev.disabled = state.currentPage <= 1;
   if (btnNext) btnNext.disabled = state.currentPage >= totalPages;
 
-  // Render Page Number Buttons (up to 5 buttons around current page)
   if (pagesContainer) {
     pagesContainer.innerHTML = "";
     const maxButtons = 5;
@@ -391,10 +500,11 @@ function renderFindingsTable() {
 
     for (let p = startPage; p <= endPage; p++) {
       const pageBtn = document.createElement("button");
-      pageBtn.className = `page-num ${p === state.currentPage ? "active" : ""}`;
+      pageBtn.className = `page-btn ${p === state.currentPage ? "btn-header-primary" : ""}`;
       pageBtn.textContent = p;
       pageBtn.addEventListener("click", () => {
         state.currentPage = p;
+        state.expandedFindingId = null;
         renderFindingsTable();
       });
       pagesContainer.appendChild(pageBtn);
@@ -402,91 +512,7 @@ function renderFindingsTable() {
   }
 }
 
-
-function openFindingModal(finding) {
-  const modal = document.getElementById("finding-modal");
-  const body = document.getElementById("modal-body");
-  if (!modal || !body) return;
-
-  body.innerHTML = `
-    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-      <span class="severity-tag tag-${finding.severity}">${finding.severity}</span>
-      <span style="font-family: var(--font-mono); font-weight: 700; color: var(--primary);">${finding.rule_id} — ${finding.rule_name}</span>
-    </div>
-    <h3 style="margin-bottom: 8px;">${finding.title}</h3>
-    <p style="color: var(--text-secondary); margin-bottom: 16px;">${finding.description}</p>
-    
-    <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-md); margin-bottom: 16px;">
-      <div style="font-size: 0.8rem; font-weight: 700; color: var(--color-at-risk); text-transform: uppercase;">Business Impact</div>
-      <div>${finding.business_impact}</div>
-    </div>
-
-    <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-md); margin-bottom: 16px;">
-      <div style="font-size: 0.8rem; font-weight: 700; color: var(--color-healthy); text-transform: uppercase;">Recommendation</div>
-      <div>${finding.recommendation}</div>
-    </div>
-
-    <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; color: var(--text-muted);">Source Evidence</div>
-    <div style="font-family: var(--font-mono); font-size: 0.8rem; background: var(--bg-base); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-      ${JSON.stringify(finding.evidence, null, 2)}
-    </div>
-  `;
-
-  modal.style.display = "flex";
-}
-
-function closeFindingModal() {
-  const modal = document.getElementById("finding-modal");
-  if (modal) modal.style.display = "none";
-}
-
-// AI Copilot Chat & Sidebar Toggle
-function initChat() {
-  const btnSend = document.getElementById("btn-send");
-  const chatInput = document.getElementById("chat-input");
-  const btnToggle = document.getElementById("btn-toggle-copilot");
-  const btnClose = document.getElementById("btn-close-copilot");
-  const appContainer = document.querySelector(".app-container");
-
-  const toggleCopilot = (show = null) => {
-    if (!appContainer) return;
-    const isHidden = show === null ? !appContainer.classList.contains("copilot-hidden") : !show;
-    if (isHidden) {
-      appContainer.classList.add("copilot-hidden");
-      if (btnToggle) btnToggle.classList.remove("active");
-    } else {
-      appContainer.classList.remove("copilot-hidden");
-      if (btnToggle) btnToggle.classList.add("active");
-    }
-    localStorage.setItem("controlcheck_copilot_hidden", isHidden ? "1" : "0");
-  };
-
-  if (btnToggle) btnToggle.addEventListener("click", () => toggleCopilot());
-  if (btnClose) btnClose.addEventListener("click", () => toggleCopilot(false));
-
-  // Restore saved state
-  if (localStorage.getItem("controlcheck_copilot_hidden") === "1") {
-    toggleCopilot(false);
-  }
-
-  if (btnSend && chatInput) {
-    btnSend.addEventListener("click", () => sendChatMessage());
-    chatInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendChatMessage();
-    });
-  }
-
-  document.querySelectorAll(".chip").forEach((chip) => {
-
-    chip.addEventListener("click", (e) => {
-      if (chatInput) {
-        chatInput.value = e.target.textContent;
-        sendChatMessage();
-      }
-    });
-  });
-}
-
+// AI Copilot Chat
 async function sendChatMessage() {
   const input = document.getElementById("chat-input");
   if (!input || !input.value.trim()) return;
@@ -495,7 +521,6 @@ async function sendChatMessage() {
   input.value = "";
   addChatMessage("user", question);
 
-  // Call API or Fallback Grounded Reasoning
   try {
     const res = await fetch(`/v1/projects/${state.activeProjectId}/ai/ask`, {
       method: "POST",
@@ -516,15 +541,15 @@ async function sendChatMessage() {
 
   // Local fallback grounded response
   setTimeout(() => {
-    const qLower = question.lower ? question.lower() : question.toLowerCase();
+    const qLower = question.toLowerCase();
     if (qLower.includes("cost") || qLower.includes("budget")) {
       addChatMessage("ai", `Found 1 critical cost finding on WBS 1.0 (Actual cost exceeded budget by IDR 250,000,000).`, "Review commitment approval workflows.");
     } else if (qLower.includes("delay") || qLower.includes("schedule")) {
       addChatMessage("ai", `Activity ACT-040 (Foundation Work) is delayed by 14 days past baseline finish.`, "Fast-track critical path activities.");
     } else {
-      addChatMessage("ai", `Project health score is ${state.health.overall}/100 ('${state.health.band}'). Cost and Schedule have critical deductions.`, "Address top critical findings first.");
+      addChatMessage("ai", `Project health score is ${state.health.overall}/100 ('${state.health.band}'). Evaluated across 20 rules.`, "Address top critical findings first.");
     }
-  }, 400);
+  }, 350);
 }
 
 function addChatMessage(sender, text, action = null) {
@@ -533,7 +558,7 @@ function addChatMessage(sender, text, action = null) {
 
   const bubble = document.createElement("div");
   bubble.className = `chat-bubble bubble-${sender}`;
-  bubble.innerHTML = `<div>${text}</div>` + (action ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 0.75rem; color: var(--color-healthy);"><strong>Action:</strong> ${action}</div>` : "");
+  bubble.innerHTML = `<div>${text}</div>` + (action ? `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 0.725rem; color: var(--color-healthy);"><strong>Recommended Action:</strong> ${action}</div>` : "");
 
   container.appendChild(bubble);
   container.scrollTop = container.scrollHeight;

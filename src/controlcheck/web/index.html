@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ControlCheck AI — Enterprise Project Control & Audit Platform</title>
-  <meta name="description" content="Deterministic project-control audit engine and AI-powered intelligence platform for EPC cost, schedule, progress, and data quality.">
+  <title>ControlCheck AI — Executive Analytics & Audit Command Center</title>
+  <meta name="description" content="Executive-grade project-control audit command center and AI intelligence platform for EPC cost, schedule, progress, and data quality.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -12,247 +12,214 @@
 </head>
 <body>
 
-  <div class="app-container">
-    
-    <!-- Top Header Navigation -->
-    <header class="navbar">
-      <a href="#" class="brand-logo">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);">
+  <!-- Top Executive Header Navigation -->
+  <header class="top-header">
+    <div class="brand-section">
+      <a href="#" class="brand-title" style="text-decoration: none;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           <path d="m9 12 2 2 4-4"/>
         </svg>
         ControlCheck <span style="color: var(--accent-cyan);">AI</span>
-        <span class="brand-badge">Enterprise</span>
+        <span class="brand-pill">Command Center</span>
       </a>
-
-      <div class="nav-actions">
-        <button id="btn-toggle-theme" class="btn-icon-toggle" title="Toggle Dark/Light Mode">
-          <svg id="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none; color: #f59e0b;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg id="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #8b5cf6;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <span id="theme-label">Dark</span>
-        </button>
-        <button id="btn-toggle-copilot" class="btn-icon-toggle" title="Toggle AI Copilot Sidebar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-cyan);"><path d="M12 2a8 8 0 0 0-8 8c0 3.36 2.06 6.24 5 7.42V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.58c2.94-1.18 5-4.06 5-7.42a8 8 0 0 0-8-8z"/></svg>
-          <span id="copilot-toggle-label">AI Copilot</span>
-        </button>
-
-        <div class="tenant-pill">
-          <div class="status-dot"></div>
-          <span>Tenant: <strong>Primary Org</strong></span>
-          <span style="color: var(--text-muted);">|</span>
-          <span>Project: <strong>PRJ-CCAI-001</strong></span>
-        </div>
-      </div>
-
-    </header>
-
-    <!-- Left Navigation Sidebar -->
-    <aside class="sidebar">
-      <div>
-        <div class="nav-section-title">Navigation</div>
-        <ul class="nav-menu">
-          <li class="nav-item active"><a href="#">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-            Dashboard
-          </a></li>
-          <li class="nav-item"><a href="#findings">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            Findings Audit
-          </a></li>
-          <li class="nav-item"><a href="/docs" target="_blank">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            REST API Docs
-          </a></li>
-        </ul>
-      </div>
-
-      <div>
-        <div class="nav-section-title">Rule Catalogue</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); padding: 0 12px; line-height: 1.6;">
-          <div>• <strong>Cost Rules:</strong> CST-001..007</div>
-          <div>• <strong>Schedule:</strong> SCH-001..006</div>
-          <div>• <strong>Progress:</strong> PRG-001..004</div>
-          <div>• <strong>Data Quality:</strong> DQ-001..003</div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Viewport Content -->
-    <main class="main-viewport">
-      
-      <!-- Top Dashboard Hero -->
-      <section class="dashboard-hero">
-        
-        <!-- Health Score Circular Card -->
-        <div class="card health-gauge-card">
-          <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Overall Project Health</div>
-          
-          <div class="gauge-svg-container">
-            <svg width="140" height="140" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-surface-elevated)" stroke-width="10"/>
-              <circle id="gauge-circle" cx="60" cy="60" r="52" fill="none" stroke="var(--color-healthy)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="65" transform="rotate(-90 60 60)"/>
-            </svg>
-            <div class="gauge-value" id="gauge-value">86</div>
-          </div>
-
-          <div id="gauge-band" class="gauge-band-badge badge-healthy">Healthy</div>
-          <div style="font-size: 0.725rem; color: var(--text-muted); margin-top: 6px;">Evaluated via PRD §13 Multi-Domain Formula</div>
-        </div>
-
-        <!-- Domain Scores Grid -->
-        <div class="domain-metrics-grid">
-          
-          <!-- Cost Card -->
-          <div class="domain-card">
-            <div class="domain-header">
-              <span class="domain-title">Cost Control (30%)</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            </div>
-            <div class="domain-score" id="cost-val">85%</div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" id="cost-bar" style="width: 85%; background: var(--color-healthy);"></div></div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Budget vs Actual & Exposure</div>
-          </div>
-
-          <!-- Schedule Card -->
-          <div class="domain-card">
-            <div class="domain-header">
-              <span class="domain-title">Schedule (30%)</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-cyan);"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-            </div>
-            <div class="domain-score" id="sched-val">85%</div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" id="sched-bar" style="width: 85%; background: var(--color-healthy);"></div></div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Critical Path Delays & Slips</div>
-          </div>
-
-          <!-- Progress Card -->
-          <div class="domain-card">
-            <div class="domain-header">
-              <span class="domain-title">Progress (25%)</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-purple);"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div class="domain-score" id="prog-val">95%</div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width: 95%; background: var(--color-healthy);"></div></div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Physical vs Cost Alignment</div>
-          </div>
-
-          <!-- Data Quality Card -->
-          <div class="domain-card">
-            <div class="domain-header">
-              <span class="domain-title">Data Quality (15%)</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-attention);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div class="domain-score" id="dq-val">95%</div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill" id="dq-bar" style="width: 95%; background: var(--color-healthy);"></div></div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Integrity & Referential Checks</div>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- Drag & Drop Upload Zone -->
-      <section class="upload-zone" id="dropzone">
-        <input type="file" id="file-input" accept=".xlsx" style="display: none;">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--primary); margin-bottom: 8px;">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>
-        </svg>
-        <div style="font-weight: 600; font-size: 0.95rem;" id="upload-status-text">Drag & drop project Excel workbook (.xlsx) or click to browse</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Supports Golden Positive, Boundary datasets, or custom EPC workbooks up to 25 MB</div>
-      </section>
-
-      <!-- Findings Section -->
-      <section class="findings-section" id="findings">
-        
-        <div class="findings-toolbar">
-          <div class="filter-pills">
-            <button class="filter-pill active" data-category="ALL">All Categories</button>
-            <button class="filter-pill" data-category="COST">Cost</button>
-            <button class="filter-pill" data-category="SCHEDULE">Schedule</button>
-            <button class="filter-pill" data-category="PROGRESS">Progress</button>
-            <button class="filter-pill" data-category="DATA_QUALITY">Data Quality</button>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span id="finding-count" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">4 Findings</span>
-            <input type="text" id="finding-search" class="search-input" placeholder="Search WBS, Rule, Title...">
-          </div>
-        </div>
-
-        <div class="findings-table-wrapper">
-          <table class="findings-table">
-            <thead>
-              <tr>
-                <th style="width: 110px;">Severity</th>
-                <th style="width: 110px;">Rule ID</th>
-                <th style="width: 120px;">Entity</th>
-                <th>Finding Title & Summary</th>
-                <th style="width: 90px;">Action</th>
-              </tr>
-            </thead>
-            <tbody id="findings-tbody">
-              <!-- Rendered via app.js -->
-            </tbody>
-          </table>
-
-          <!-- Pagination Bar (5 items per page) -->
-          <div class="pagination-bar" id="pagination-bar">
-            <div class="pagination-info" id="pagination-info">Showing 1–5 of 59 findings</div>
-            <div class="pagination-controls">
-              <button id="btn-prev-page" class="btn-page" title="Previous Page">&laquo; Prev</button>
-              <div id="pagination-pages" class="pagination-pages"></div>
-              <button id="btn-next-page" class="btn-page" title="Next Page">Next &raquo;</button>
-            </div>
-          </div>
-        </div>
-
-
-      </section>
-
-    </main>
-
-    <!-- Right AI Copilot Chat Sidebar -->
-    <aside class="ai-copilot-panel">
-      <div class="copilot-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-cyan);"><path d="M12 2a8 8 0 0 0-8 8c0 3.36 2.06 6.24 5 7.42V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.58c2.94-1.18 5-4.06 5-7.42a8 8 0 0 0-8-8z"/><line x1="9" x2="15" y1="9" y2="9"/></svg>
-          <strong style="font-size: 0.95rem;">AI Audit Copilot</strong>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="severity-tag tag-observation" style="font-size: 0.65rem;">Grounded</span>
-          <button id="btn-close-copilot" class="btn-close" style="font-size: 1.25rem; line-height: 1; padding: 0 4px; color: var(--text-muted); cursor: pointer;" title="Hide Copilot Sidebar">&times;</button>
-        </div>
-      </div>
-
-
-      <div style="padding: 12px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 6px; flex-wrap: wrap;">
-        <button class="filter-pill chip" style="font-size: 0.725rem; padding: 3px 8px;">Project Summary</button>
-        <button class="filter-pill chip" style="font-size: 0.725rem; padding: 3px 8px;">Why is schedule delayed?</button>
-        <button class="filter-pill chip" style="font-size: 0.725rem; padding: 3px 8px;">Top cost overruns</button>
-      </div>
-
-      <div class="copilot-messages" id="copilot-messages">
-        <div class="chat-bubble bubble-ai">
-          👋 Hello! I am your <strong>ControlCheck AI Assistant</strong>. Ask me anything about project health, cost overruns, schedule delays, or evidence traces.
-        </div>
-      </div>
-
-      <div class="copilot-input-bar">
-        <input type="text" id="chat-input" class="chat-input" placeholder="Ask AI about audit findings...">
-        <button id="btn-send" class="btn-send">Ask</button>
-      </div>
-    </aside>
-
-  </div>
-
-  <!-- Finding Detail Modal -->
-  <div class="modal-overlay" id="finding-modal" onclick="if(event.target===this)closeFindingModal()">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 style="font-size: 1.1rem; font-weight: 700;">Finding Detail & Evidence Trace</h2>
-        <button class="btn-close" onclick="closeFindingModal()">&times;</button>
-      </div>
-      <div id="modal-body"></div>
     </div>
-  </div>
+
+    <div class="header-center-pill">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-healthy); box-shadow: 0 0 8px var(--color-healthy);"></span>
+      <span>Org: <strong>Primary Tenant</strong></span>
+      <span style="color: var(--border-subtle);">|</span>
+      <span>Project: <strong>PRJ-CCAI-001</strong></span>
+    </div>
+
+    <div class="header-actions">
+      <!-- Quick Upload Trigger -->
+      <button id="btn-quick-upload" class="btn-header btn-header-primary" title="Upload Project Workbook">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+        Upload Excel
+      </button>
+
+      <!-- Theme Switcher -->
+      <button id="btn-toggle-theme" class="btn-header" title="Toggle Dark/Light Mode">
+        <svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none; color: #f59e0b;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #8b5cf6;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <span id="theme-label">Dark</span>
+      </button>
+
+      <!-- AI Copilot Drawer Trigger -->
+      <button id="btn-open-copilot" class="btn-header" title="Open AI Audit Copilot Drawer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-cyan);"><path d="M12 2a8 8 0 0 0-8 8c0 3.36 2.06 6.24 5 7.42V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.58c2.94-1.18 5-4.06 5-7.42a8 8 0 0 0-8-8z"/><line x1="9" x2="15" y1="9" y2="9"/></svg>
+        AI Copilot
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Viewport Command Center -->
+  <main class="command-viewport">
+    
+    <!-- 5 Executive KPI Cards in One Row -->
+    <section class="kpi-grid">
+      
+      <!-- Overall Health Card -->
+      <div class="kpi-card kpi-overall">
+        <div style="position: relative; width: 68px; height: 68px; flex-shrink: 0;">
+          <svg width="68" height="68" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="var(--bg-surface-elevated)" stroke-width="7"/>
+            <circle id="gauge-circle" cx="40" cy="40" r="32" fill="none" stroke="var(--color-healthy)" stroke-width="7" stroke-linecap="round" stroke-dasharray="201.06" stroke-dashoffset="30" transform="rotate(-90 40 40)"/>
+          </svg>
+          <div id="gauge-value" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800;">86</div>
+        </div>
+        <div>
+          <div class="kpi-title">Project Health</div>
+          <div id="gauge-band" class="kpi-badge badge-healthy" style="margin-top: 4px; display: inline-block;">Healthy</div>
+        </div>
+      </div>
+
+      <!-- Cost Control Card -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Cost Control (30%)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="kpi-score-row">
+          <span class="kpi-score" id="cost-val">85%</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Budget vs Actual</span>
+        </div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="cost-bar" style="width: 85%; background: var(--color-healthy);"></div></div>
+      </div>
+
+      <!-- Schedule Card -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Schedule (30%)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-cyan);"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+        </div>
+        <div class="kpi-score-row">
+          <span class="kpi-score" id="sched-val">85%</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Critical Path</span>
+        </div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="sched-bar" style="width: 85%; background: var(--color-healthy);"></div></div>
+      </div>
+
+      <!-- Progress Card -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Progress (25%)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-purple);"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div class="kpi-score-row">
+          <span class="kpi-score" id="prog-val">95%</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Physical Delta</span>
+        </div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="prog-bar" style="width: 95%; background: var(--color-healthy);"></div></div>
+      </div>
+
+      <!-- Data Quality Card -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Data Quality (15%)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-attention);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="kpi-score-row">
+          <span class="kpi-score" id="dq-val">95%</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Integrity</span>
+        </div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="dq-bar" style="width: 95%; background: var(--color-healthy);"></div></div>
+      </div>
+
+    </section>
+
+    <!-- Compact Dropzone Banner -->
+    <div class="upload-banner" id="dropzone">
+      <input type="file" id="file-input" accept=".xlsx" style="display: none;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+        <span id="upload-status-text" style="font-size: 0.85rem; font-weight: 600;">Drag & drop Excel workbook (.xlsx) here or click to browse</span>
+      </div>
+      <span style="font-size: 0.725rem; color: var(--text-muted);">Auto-evaluates 20 catalogue rules</span>
+    </div>
+
+    <!-- Findings Section with Accordion Table & Integrated Toolbar -->
+    <section class="findings-container">
+      
+      <div class="toolbar">
+        <div class="filter-group">
+          <button class="filter-chip active" data-category="ALL">All Categories <span class="chip-count" id="count-all">0</span></button>
+          <button class="filter-chip" data-category="COST">Cost <span class="chip-count" id="count-cost">0</span></button>
+          <button class="filter-chip" data-category="SCHEDULE">Schedule <span class="chip-count" id="count-sched">0</span></button>
+          <button class="filter-chip" data-category="PROGRESS">Progress <span class="chip-count" id="count-prog">0</span></button>
+          <button class="filter-chip" data-category="DATA_QUALITY">Data Quality <span class="chip-count" id="count-dq">0</span></button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="text" id="finding-search" class="search-box" placeholder="Search WBS, Rule, Title...">
+        </div>
+      </div>
+
+      <!-- Accordion Table -->
+      <table class="findings-table">
+        <thead>
+          <tr>
+            <th style="width: 36px;"></th>
+            <th style="width: 100px;">Severity</th>
+            <th style="width: 110px;">Rule ID</th>
+            <th style="width: 120px;">Entity</th>
+            <th>Finding Summary</th>
+            <th style="width: 140px; text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="findings-tbody">
+          <!-- Rendered via app.js with accordion drawers -->
+        </tbody>
+      </table>
+
+      <!-- 5-Row Pagination Bar -->
+      <div class="pagination-bar" id="pagination-bar">
+        <div id="pagination-info" style="color: var(--text-secondary); font-weight: 500;">Showing 1–5 findings</div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button id="btn-prev-page" class="page-btn">&laquo; Previous</button>
+          <div id="pagination-pages" style="display: flex; gap: 4px;"></div>
+          <button id="btn-next-page" class="page-btn">Next &raquo;</button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Slide-Over Backdrop -->
+  <div class="slideover-backdrop" id="copilot-backdrop"></div>
+
+  <!-- Slide-Over AI Audit Copilot Drawer -->
+  <aside class="copilot-slideover" id="copilot-drawer">
+    <div class="copilot-top">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-cyan);"><path d="M12 2a8 8 0 0 0-8 8c0 3.36 2.06 6.24 5 7.42V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.58c2.94-1.18 5-4.06 5-7.42a8 8 0 0 0-8-8z"/><line x1="9" x2="15" y1="9" y2="9"/></svg>
+        <strong style="font-size: 0.95rem;">AI Audit Copilot</strong>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="severity-pill pill-observation">Grounded</span>
+        <button id="btn-close-copilot" style="background: none; border: none; font-size: 1.3rem; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</button>
+      </div>
+    </div>
+
+    <div style="padding: 10px 18px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 6px; flex-wrap: wrap;">
+      <button class="filter-chip chip" style="font-size: 0.725rem; padding: 3px 8px;">Project Summary</button>
+      <button class="filter-chip chip" style="font-size: 0.725rem; padding: 3px 8px;">Why is schedule delayed?</button>
+      <button class="filter-chip chip" style="font-size: 0.725rem; padding: 3px 8px;">Top cost overruns</button>
+    </div>
+
+    <div class="copilot-chat-list" id="copilot-messages">
+      <div class="chat-bubble bubble-ai">
+        👋 Hello! I am your <strong>ControlCheck AI Copilot</strong>. Ask me anything regarding project cost overruns, schedule delays, or evidence traces.
+      </div>
+    </div>
+
+    <div class="copilot-bottom">
+      <input type="text" id="chat-input" class="search-box" style="flex: 1;" placeholder="Ask AI about audit findings...">
+      <button id="btn-send" class="btn-header btn-header-primary">Ask</button>
+    </div>
+  </aside>
 
   <script src="/static/js/app.js"></script>
 </body>
