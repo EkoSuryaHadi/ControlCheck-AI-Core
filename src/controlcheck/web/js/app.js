@@ -11,6 +11,8 @@ const state = {
   activeSeverity: "ALL",
   searchQuery: "",
   conversationId: null,
+  currentPage: 1,
+  pageSize: 5,
   health: {
     overall: 100.0,
     band: "Healthy",
@@ -26,10 +28,12 @@ document.addEventListener("DOMContentLoaded", () => {
   initDropZone();
   initFilters();
   initSearch();
+  initPagination();
   initChat();
   renderHealthGauge();
   loadMockInitialData();
 });
+
 
 // Dark / Light Theme Management
 function initTheme() {
@@ -293,23 +297,68 @@ function applyFilters() {
     return matchCat && matchQuery;
   });
 
+  state.currentPage = 1;
   renderFindingsTable();
+}
+
+function initPagination() {
+  const btnPrev = document.getElementById("btn-prev-page");
+  const btnNext = document.getElementById("btn-next-page");
+
+  if (btnPrev) {
+    btnPrev.addEventListener("click", () => {
+      if (state.currentPage > 1) {
+        state.currentPage--;
+        renderFindingsTable();
+      }
+    });
+  }
+
+  if (btnNext) {
+    btnNext.addEventListener("click", () => {
+      const totalPages = Math.ceil(state.filteredFindings.length / state.pageSize) || 1;
+      if (state.currentPage < totalPages) {
+        state.currentPage++;
+        renderFindingsTable();
+      }
+    });
+  }
 }
 
 function renderFindingsTable() {
   const tbody = document.getElementById("findings-tbody");
   const countEl = document.getElementById("finding-count");
+  const infoEl = document.getElementById("pagination-info");
+  const pagesContainer = document.getElementById("pagination-pages");
+  const btnPrev = document.getElementById("btn-prev-page");
+  const btnNext = document.getElementById("btn-next-page");
+  const paginationBar = document.getElementById("pagination-bar");
+
   if (!tbody) return;
 
-  if (countEl) countEl.textContent = `${state.filteredFindings.length} Findings`;
+  const total = state.filteredFindings.length;
+  const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+
+  if (state.currentPage > totalPages) state.currentPage = totalPages;
+
+  if (countEl) countEl.textContent = `${total} Findings`;
   tbody.innerHTML = "";
 
-  if (state.filteredFindings.length === 0) {
+  if (total === 0) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">No findings matching current filters.</td></tr>`;
+    if (infoEl) infoEl.textContent = "Showing 0 findings";
+    if (paginationBar) paginationBar.style.display = "none";
     return;
   }
 
-  state.filteredFindings.forEach((f) => {
+  if (paginationBar) paginationBar.style.display = "flex";
+
+  // Slice 5 rows for current page
+  const startIdx = (state.currentPage - 1) * state.pageSize;
+  const endIdx = Math.min(startIdx + state.pageSize, total);
+  const pageFindings = state.filteredFindings.slice(startIdx, endIdx);
+
+  pageFindings.forEach((f) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><span class="severity-tag tag-${f.severity}">${f.severity}</span></td>
@@ -321,7 +370,38 @@ function renderFindingsTable() {
     tr.addEventListener("click", () => openFindingModal(f));
     tbody.appendChild(tr);
   });
+
+  // Update Pagination Controls
+  if (infoEl) {
+    infoEl.textContent = `Showing ${startIdx + 1}–${endIdx} of ${total} findings (Page ${state.currentPage} of ${totalPages})`;
+  }
+
+  if (btnPrev) btnPrev.disabled = state.currentPage <= 1;
+  if (btnNext) btnNext.disabled = state.currentPage >= totalPages;
+
+  // Render Page Number Buttons (up to 5 buttons around current page)
+  if (pagesContainer) {
+    pagesContainer.innerHTML = "";
+    const maxButtons = 5;
+    let startPage = Math.max(1, state.currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    if (endPage - startPage + 1 < maxButtons) {
+      startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      const pageBtn = document.createElement("button");
+      pageBtn.className = `page-num ${p === state.currentPage ? "active" : ""}`;
+      pageBtn.textContent = p;
+      pageBtn.addEventListener("click", () => {
+        state.currentPage = p;
+        renderFindingsTable();
+      });
+      pagesContainer.appendChild(pageBtn);
+    }
+  }
 }
+
 
 function openFindingModal(finding) {
   const modal = document.getElementById("finding-modal");
