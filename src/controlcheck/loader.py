@@ -92,7 +92,7 @@ def _project_info(sheet: openpyxl.worksheet.worksheet.Worksheet) -> dict[str, An
     return values
 
 
-def load_workbook(path: Path | str | BinaryIO) -> ProjectDataset:
+def load_workbook(path: Path | str | BinaryIO, strict: bool = False) -> ProjectDataset:
     source = path
     if isinstance(path, (str, Path)):
         source = Path(path)
@@ -100,46 +100,60 @@ def load_workbook(path: Path | str | BinaryIO) -> ProjectDataset:
             logger.error("Workbook file not found: %s", source)
             raise WorkbookSchemaError("file_not_found", f"Workbook not found: {source}")
     logger.info("Loading Excel workbook...")
-    # Non-streaming mode releases the Windows file handle reliably after close,
-    # which is required by the API's bounded temporary-file lifecycle.
-    book = openpyxl.load_workbook(source, data_only=True, read_only=False)
-    missing_sheets = set(REQUIRED_COLUMNS) - set(book.sheetnames)
-    if missing_sheets:
-        logger.error("Missing required sheets in workbook: %s", missing_sheets)
-        raise WorkbookSchemaError("missing_sheets", f"Missing required sheets: {', '.join(sorted(missing_sheets))}")
-    info = _project_info(book["Project_Info"])
+    
+    # Try Standard Canonical Loading First
+    try:
+        book = openpyxl.load_workbook(source, data_only=True, read_only=False)
+        missing_sheets = set(REQUIRED_COLUMNS) - set(book.sheetnames)
+        if missing_sheets:
+            if strict:
+                logger.error("Missing required sheets in workbook: %s", missing_sheets)
+                raise WorkbookSchemaError("missing_sheets", f"Missing required sheets: {', '.join(sorted(missing_sheets))}")
+            logger.warning("Missing standard sheets %s. Falling back to Smart Flexible Loader.", missing_sheets)
+            book.close()
+            from .ingestion.flexible_loader import load_flexible_workbook
+            return load_flexible_workbook(source)
 
-    wbs = [WBSNode(**{**r, "parent_wbs": _text(r["parent_wbs"]), "discipline": _text(r["discipline"])}) for r in _records(book["WBS"])]
-    budgets = [BudgetRecord(**{**r, "wbs_code": _text(r["wbs_code"]), "cost_code": _text(r["cost_code"]), "budget_amount": Decimal(str(r["budget_amount"])), "effective_date": _date(r["effective_date"])}) for r in _records(book["Budget"])]
-    actuals = [ActualCostRecord(**{**r, "transaction_date": _date(r["transaction_date"]), "wbs_code": _text(r["wbs_code"]), "cost_code": _text(r["cost_code"]), "vendor_id": _text(r["vendor_id"]), "vendor_name": _text(r["vendor_name"]), "po_number": _text(r["po_number"]), "actual_amount": Decimal(str(r["actual_amount"]))}) for r in _records(book["Actual_Cost"])]
-    commitments = [CommitmentRecord(**{**r, "wbs_code": _text(r["wbs_code"]), "po_number": _text(r["po_number"]), "vendor_id": _text(r["vendor_id"]), "vendor_name": _text(r["vendor_name"]), "committed_amount": Decimal(str(r["committed_amount"])), "invoiced_amount": Decimal(str(r["invoiced_amount"])), "commitment_date": _date(r["commitment_date"])}) for r in _records(book["Commitments"])]
-    schedule = [ScheduleActivity(**{**r, "wbs_code": _text(r["wbs_code"]), "discipline": _text(r["discipline"]), "baseline_start": _date(r["baseline_start"]), "baseline_finish": _date(r["baseline_finish"]), "actual_start": _date(r["actual_start"]) if r["actual_start"] else None, "actual_finish": _date(r["actual_finish"]) if r["actual_finish"] else None}) for r in _records(book["Schedule"])]
-    progress = [ProgressRecord(**{**r, "period": _date(r["period"]), "wbs_code": _text(r["wbs_code"])}) for r in _records(book["Progress"])]
+        info = _project_info(book["Project_Info"])
+        wbs = [WBSNode(**{**r, "parent_wbs": _text(r["parent_wbs"]), "discipline": _text(r["discipline"])}) for r in _records(book["WBS"])]
+        budgets = [BudgetRecord(**{**r, "wbs_code": _text(r["wbs_code"]), "cost_code": _text(r["cost_code"]), "budget_amount": Decimal(str(r["budget_amount"])), "effective_date": _date(r["effective_date"])}) for r in _records(book["Budget"])]
+        actuals = [ActualCostRecord(**{**r, "transaction_date": _date(r["transaction_date"]), "wbs_code": _text(r["wbs_code"]), "cost_code": _text(r["cost_code"]), "vendor_id": _text(r["vendor_id"]), "vendor_name": _text(r["vendor_name"]), "po_number": _text(r["po_number"]), "actual_amount": Decimal(str(r["actual_amount"]))}) for r in _records(book["Actual_Cost"])]
+        commitments = [CommitmentRecord(**{**r, "wbs_code": _text(r["wbs_code"]), "po_number": _text(r["po_number"]), "vendor_id": _text(r["vendor_id"]), "vendor_name": _text(r["vendor_name"]), "committed_amount": Decimal(str(r["committed_amount"])), "invoiced_amount": Decimal(str(r["invoiced_amount"])), "commitment_date": _date(r["commitment_date"])}) for r in _records(book["Commitments"])]
+        schedule = [ScheduleActivity(**{**r, "wbs_code": _text(r["wbs_code"]), "discipline": _text(r["discipline"]), "baseline_start": _date(r["baseline_start"]), "baseline_finish": _date(r["baseline_finish"]), "actual_start": _date(r["actual_start"]) if r["actual_start"] else None, "actual_finish": _date(r["actual_finish"]) if r["actual_finish"] else None}) for r in _records(book["Schedule"])]
+        progress = [ProgressRecord(**{**r, "period": _date(r["period"]), "wbs_code": _text(r["wbs_code"])}) for r in _records(book["Progress"])]
 
-    logger.info(
-        "Loaded dataset for project %s (version: %s, data_date: %s): %d WBS, %d budgets, %d actuals, %d commitments, %d schedule activities, %d progress records",
-        info.get("project_id"),
-        info.get("dataset_version", "0.1"),
-        info.get("data_date"),
-        len(wbs),
-        len(budgets),
-        len(actuals),
-        len(commitments),
-        len(schedule),
-        len(progress),
-    )
+        logger.info(
+            "Loaded dataset for project %s (version: %s, data_date: %s): %d WBS, %d budgets, %d actuals, %d commitments, %d schedule activities, %d progress records",
+            info.get("project_id"),
+            info.get("dataset_version", "0.1"),
+            info.get("data_date"),
+            len(wbs),
+            len(budgets),
+            len(actuals),
+            len(commitments),
+            len(schedule),
+            len(progress),
+        )
 
-    result = ProjectDataset(
-        project=ProjectInfo(project_id=str(info["project_id"]), project_name=str(info["project_name"])),
-        data_date=_date(info["data_date"]),
-        wbs_nodes=wbs,
-        budgets=budgets,
-        actual_costs=actuals,
-        commitments=commitments,
-        schedule=schedule,
-        progress=progress,
-        dataset_version=str(info.get("dataset_version", "0.1")),
-    )
-    book.close()
-    return result
+        result = ProjectDataset(
+            project=ProjectInfo(project_id=str(info["project_id"]), project_name=str(info["project_name"])),
+            data_date=_date(info["data_date"]),
+            wbs_nodes=wbs,
+            budgets=budgets,
+            actual_costs=actuals,
+            commitments=commitments,
+            schedule=schedule,
+            progress=progress,
+            dataset_version=str(info.get("dataset_version", "0.1")),
+        )
+        book.close()
+        return result
+    except WorkbookSchemaError:
+        if strict:
+            raise
+        logger.info("Standard schema parsing failed. Executing Smart Flexible Auto-Mapper.")
+        from .ingestion.flexible_loader import load_flexible_workbook
+        return load_flexible_workbook(source)
+
+
 

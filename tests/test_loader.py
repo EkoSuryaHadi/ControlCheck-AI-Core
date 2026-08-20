@@ -35,7 +35,7 @@ def test_loader_rejects_missing_required_sheet(tmp_path: Path, sample_workbook: 
     book.save(invalid)
 
     with pytest.raises(WorkbookSchemaError, match="Budget") as exc:
-        load_workbook(invalid)
+        load_workbook(invalid, strict=True)
     assert exc.value.code == "missing_sheets"
 
 
@@ -46,5 +46,6 @@ def test_loader_rejects_missing_required_column(tmp_path: Path, sample_workbook:
     book.save(invalid)
 
     with pytest.raises(WorkbookSchemaError, match="actual_amount") as exc:
-        load_workbook(invalid)
+        load_workbook(invalid, strict=True)
     assert exc.value.code == "missing_columns"
+

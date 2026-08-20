@@ -207,7 +207,9 @@ def create_app(
                 raise HTTPException(413, {"code": "file_too_large", "max_bytes": max_upload_bytes})
         try:
             return run_audit(BytesIO(data), catalogue)
-        except VersionCompatibilityError:
+        except VersionCompatibilityError as exc:
+            if catalogue_path is not None:
+                raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
             # Fallback to check if a specific matching catalogue version exists in data/
             try:
                 from .loader import load_workbook
@@ -226,6 +228,7 @@ def create_app(
             raise HTTPException(422, {"code": "incompatible_artifact_versions", "message": "Incompatible workbook and catalogue versions"})
         except WorkbookSchemaError as exc:
             raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
+
 
 
     if session_factory is not None:
