@@ -129,18 +129,12 @@
 
     </section>
 
-    <!-- Compact Dropzone Banner -->
-    <div class="upload-banner" id="dropzone">
-      <input type="file" id="file-input" accept=".xlsx" style="display: none;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-        <span id="upload-status-text" style="font-size: 0.85rem; font-weight: 600;">Drag & drop Excel workbook (.xlsx) here or click to browse</span>
-      </div>
-      <span style="font-size: 0.725rem; color: var(--text-muted);">Auto-evaluates 20 catalogue rules</span>
-    </div>
+    <!-- Hidden File Input for Header Upload Button & Global Drag/Drop -->
+    <input type="file" id="file-input" accept=".xlsx" style="display: none;">
 
     <!-- Findings Section with Accordion Table & Integrated Toolbar -->
     <section class="findings-container">
+
       
       <div class="toolbar">
         <div class="filter-group">

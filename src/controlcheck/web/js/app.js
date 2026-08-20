@@ -268,7 +268,6 @@ function renderDomainCards() {
 
 // Upload & File Handling
 function initUpload() {
-  const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
   const btnQuickUpload = document.getElementById("btn-quick-upload");
 
@@ -276,30 +275,32 @@ function initUpload() {
     btnQuickUpload.addEventListener("click", () => fileInput.click());
   }
 
-  if (!dropzone || !fileInput) return;
+  if (fileInput) {
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length) handleFileUpload(e.target.files[0]);
+    });
+  }
 
-  dropzone.addEventListener("click", () => fileInput.click());
-  dropzone.addEventListener("dragover", (e) => {
+  // Support Drag & Drop directly onto the viewport window
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => {
     e.preventDefault();
-    dropzone.style.borderColor = "var(--primary)";
-  });
-  dropzone.addEventListener("dragleave", () => {
-    dropzone.style.borderColor = "rgba(59, 130, 246, 0.4)";
-  });
-  dropzone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropzone.style.borderColor = "rgba(59, 130, 246, 0.4)";
-    if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
-  });
-
-  fileInput.addEventListener("change", (e) => {
-    if (e.target.files.length) handleFileUpload(e.target.files[0]);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      const file = e.dataTransfer.files[0];
+      if (file.name.toLowerCase().endsWith(".xlsx")) {
+        handleFileUpload(file);
+      }
+    }
   });
 }
 
 async function handleFileUpload(file) {
-  const uploadText = document.getElementById("upload-status-text");
-  if (uploadText) uploadText.textContent = `Analyzing "${file.name}"...`;
+  const btnQuickUpload = document.getElementById("btn-quick-upload");
+  const originalBtnText = btnQuickUpload ? btnQuickUpload.innerHTML : "Upload Excel";
+  if (btnQuickUpload) {
+    btnQuickUpload.innerHTML = `<span>⏳ Analyzing...</span>`;
+    btnQuickUpload.disabled = true;
+  }
 
   const formData = new FormData();
   formData.append("file", file);
@@ -319,13 +320,28 @@ async function handleFileUpload(file) {
     calculateHealthFromFindings();
     updateCategoryCounts();
     applyFilters();
-    if (uploadText) uploadText.textContent = `✓ Audit Complete: Evaluated ${state.findings.length} findings from "${file.name}"`;
+
+    if (btnQuickUpload) {
+      btnQuickUpload.innerHTML = `<span>✓ Uploaded</span>`;
+      setTimeout(() => {
+        btnQuickUpload.innerHTML = originalBtnText;
+        btnQuickUpload.disabled = false;
+      }, 2000);
+    }
 
     addChatMessage("system", `Loaded <strong>${file.name}</strong>. Evaluated ${state.findings.length} findings across 20 rules.`);
   } catch (err) {
-    if (uploadText) uploadText.textContent = `Upload Error: ${err.message}`;
+    if (btnQuickUpload) {
+      btnQuickUpload.innerHTML = `<span>⚠️ Error</span>`;
+      setTimeout(() => {
+        btnQuickUpload.innerHTML = originalBtnText;
+        btnQuickUpload.disabled = false;
+      }, 3000);
+    }
+    alert(`Upload Error: ${err.message}`);
   }
 }
+
 
 // Filters & Search
 function initFilters() {
