@@ -296,9 +296,9 @@ function initUpload() {
 
 async function handleFileUpload(file) {
   const btnQuickUpload = document.getElementById("btn-quick-upload");
-  const originalBtnText = btnQuickUpload ? btnQuickUpload.innerHTML : "Upload Excel";
+  const originalBtnText = btnQuickUpload ? btnQuickUpload.innerHTML : "Upload Dataset (Standard / Custom)";
   if (btnQuickUpload) {
-    btnQuickUpload.innerHTML = `<span>⏳ Analyzing...</span>`;
+    btnQuickUpload.innerHTML = `<span>⏳ Auto-Mapping & Auditing...</span>`;
     btnQuickUpload.disabled = true;
   }
 
@@ -322,14 +322,15 @@ async function handleFileUpload(file) {
     applyFilters();
 
     if (btnQuickUpload) {
-      btnQuickUpload.innerHTML = `<span>✓ Uploaded</span>`;
+      btnQuickUpload.innerHTML = `<span>✓ Audit Complete</span>`;
       setTimeout(() => {
         btnQuickUpload.innerHTML = originalBtnText;
         btnQuickUpload.disabled = false;
       }, 2000);
     }
 
-    addChatMessage("system", `Loaded <strong>${file.name}</strong>. Evaluated ${state.findings.length} findings across 20 rules.`);
+    addChatMessage("system", `Processed <strong>${file.name}</strong>. Smart Ingestion evaluated ${state.findings.length} findings across 20 rules.`);
+
   } catch (err) {
     if (btnQuickUpload) {
       btnQuickUpload.innerHTML = `<span>⚠️ Error</span>`;
