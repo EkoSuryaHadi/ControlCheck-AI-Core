@@ -8,6 +8,7 @@ from typing import Any, BinaryIO, TypeVar
 import openpyxl
 from pydantic import BaseModel
 
+from .logging import get_logger
 from .models import (
     ActualCostRecord,
     BudgetRecord,
@@ -19,6 +20,9 @@ from .models import (
     SourceRef,
     WBSNode,
 )
+
+logger = get_logger("loader")
+
 
 
 REQUIRED_COLUMNS = {
@@ -93,12 +97,15 @@ def load_workbook(path: Path | str | BinaryIO) -> ProjectDataset:
     if isinstance(path, (str, Path)):
         source = Path(path)
         if not source.exists():
+            logger.error("Workbook file not found: %s", source)
             raise WorkbookSchemaError("file_not_found", f"Workbook not found: {source}")
+    logger.info("Loading Excel workbook...")
     # Non-streaming mode releases the Windows file handle reliably after close,
     # which is required by the API's bounded temporary-file lifecycle.
     book = openpyxl.load_workbook(source, data_only=True, read_only=False)
     missing_sheets = set(REQUIRED_COLUMNS) - set(book.sheetnames)
     if missing_sheets:
+        logger.error("Missing required sheets in workbook: %s", missing_sheets)
         raise WorkbookSchemaError("missing_sheets", f"Missing required sheets: {', '.join(sorted(missing_sheets))}")
     info = _project_info(book["Project_Info"])
 
@@ -108,6 +115,19 @@ def load_workbook(path: Path | str | BinaryIO) -> ProjectDataset:
     commitments = [CommitmentRecord(**{**r, "wbs_code": _text(r["wbs_code"]), "po_number": _text(r["po_number"]), "vendor_id": _text(r["vendor_id"]), "vendor_name": _text(r["vendor_name"]), "committed_amount": Decimal(str(r["committed_amount"])), "invoiced_amount": Decimal(str(r["invoiced_amount"])), "commitment_date": _date(r["commitment_date"])}) for r in _records(book["Commitments"])]
     schedule = [ScheduleActivity(**{**r, "wbs_code": _text(r["wbs_code"]), "discipline": _text(r["discipline"]), "baseline_start": _date(r["baseline_start"]), "baseline_finish": _date(r["baseline_finish"]), "actual_start": _date(r["actual_start"]) if r["actual_start"] else None, "actual_finish": _date(r["actual_finish"]) if r["actual_finish"] else None}) for r in _records(book["Schedule"])]
     progress = [ProgressRecord(**{**r, "period": _date(r["period"]), "wbs_code": _text(r["wbs_code"])}) for r in _records(book["Progress"])]
+
+    logger.info(
+        "Loaded dataset for project %s (version: %s, data_date: %s): %d WBS, %d budgets, %d actuals, %d commitments, %d schedule activities, %d progress records",
+        info.get("project_id"),
+        info.get("dataset_version", "0.1"),
+        info.get("data_date"),
+        len(wbs),
+        len(budgets),
+        len(actuals),
+        len(commitments),
+        len(schedule),
+        len(progress),
+    )
 
     result = ProjectDataset(
         project=ProjectInfo(project_id=str(info["project_id"]), project_name=str(info["project_name"])),
@@ -122,3 +142,4 @@ def load_workbook(path: Path | str | BinaryIO) -> ProjectDataset:
     )
     book.close()
     return result
+
