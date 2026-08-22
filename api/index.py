@@ -1,6 +1,10 @@
 import os
 import sys
+import traceback
 from pathlib import Path
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 # Ensure src directory is in sys.path for serverless execution
 root_dir = Path(__file__).resolve().parent.parent
@@ -19,43 +23,40 @@ if "CONTROLCHECK_UPLOAD_ROOT" not in os.environ:
     os.environ["CONTROLCHECK_UPLOAD_ROOT"] = "/tmp/uploads"
 
 try:
-    from controlcheck.api import app as _inner_app
-
-    # Vercel sends requests to /api/* as the full path.
-    # Our FastAPI routes are /v1/..., /health, etc.
-    # We need to strip the /api prefix before FastAPI processes the route.
-    from starlette.types import ASGIApp, Receive, Scope, Send
-
-    class StripPrefixMiddleware:
-        """Strip /api prefix from request path so FastAPI routes match."""
-        def __init__(self, app: ASGIApp, prefix: str = "/api"):
-            self.app = app
-            self.prefix = prefix
-
-        async def __call__(self, scope: Scope, receive: Receive, send: Send):
-            if scope["type"] in ("http", "websocket"):
-                path = scope.get("path", "")
-                if path.startswith(self.prefix):
-                    scope = dict(scope)
-                    scope["path"] = path[len(self.prefix):] or "/"
-            await self.app(scope, receive, send)
-
-    app = StripPrefixMiddleware(_inner_app)
+    from controlcheck.api import create_configured_app
+    app = create_configured_app()
+    # Add root /api/health directly
+    @app.get("/api/health")
+    def api_health():
+        return {
+            "status": "healthy",
+            "service": "ControlCheck AI Serverless Engine",
+            "platform": "Vercel",
+            "db_configured": bool(os.environ.get("DATABASE_URL"))
+        }
 
 except Exception as e:
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-    app = FastAPI(title="ControlCheck Core API (Fallback)")
-    @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-    async def fallback_handler(path_name: str):
+    err_tb = traceback.format_exc()
+    app = FastAPI(title="ControlCheck Core API (Recovery Mode)")
+    
+    @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+    async def recovery_fallback(full_path: str, request: Request):
         return JSONResponse(
             status_code=500,
             content={
                 "error": "serverless_initialization_error",
                 "message": str(e),
-                "hint": "Check DATABASE_URL environment variable format in Vercel settings."
+                "traceback": err_tb.split("\n"),
+                "path": full_path,
+                "hint": "Ensure DATABASE_URL environment variable is set in Vercel."
             }
         )
 
-# Vercel ASGI handler
-handler = app
+# Ensure CORS is always allowed
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
