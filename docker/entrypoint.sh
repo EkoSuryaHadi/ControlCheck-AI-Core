@@ -38,5 +38,9 @@ except Exception as e:
     echo "Database migrations applied successfully."
 fi
 
-echo "Starting ControlCheck AI server..."
-exec "$@"
+echo "Starting ControlCheck AI server on port ${PORT:-8000}..."
+if [ "$#" -eq 0 ] || [ "$1" = "uvicorn" ]; then
+    exec uvicorn controlcheck.api:app --app-dir src --host 0.0.0.0 --port "${PORT:-8000}" --workers "${WEB_CONCURRENCY:-2}"
+else
+    exec "$@"
+fi
