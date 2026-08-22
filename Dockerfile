@@ -1,6 +1,17 @@
-# Multi-stage production Dockerfile for ControlCheck AI
-FROM python:3.11-slim AS builder
+# Multi-stage production Dockerfile for ControlCheck AI (Single-Container Fullstack)
 
+# Stage 1: Build Frontend React SPA
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Python builder
+FROM python:3.11-slim AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,7 +24,6 @@ RUN pip install --no-cache-dir --upgrade pip build \
 
 # Final runtime stage
 FROM python:3.11-slim AS runner
-
 WORKDIR /app
 
 # Create non-root system user
@@ -24,7 +34,10 @@ RUN groupadd -g 10001 controlcheck && \
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy project files
+# Copy built frontend SPA assets from frontend-builder
+COPY --from=frontend-builder --chown=controlcheck:controlcheck /app/frontend/dist /app/frontend/dist
+
+# Copy project backend files
 COPY --chown=controlcheck:controlcheck pyproject.toml alembic.ini ./
 COPY --chown=controlcheck:controlcheck src/ src/
 COPY --chown=controlcheck:controlcheck alembic/ alembic/

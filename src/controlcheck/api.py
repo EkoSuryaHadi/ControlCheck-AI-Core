@@ -186,6 +186,34 @@ def create_app(
                 )
         return {"status": "ready", "database": "connected" if session_factory else "offline_mode"}
 
+    # Static & SPA Frontend Mounting
+    frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    if not frontend_dist.exists():
+        frontend_dist = Path("/app/frontend/dist")
+
+    if frontend_dist.exists() and (frontend_dist / "index.html").exists():
+        assets_dir = frontend_dist / "assets"
+        if assets_dir.exists():
+            application.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+        @application.get("/favicon.png", include_in_schema=False)
+        def favicon():
+            fav = frontend_dist / "favicon.png"
+            if fav.exists():
+                return FileResponse(fav)
+            legacy_fav = Path(__file__).resolve().parent / "web" / "favicon.png"
+            return FileResponse(legacy_fav)
+
+        spa_routes = [
+            "/dashboard", "/findings", "/findings/{finding_id}", "/data",
+            "/assistant", "/reports", "/cost", "/schedule", "/progress",
+            "/projects", "/settings", "/login"
+        ]
+        for route in spa_routes:
+            @application.get(route, include_in_schema=False)
+            def spa_page():
+                return FileResponse(frontend_dist / "index.html")
+
     web_dir = Path(__file__).resolve().parent / "web"
     if web_dir.exists():
         application.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
@@ -193,6 +221,10 @@ def create_app(
         @application.get("/", include_in_schema=False)
         def index():
             return FileResponse(web_dir / "index.html")
+    elif frontend_dist.exists() and (frontend_dist / "index.html").exists():
+        @application.get("/", include_in_schema=False)
+        def index_spa():
+            return FileResponse(frontend_dist / "index.html")
 
 
 

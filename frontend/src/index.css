@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-950: #07192D;
+  --color-navy-900: #0F2742;
+  --color-navy-800: #183556;
+  --color-navy-700: #20456E;
+  --color-blue-600: #1769E8;
+  --color-blue-500: #2B79F7;
+  --color-blue-400: #60A5FA;
+  --color-slate-900: #111827;
+  --color-slate-800: #1F2937;
+  --color-slate-700: #374151;
+  --color-slate-600: #667085;
+  --color-slate-500: #64748B;
+  --color-slate-400: #94A3B8;
+  --color-slate-300: #CBD5E1;
+  --color-slate-200: #E5E7EB;
+  --color-slate-100: #F1F5F9;
+  --color-slate-50: #F8FAFC;
+  
+  --color-critical: #EF4444;
+  --color-critical-bg: #FEF2F2;
+  --color-critical-border: #FECACA;
+  
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-warning-border: #FDE68A;
+  
+  --color-observation: #EAB308;
+  --color-observation-bg: #FEFCE8;
+  --color-observation-border: #FEF08A;
+  
+  --color-success: #2E8B57;
+  --color-success-bg: #F0FDF4;
+  --color-success-border: #BBF7D0;
+  
+  --color-ai: #7C3AED;
+  --color-ai-bg: #F5F3FF;
+  --color-ai-border: #DDD6FE;
+  
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+:root {
+  font-family: var(--font-sans);
+  color-scheme: light;
+  background-color: var(--color-slate-50);
+  color: var(--color-slate-900);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbars for dense enterprise views */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Tabular figures for financial and KPI metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

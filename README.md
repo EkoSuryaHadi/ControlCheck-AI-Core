@@ -9,19 +9,27 @@ Guided by the foundational principle: **"Deterministic engine calculates, AI exp
 ## 🏛️ Platform Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           ControlCheck AI                               │
-├───────────────────────┬─────────────────────────┬───────────────────────┤
-│  1. Ingestion Layer   │ 2. Deterministic Engine │  3. Health Scoring    │
-│  - Raw-Row Extraction │ - 20 Catalogue Rules    │  - Formula PRD §13    │
-│  - Lineage Tracking   │ - 100% Deterministic    │  - Cost/Sched/Prog/DQ │
-│  - Canonical Facts    │ - Evidence Traceability │  - Score Bands        │
-├───────────────────────┼─────────────────────────┼───────────────────────┤
-│  4. Persistence Layer │ 5. Auth & RBAC Layer    │  6. AI Layer          │
-│  - PostgreSQL 16      │ - JWT Access & Refresh  │  - Controlled Tools   │
-│  - 5 Alembic Revisions│ - Salted Bcrypt Hash    │  - Safety Guardrails  │
-│  - Cursor Pagination  │ - Org & Project Roles   │  - Grounded Assistant │
-└───────────────────────┴─────────────────────────┴───────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   ControlCheck AI                                      │
+├────────────────────────┬───────────────────────────┬───────────────────────────────────┤
+│  1. Ingestion Layer    │  2. Deterministic Engine  │  3. Health Scoring Engine         │
+│  - Raw-Row Extraction  │  - 20 Catalogue Rules     │  - Formula PRD §13 (30/30/25/15)  │
+│  - Lineage Tracking    │  - 100% Deterministic     │  - Cost/Sched/Prog/DQ Score Bands │
+│  - Canonical Facts     │  - Evidence Traceability  │  - Historical Trend Snapshots     │
+├────────────────────────┼───────────────────────────┼───────────────────────────────────┤
+│  4. Persistence Layer  │  5. Auth & RBAC Layer     │  6. AI Intelligence & Safety      │
+│  - PostgreSQL 16       │  - JWT Access & Refresh   │  - Controlled Zero-Hallucination  │
+│  - 5 Alembic Revisions │  - Salted Bcrypt Hash     │  - Grounded Assistant & Tools     │
+│  - Cursor Pagination   │  - Org & Project Roles    │  - Conversation & Message Memory  │
+├────────────────────────┴───────────────────────────┴───────────────────────────────────┤
+│  7. Executive React Web Application (Vite + React 19 + TypeScript + Tailwind CSS v4)   │
+│  - Dark Navy App Shell & Dynamic Project Selector                                      │
+│  - Executive Dashboard: 0-100 Health Gauge, Cost Performance, S-Curve Trend, Top Risks │
+│  - Findings Register & Finding Detail with 5 Tabs (Overview, Evidence, AI, Actions)   │
+│  - 4-Step Ingestion & Mapping Wizard with AI Confidence Badges                         │
+│  - Evidence-Grounded AI Assistant with Quick Prompt Chips & Finding Citations          │
+│  - Executive Reports Registry with PDF Sample Preview                                  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -48,13 +56,15 @@ Guided by the foundational principle: **"Deterministic engine calculates, AI exp
 - Multi-tier role authorization:
   - Organization roles: `org_admin`, `org_member`, `org_viewer`.
   - Project roles: `project_manager`, `project_member`, `project_viewer`.
-- Authorization via standard `Authorization: Bearer <token>` headers (with fallback support for `X-Organization-ID`).
 
 ### 5. AI Intelligence Layer & Safety Guardrails (Phase 6)
 - **Zero-hallucination guarantee**: The AI assistant never invents financial figures, dates, or activity IDs.
 - **Controlled Tools**: `get_project_health`, `get_top_cost_drivers`, `get_delayed_activities`, `get_finding_evidence`.
 - Context-aware natural language assistant for executive summaries, delay root-cause analysis, and cost overrun explanations.
-- Conversation and message history stored in `ai_conversations` and `ai_messages`.
+
+### 6. Executive React Web Application
+- Built in `frontend/` using **React 19**, **TypeScript**, **Tailwind CSS v4**, **Recharts**, **Lucide**, and **TanStack Query**.
+- 10 complete route views matching approved [UI/UX Design Spec v0.1](docs/ControlCheck_AI_UI_UX_Design_Spec_v0.1.docx) visual mockup.
 
 ---
 
@@ -62,25 +72,49 @@ Guided by the foundational principle: **"Deterministic engine calculates, AI exp
 
 ### Prerequisites
 - Python 3.11+
-- Docker or Podman (for PostgreSQL service)
+- Node.js 20+ & npm
+- Docker or Podman (for PostgreSQL database)
 
-### 1. Installation
+### 1. Backend Setup & Run
 ```powershell
+# Install Python dependencies
 python -m pip install -e ".[dev]"
-```
 
-### 2. Start PostgreSQL & Run Migrations
-```powershell
+# Start PostgreSQL database
 podman compose up -d postgres
 $env:CONTROLCHECK_DATABASE_URL = "postgresql+psycopg://controlcheck:controlcheck@127.0.0.1:54329/controlcheck"
 alembic upgrade head
-```
 
-### 3. Launch the API Service
-```powershell
+# Launch FastAPI Backend
 $env:CONTROLCHECK_CATALOGUE = "data\controlcheck_rule_catalogue_v0.2.json"
 $env:CONTROLCHECK_UPLOAD_ROOT = "var\uploads"
 uvicorn controlcheck.api:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+### 2. Frontend React Web Application Setup
+```powershell
+# Navigate to frontend directory
+cd frontend
+
+# Install Node dependencies
+npm install
+
+# Start Vite Development Server with live API proxy
+npm run dev
+
+# Open in browser
+# http://127.0.0.1:5173/
+```
+
+### 3. Production Single-Container Build
+```powershell
+# Build frontend bundle
+cd frontend
+npm run build
+
+# Run all backend tests
+cd ..
+python -m pytest -q -p no:cacheprovider
 ```
 
 ---
@@ -96,6 +130,8 @@ uvicorn controlcheck.api:app --app-dir src --host 127.0.0.1 --port 8000
 | **Audits & Runs** | `POST` | `/v1/projects/{project_id}/analysis-runs` | Upload workbook & trigger audit (Supports `X-Idempotency-Key`) |
 | | `GET` | `/v1/projects/{project_id}/analysis-runs` | List analysis runs |
 | | `GET` | `/v1/analysis-runs/{run_id}/findings` | List findings with severity/category filters |
+| **Findings** | `PATCH` | `/v1/findings/{finding_id}/status` | Update finding status (`open`, `in_review`, `resolved`) |
+| | `GET` | `/v1/findings/{finding_id}/evidence` | Retrieve verbatim raw-row evidence records |
 | **Health** | `GET` | `/v1/analysis-runs/{run_id}/health` | Retrieve health score breakdown & key drivers |
 | | `GET` | `/v1/projects/{project_id}/health-trend` | Retrieve project historical health trend |
 | **AI Assistant**| `POST` | `/v1/projects/{project_id}/ai/ask` | Ask grounded AI questions about project performance |
@@ -106,7 +142,7 @@ uvicorn controlcheck.api:app --app-dir src --host 127.0.0.1 --port 8000
 
 ## 🧪 Testing & Verification
 
-Run the entire suite of 29 unit and document verification tests:
+Run the entire suite of 128 unit, schema, and API verification tests:
 ```powershell
 python -m pytest -q -p no:cacheprovider
 ```
@@ -114,6 +150,7 @@ python -m pytest -q -p no:cacheprovider
 ---
 
 ## 📚 Document Governance
-- PRD v0.7: `docs/ControlCheck_AI_PRD_v0.7.docx`
-- ERD & Database Spec v0.3: `docs/ControlCheck_AI_ERD_Database_Spec_v0.3.docx`
-- SQL Schema Reference: `docs/003_controlcheck_canonical_schema_v0.3.sql`
+- **PRD v1.0**: `docs/ControlCheck_AI_PRD_v1.0.docx`
+- **UI/UX Design Spec v0.1**: `docs/ControlCheck_AI_UI_UX_Design_Spec_v0.1.docx`
+- **ERD & Database Spec v0.3**: `docs/ControlCheck_AI_ERD_Database_Spec_v0.3.docx`
+- **SQL Canonical Schema**: `docs/003_controlcheck_canonical_schema_v0.3.sql`
