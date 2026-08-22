@@ -12,5 +12,6 @@ var/
 node_modules/
 frontend/dist/
 frontend/node_modules/
-public/
+public/*
+!public/.gitkeep
 
