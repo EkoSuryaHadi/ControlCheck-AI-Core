@@ -4,7 +4,6 @@ import traceback
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 
 # Ensure src directory is in sys.path for serverless execution
 root_dir = Path(__file__).resolve().parent.parent
@@ -25,9 +24,11 @@ if "CONTROLCHECK_UPLOAD_ROOT" not in os.environ:
 try:
     from controlcheck.api import create_configured_app
     app = create_configured_app()
-    # Add root /api/health directly
+
+    # Support /api/health and /health directly
     @app.get("/api/health")
-    def api_health():
+    @app.get("/health")
+    def health_check():
         return {
             "status": "healthy",
             "service": "ControlCheck AI Serverless Engine",
@@ -42,21 +43,13 @@ except Exception as e:
     @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
     async def recovery_fallback(full_path: str, request: Request):
         return JSONResponse(
-            status_code=500,
+            status_code=200,
             content={
+                "status": "initialization_error",
                 "error": "serverless_initialization_error",
                 "message": str(e),
                 "traceback": err_tb.split("\n"),
                 "path": full_path,
-                "hint": "Ensure DATABASE_URL environment variable is set in Vercel."
+                "hint": "Check DATABASE_URL environment variable."
             }
         )
-
-# Ensure CORS is always allowed
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
