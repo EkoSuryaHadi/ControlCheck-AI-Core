@@ -60,7 +60,7 @@ def test_phase4a_golden_and_boundary_workflow(
         assert golden["status"] == "succeeded"
         assert golden["finding_count"] == 59
         findings_response = client.get(
-            f"/v1/analysis-runs/{golden['id']}/findings", headers=HEADERS
+            f"/v1/analysis-runs/{golden['id']}/findings?limit=100", headers=HEADERS
         )
         findings = findings_response.json()["items"]
         assert len(findings) == 59

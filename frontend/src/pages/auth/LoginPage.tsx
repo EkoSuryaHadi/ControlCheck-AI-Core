@@ -2,7 +2,8 @@ import React, { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { api } from "@/lib/api"
-import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle } from "lucide-react"
+import { Lock, Mail, ArrowRight, AlertCircle } from "lucide-react"
+import { BrandLogo } from "@/components/common/BrandLogo"
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate()
@@ -43,14 +44,9 @@ export const LoginPage: React.FC = () => {
     <div className="min-h-screen w-full flex items-center justify-center bg-navy-950 px-4 font-sans">
       <div className="w-full max-w-md bg-white rounded-2xl p-8 shadow-2xl border border-slate-700/50 space-y-6">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-blue-500/30">
-            <ShieldCheck className="w-7 h-7 stroke-[2.5]" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            ControlCheck AI
-          </h1>
-          <p className="text-xs text-slate-500">
+        <div className="text-center space-y-3 pb-2 border-b border-slate-100">
+          <BrandLogo variant="full" theme="light" size="lg" className="mx-auto" imgClassName="h-11 w-auto max-w-[240px]" />
+          <p className="text-[11px] text-slate-500 font-medium">
             Enterprise Project Control & Deterministic Audit Engine
           </p>
         </div>

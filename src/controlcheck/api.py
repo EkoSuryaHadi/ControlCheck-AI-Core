@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -32,6 +32,7 @@ from .auth import (
 from .errors import ControlCheckApplicationError
 from .loader import WorkbookSchemaError
 from .logging import clear_log_context, configure_logging, get_logger, set_log_context
+from .metrics import metrics_collector
 from .models import AuditResult
 from .persistence.repositories import (
     AIRepository, AnalysisRepository, FindingRepository, HealthRepository,
@@ -42,7 +43,7 @@ from .persistence.repositories import (
 
 from .persistence.database import create_session_factory
 from .service import run_audit
-from .settings import PersistenceSettings
+from .settings import PersistenceSettings, ProductionSettings
 from .storage import FileStorage, LocalFileStorage
 from .versioning import VersionCompatibilityError
 
@@ -90,12 +91,23 @@ def create_app(
         request_id = request.headers.get("X-Request-ID") or str(uuid4())
         request.state.request_id = request_id
         set_log_context(request_id=request_id)
+        metrics_collector.inc_active_requests()
         start_time = perf_counter()
         logger.info("HTTP %s %s [start]", request.method, request.url.path)
+        status_code = 500
         try:
             response = await call_next(request)
+            status_code = response.status_code
             duration_ms = round((perf_counter() - start_time) * 1000, 2)
+            
+            # Security Headers
             response.headers["X-Request-ID"] = request_id
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+            
             logger.info("HTTP %s %s [status: %d, duration: %s ms]", request.method, request.url.path, response.status_code, duration_ms)
             return response
         except Exception:
@@ -103,6 +115,9 @@ def create_app(
             logger.exception("HTTP %s %s [unhandled exception, duration: %s ms]", request.method, request.url.path, duration_ms)
             raise
         finally:
+            duration_sec = perf_counter() - start_time
+            metrics_collector.record_request(request.method, request.url.path, status_code, duration_sec)
+            metrics_collector.dec_active_requests()
             clear_log_context()
 
     @application.exception_handler(ControlCheckApplicationError)
@@ -174,17 +189,35 @@ def create_app(
 
     @application.get("/health/ready")
     def health_ready():
+        checks = {
+            "database": "offline_mode",
+            "storage": "unconfigured" if storage is None else "ready",
+            "catalogue": "loaded" if catalogue.exists() else "missing",
+        }
         if session_factory is not None:
             try:
                 with session_factory() as session:
                     from sqlalchemy import text
                     session.execute(text("SELECT 1"))
+                checks["database"] = "connected"
             except Exception as exc:
                 return JSONResponse(
                     status_code=503,
-                    content={"status": "not_ready", "database": "unreachable", "error": str(exc)},
+                    content={
+                        "status": "not_ready",
+                        "checks": {**checks, "database": "unreachable"},
+                        "error": str(exc),
+                    },
                 )
-        return {"status": "ready", "database": "connected" if session_factory else "offline_mode"}
+        return {
+            "status": "ready",
+            "checks": checks,
+            "engine_version": __version__,
+        }
+
+    @application.get("/metrics", response_class=PlainTextResponse)
+    def prometheus_metrics():
+        return metrics_collector.generate_prometheus_output()
 
     # Static & SPA Frontend Mounting
     frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -624,13 +657,34 @@ def create_app(
 def create_configured_app() -> FastAPI:
     catalogue = _default_catalogue()
     try:
-        settings = PersistenceSettings.from_env()
-    except RuntimeError:
+        prod_settings = ProductionSettings.from_env()
+    except Exception as exc:
+        logger.error("Configuration error on startup: %s", exc)
+        raise
+
+    if not prod_settings.database_url:
         return create_app(catalogue)
+
+    # Storage Backend Selection
+    storage: FileStorage
+    if prod_settings.storage_backend == "s3":
+        from .storage_s3 import S3FileStorage
+        storage = S3FileStorage(
+            bucket=os.environ.get("CONTROLCHECK_S3_BUCKET", "controlcheck-uploads"),
+            region=os.environ.get("CONTROLCHECK_S3_REGION", "ap-southeast-1"),
+            endpoint_url=os.environ.get("CONTROLCHECK_S3_ENDPOINT_URL"),
+            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        )
+    else:
+        upload_root = Path(os.environ.get("CONTROLCHECK_UPLOAD_ROOT", "var/uploads"))
+        storage = LocalFileStorage(upload_root)
+
     return create_app(
         catalogue,
-        session_factory=create_session_factory(settings.database_url),
-        storage=LocalFileStorage(settings.upload_root),
+        max_upload_bytes=prod_settings.max_upload_bytes,
+        session_factory=create_session_factory(prod_settings.database_url),
+        storage=storage,
     )
 
 

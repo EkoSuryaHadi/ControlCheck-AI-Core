@@ -1,5 +1,5 @@
 import React from "react"
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { useProject } from "@/context/ProjectContext"
 import {
@@ -18,10 +18,10 @@ import {
   Search,
   Plus,
   LogOut,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BrandLogo } from "@/components/common/BrandLogo"
 
 export const AppShell: React.FC = () => {
   const { user, logout } = useAuth()
@@ -48,22 +48,13 @@ export const AppShell: React.FC = () => {
       <aside className="w-64 shrink-0 bg-navy-950 text-slate-300 flex flex-col justify-between border-r border-navy-900 select-none z-30">
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo & Brand Header */}
-          <div className="p-4 flex items-center gap-3 border-b border-navy-900">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-900/50">
-              <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
-            </div>
-            <div>
-              <div className="text-white font-bold tracking-tight text-base flex items-center gap-1.5">
-                CONTROL<span className="text-blue-400">CHECK</span>
-                <span className="text-[10px] font-extrabold bg-blue-600/30 text-blue-400 px-1.5 py-0.2 rounded border border-blue-500/40">
-                  AI
-                </span>
-              </div>
-              <div className="text-[10px] text-slate-400 tracking-wider uppercase font-medium">
-                Audit & Governance
-              </div>
-            </div>
-          </div>
+          <Link
+            to="/dashboard"
+            className="px-4 py-4 flex items-center border-b border-navy-900 hover:opacity-90 transition-opacity"
+            title="ControlCheck AI Dashboard"
+          >
+            <BrandLogo variant="full" theme="dark" size="sm" imgClassName="h-8 w-auto max-w-[195px]" />
+          </Link>
 
           {/* Project Selector Box */}
           <div className="px-3 pt-4 pb-2">

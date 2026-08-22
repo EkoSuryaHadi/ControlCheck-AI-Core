@@ -32,7 +32,51 @@ def test_health_ready_probe_offline_mode():
     client = TestClient(app)
     response = client.get("/health/ready")
     assert response.status_code == 200
-    assert response.json()["status"] == "ready"
+    data = response.json()
+    assert data["status"] == "ready"
+    assert "checks" in data
+    assert data["checks"]["catalogue"] == "loaded"
+
+
+def test_security_headers_present():
+    app = create_app()
+    client = TestClient(app)
+    response = client.get("/health/live")
+    assert response.status_code == 200
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+    assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+    assert "X-Request-ID" in response.headers
+
+
+def test_prometheus_metrics_endpoint():
+    app = create_app()
+    client = TestClient(app)
+    # Trigger a request to record metric
+    client.get("/health/live")
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert "controlcheck_app_info" in response.text
+    assert "controlcheck_http_requests_total" in response.text
+    assert "controlcheck_process_uptime_seconds" in response.text
+
+
+def test_production_settings_validation(monkeypatch):
+    from controlcheck.settings import ProductionSettings
+    import pytest
+
+    # Test rejection of insecure JWT secret in production mode
+    monkeypatch.setenv("CONTROLCHECK_ENV", "production")
+    monkeypatch.setenv("CONTROLCHECK_JWT_SECRET", "dev-secret-key-change-in-production")
+    with pytest.raises(ValueError, match="INSECURE CONFIGURATION"):
+        ProductionSettings.from_env()
+
+    # Test acceptance of secure 32+ char secret in production mode
+    monkeypatch.setenv("CONTROLCHECK_JWT_SECRET", "a" * 64)
+    settings = ProductionSettings.from_env()
+    assert settings.env == "production"
+    assert len(settings.jwt_secret) == 64
 
 
 def test_s3_storage_initialization():
@@ -47,3 +91,4 @@ def test_prd_v08_records_production_readiness():
     assert "Phase 7 Production Readiness Alignment" in text
     assert "Change Log v0.8" in text
     assert "Multi-stage production Dockerfile" in text
+

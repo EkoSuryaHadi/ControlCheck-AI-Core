@@ -1,16 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
   <defs>
+    <!-- Background Gradient for C ring -->
     <linearGradient id="cRingGrad" x1="15%" y1="10%" x2="85%" y2="90%">
       <stop offset="0%" stop-color="#00D2FF" />
       <stop offset="35%" stop-color="#0084FF" />
       <stop offset="70%" stop-color="#0052D4" />
       <stop offset="100%" stop-color="#00227B" />
     </linearGradient>
+
+    <!-- Checkmark Gradient -->
     <linearGradient id="checkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38BDF8" />
       <stop offset="50%" stop-color="#0284C7" />
       <stop offset="100%" stop-color="#0369A1" />
     </linearGradient>
+
+    <!-- Pixel / Node Gradients -->
     <linearGradient id="pixelGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38BDF8" />
       <stop offset="100%" stop-color="#0284C7" />
@@ -23,28 +28,40 @@
       <stop offset="0%" stop-color="#0055D4" />
       <stop offset="100%" stop-color="#001F66" />
     </linearGradient>
+
+    <!-- Drop Shadow Filter for Checkmark -->
     <filter id="checkGlow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#001845" flood-opacity="0.3" />
     </filter>
   </defs>
+
   <g transform="translate(4, 0)">
+    <!-- Digital Scattered Pixel Data Nodes (Left Side) -->
+    <!-- Top Row Pixels -->
     <rect x="24" y="24" width="6.5" height="6.5" rx="1" fill="url(#pixelGradCyan)" />
     <rect x="33" y="19" width="5" height="5" rx="1" fill="#38BDF8" />
     <rect x="18" y="32" width="5.5" height="5.5" rx="1" fill="url(#pixelGradCyan)" />
     <rect x="26" y="33" width="7.5" height="7.5" rx="1.2" fill="url(#pixelGradBlue)" />
     <rect x="12" y="40" width="6" height="6" rx="1" fill="#00D2FF" />
+
+    <!-- Mid Row Pixels -->
     <rect x="6" y="49" width="6.5" height="6.5" rx="1" fill="url(#pixelGradCyan)" />
     <rect x="15" y="48" width="8" height="8" rx="1.2" fill="url(#pixelGradBlue)" />
     <rect x="25" y="43" width="9" height="9" rx="1.5" fill="url(#pixelGradBlue)" />
     <rect x="8" y="58" width="5.5" height="5.5" rx="1" fill="#0284C7" />
     <rect x="16" y="59" width="8" height="8" rx="1.2" fill="url(#pixelGradDarkBlue)" />
     <rect x="26" y="54" width="8.5" height="8.5" rx="1.2" fill="url(#pixelGradDarkBlue)" />
+
+    <!-- Bottom Row Pixels -->
     <rect x="10" y="66" width="6" height="6" rx="1" fill="#0077EE" />
     <rect x="18" y="69" width="7" height="7" rx="1.2" fill="url(#pixelGradDarkBlue)" />
     <rect x="14" y="78" width="5.5" height="5.5" rx="1" fill="#0055D4" />
     <rect x="22" y="80" width="7" height="7" rx="1.2" fill="url(#pixelGradDarkBlue)" />
     <rect x="31" y="88" width="6" height="6" rx="1" fill="#00227B" />
     <rect x="23" y="90" width="5" height="5" rx="1" fill="#0038A8" />
+
+    <!-- The C Ring Emblem -->
+    <!-- Outer path forming the 3D-styled stylized 'C' -->
     <path
       d="M 72 20 
          C 46 20, 26 40, 26 64 
@@ -59,6 +76,8 @@
          C 102 28, 88 20, 72 20 Z"
       fill="url(#cRingGrad)"
     />
+
+    <!-- Highlight bevel along top of C -->
     <path
       d="M 72 20 
          C 54 20, 38 31, 31 47 
@@ -69,6 +88,8 @@
       fill="#67E8F9"
       opacity="0.6"
     />
+
+    <!-- Vibrant Central Checkmark -->
     <path
       d="M 45 62 
          L 58 77 
@@ -79,6 +100,8 @@
       fill="url(#checkGrad)"
       filter="url(#checkGlow)"
     />
+
+    <!-- Checkmark Inner Edge Highlight -->
     <path
       d="M 45 62 
          L 58 77 

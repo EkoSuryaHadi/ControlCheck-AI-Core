@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -368,9 +368,12 @@ class HealthSnapshotRecord(Base):
 
 class UserRecord(TimestampMixin, Base):
     __tablename__ = "users"
-    __table_args__ = (CheckConstraint("status IN ('active','inactive','suspended')", name="ck_users_status"),)
+    __table_args__ = (
+        CheckConstraint("status IN ('active','inactive','suspended')", name="ck_users_status"),
+        Index("ix_users_email", "email"),
+    )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str | None] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(20), default="active")
@@ -381,10 +384,11 @@ class OrganizationMemberRecord(Base):
     __table_args__ = (
         UniqueConstraint("organization_id", "user_id", name="uq_org_member"),
         CheckConstraint("role IN ('org_admin','org_member','org_viewer')", name="ck_org_member_role"),
+        Index("ix_org_members_org_user", "organization_id", "user_id"),
     )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     role: Mapped[str] = mapped_column(String(50), default="org_member")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -394,19 +398,23 @@ class ProjectMemberRecord(Base):
     __table_args__ = (
         UniqueConstraint("project_id", "user_id", name="uq_project_member"),
         CheckConstraint("role IN ('project_manager','project_member','project_viewer')", name="ck_project_member_role"),
+        Index("ix_project_members_project_user", "project_id", "user_id"),
     )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     role: Mapped[str] = mapped_column(String(50), default="project_viewer")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AIConversationRecord(Base):
     __tablename__ = "ai_conversations"
+    __table_args__ = (
+        Index("ix_ai_conversations_org_project", "organization_id", "project_id"),
+    )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     title: Mapped[str] = mapped_column(String(255), default="Project Audit Conversation")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -414,9 +422,12 @@ class AIConversationRecord(Base):
 
 class AIMessageRecord(Base):
     __tablename__ = "ai_messages"
-    __table_args__ = (CheckConstraint("role IN ('user','assistant','system','tool')", name="ck_ai_messages_role"),)
+    __table_args__ = (
+        CheckConstraint("role IN ('user','assistant','system','tool')", name="ck_ai_messages_role"),
+        Index("ix_ai_messages_conversation", "conversation_id"),
+    )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    conversation_id: Mapped[UUID] = mapped_column(ForeignKey("ai_conversations.id", ondelete="CASCADE"), index=True)
+    conversation_id: Mapped[UUID] = mapped_column(ForeignKey("ai_conversations.id", ondelete="CASCADE"))
     role: Mapped[str] = mapped_column(String(30))
     content: Mapped[str] = mapped_column(Text)
     tool_calls: Mapped[dict | list | None] = mapped_column(JSONB)

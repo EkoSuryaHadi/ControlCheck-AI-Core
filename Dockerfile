@@ -37,17 +37,19 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy built frontend SPA assets from frontend-builder
 COPY --from=frontend-builder --chown=controlcheck:controlcheck /app/frontend/dist /app/frontend/dist
 
-# Copy project backend files
+# Copy project backend and docker files
 COPY --chown=controlcheck:controlcheck pyproject.toml alembic.ini ./
 COPY --chown=controlcheck:controlcheck src/ src/
 COPY --chown=controlcheck:controlcheck alembic/ alembic/
 COPY --chown=controlcheck:controlcheck data/ data/
+COPY --chown=controlcheck:controlcheck docker/ docker/
 
 # Install application package
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e . && \
+    chmod +x /app/docker/entrypoint.sh
 
 # Create var directory for local uploads fallback
-RUN mkdir -p var/uploads && chown -R controlcheck:controlcheck var/
+RUN mkdir -p var/uploads var/backups && chown -R controlcheck:controlcheck var/
 
 USER 10001:10001
 
@@ -55,9 +57,11 @@ EXPOSE 8000
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    WEB_CONCURRENCY=2 \
     CONTROLCHECK_CATALOGUE="data/controlcheck_rule_catalogue_v0.2.json"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live')" || exit 1
 
-CMD ["uvicorn", "controlcheck.api:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
+CMD ["uvicorn", "controlcheck.api:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

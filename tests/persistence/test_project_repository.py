@@ -44,4 +44,6 @@ def test_project_list_returns_only_organization_projects(db_session):
     expected = repository.create(first.id, "PRJ-1", "Project One", "IDR")
     repository.create(second.id, "PRJ-2", "Project Two", "USD")
 
-    assert repository.list_for_organization(first.id) == [expected]
+    projects, total = repository.list_for_organization(first.id)
+    assert projects == [expected]
+    assert total == 1

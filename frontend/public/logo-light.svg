@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 15 490 98" fill="none">
+  <defs>
+    <linearGradient id="light_cRingGrad" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#00D2FF" />
+      <stop offset="35%" stop-color="#0084FF" />
+      <stop offset="70%" stop-color="#0052D4" />
+      <stop offset="100%" stop-color="#00227B" />
+    </linearGradient>
+    <linearGradient id="light_checkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+    <linearGradient id="light_pixelGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="light_pixelGradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0099FF" />
+      <stop offset="100%" stop-color="#0044CC" />
+    </linearGradient>
+    <linearGradient id="light_pixelGradDarkBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0055D4" />
+      <stop offset="100%" stop-color="#001F66" />
+    </linearGradient>
+    <linearGradient id="light_aiBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0066FF" />
+      <stop offset="100%" stop-color="#003cd6" />
+    </linearGradient>
+    <filter id="light_checkGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#001845" flood-opacity="0.2" />
+    </filter>
+  </defs>
+
+  <!-- Emblem on the Left -->
+  <g transform="translate(4, 5)">
+    <!-- Pixels -->
+    <rect x="24" y="24" width="6.5" height="6.5" rx="1" fill="url(#light_pixelGradCyan)" />
+    <rect x="33" y="19" width="5" height="5" rx="1" fill="#38BDF8" />
+    <rect x="18" y="32" width="5.5" height="5.5" rx="1" fill="url(#light_pixelGradCyan)" />
+    <rect x="26" y="33" width="7.5" height="7.5" rx="1.2" fill="url(#light_pixelGradBlue)" />
+    <rect x="12" y="40" width="6" height="6" rx="1" fill="#00D2FF" />
+    <rect x="6" y="49" width="6.5" height="6.5" rx="1" fill="url(#light_pixelGradCyan)" />
+    <rect x="15" y="48" width="8" height="8" rx="1.2" fill="url(#light_pixelGradBlue)" />
+    <rect x="25" y="43" width="9" height="9" rx="1.5" fill="url(#light_pixelGradBlue)" />
+    <rect x="8" y="58" width="5.5" height="5.5" rx="1" fill="#0284C7" />
+    <rect x="16" y="59" width="8" height="8" rx="1.2" fill="url(#light_pixelGradDarkBlue)" />
+    <rect x="26" y="54" width="8.5" height="8.5" rx="1.2" fill="url(#light_pixelGradDarkBlue)" />
+    <rect x="10" y="66" width="6" height="6" rx="1" fill="#0077EE" />
+    <rect x="18" y="69" width="7" height="7" rx="1.2" fill="url(#light_pixelGradDarkBlue)" />
+    <rect x="14" y="78" width="5.5" height="5.5" rx="1" fill="#0055D4" />
+    <rect x="22" y="80" width="7" height="7" rx="1.2" fill="url(#light_pixelGradDarkBlue)" />
+    <rect x="31" y="88" width="6" height="6" rx="1" fill="#00227B" />
+    <rect x="23" y="90" width="5" height="5" rx="1" fill="#0038A8" />
+    
+    <!-- C ring -->
+    <path
+      d="M 72 20 C 46 20, 26 40, 26 64 C 26 88, 46 108, 72 108 C 88 108, 101 98, 107 84 L 92 78 C 88 88, 81 93, 72 93 C 56 93, 42 79, 42 64 C 42 49, 56 35, 72 35 C 81 35, 89 40, 93 49 L 108 42 C 102 28, 88 20, 72 20 Z"
+      fill="url(#light_cRingGrad)"
+    />
+    <path
+      d="M 72 20 C 54 20, 38 31, 31 47 C 37 39, 52 35, 72 35 C 83 35, 93 40, 97 48 L 108 42 C 102 28, 88 20, 72 20 Z"
+      fill="#67E8F9"
+      opacity="0.6"
+    />
+    <!-- Checkmark -->
+    <path
+      d="M 45 62 L 58 77 L 108 26 L 116 34 L 58 93 L 36 69 Z"
+      fill="url(#light_checkGrad)"
+      filter="url(#light_checkGlow)"
+    />
+    <path
+      d="M 45 62 L 58 77 L 108 26 L 112 30 L 58 84 L 41 65 Z"
+      fill="#BAE6FD"
+      opacity="0.75"
+    />
+  </g>
+
+  <!-- Typography & Badge -->
+  <!-- Brand Text: ControlCheck -->
+  <text x="138" y="71" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="800" font-size="43" fill="#0B132B" letter-spacing="-0.02em">
+    Control<tspan fill="#2563EB">Check</tspan>
+  </text>
+
+  <!-- AI Badge -->
+  <g transform="translate(415, 33)">
+    <rect width="66" height="44" rx="11" fill="url(#light_aiBadgeGrad)" />
+    <text x="33" y="31" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="26" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.04em">
+      AI
+    </text>
+  </g>
+
+  <!-- Tagline: CHECK. CONTROL. CONFIDENCE. -->
+  <text x="140" y="103" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="13" fill="#334155" letter-spacing="0.26em">
+    CHECK. CONTROL. CONFIDENCE.
+  </text>
+</svg>
