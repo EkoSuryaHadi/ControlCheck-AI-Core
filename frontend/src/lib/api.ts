@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const API_BASE_URL = "" // Relative URL works with Vite dev proxy and FastAPI mounted static files
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || ""
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
