@@ -1,0 +1,21 @@
+# Exclude non-essential files from Vercel serverless bundle
+tests/
+docs/
+results/
+validation/
+tools/
+docker/
+.github/
+.pytest_cache/
+.venv/
+alembic/
+*.md
+Dockerfile
+compose.yaml
+docker-compose.prod.yml
+render.yaml
+alembic.ini
+uv.lock
+pyproject.toml
+.env.example
+.env.production.example
