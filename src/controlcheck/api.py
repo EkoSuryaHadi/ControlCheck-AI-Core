@@ -677,7 +677,9 @@ def create_configured_app() -> FastAPI:
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
     else:
-        upload_root = Path(os.environ.get("CONTROLCHECK_UPLOAD_ROOT", "var/uploads"))
+        is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+        default_upload = "/tmp/uploads" if is_serverless else "var/uploads"
+        upload_root = Path(os.environ.get("CONTROLCHECK_UPLOAD_ROOT", default_upload))
         storage = LocalFileStorage(upload_root)
 
     return create_app(

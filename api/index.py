@@ -14,7 +14,26 @@ if "CONTROLCHECK_CATALOGUE" not in os.environ:
     if catalogue_path.exists():
         os.environ["CONTROLCHECK_CATALOGUE"] = str(catalogue_path)
 
-from controlcheck.api import app
+# Set serverless upload directory to /tmp
+if "CONTROLCHECK_UPLOAD_ROOT" not in os.environ:
+    os.environ["CONTROLCHECK_UPLOAD_ROOT"] = "/tmp/uploads"
 
-# Vercel looks for 'app' or 'handler'
+try:
+    from controlcheck.api import app
+except Exception as e:
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    app = FastAPI(title="ControlCheck Core API (Fallback)")
+    @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+    async def fallback_handler(path_name: str):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "serverless_initialization_error",
+                "message": str(e),
+                "hint": "Check DATABASE_URL environment variable format in Vercel settings."
+            }
+        )
+
+# Vercel ASGI handler
 handler = app
