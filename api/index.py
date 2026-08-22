@@ -19,7 +19,29 @@ if "CONTROLCHECK_UPLOAD_ROOT" not in os.environ:
     os.environ["CONTROLCHECK_UPLOAD_ROOT"] = "/tmp/uploads"
 
 try:
-    from controlcheck.api import app
+    from controlcheck.api import app as _inner_app
+
+    # Vercel sends requests to /api/* as the full path.
+    # Our FastAPI routes are /v1/..., /health, etc.
+    # We need to strip the /api prefix before FastAPI processes the route.
+    from starlette.types import ASGIApp, Receive, Scope, Send
+
+    class StripPrefixMiddleware:
+        """Strip /api prefix from request path so FastAPI routes match."""
+        def __init__(self, app: ASGIApp, prefix: str = "/api"):
+            self.app = app
+            self.prefix = prefix
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send):
+            if scope["type"] in ("http", "websocket"):
+                path = scope.get("path", "")
+                if path.startswith(self.prefix):
+                    scope = dict(scope)
+                    scope["path"] = path[len(self.prefix):] or "/"
+            await self.app(scope, receive, send)
+
+    app = StripPrefixMiddleware(_inner_app)
+
 except Exception as e:
     from fastapi import FastAPI
     from fastapi.responses import JSONResponse

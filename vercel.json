@@ -3,12 +3,8 @@
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "routes": [
-    { "src": "/api/health", "dest": "/api/health.py" },
-    { "src": "/v1/(.*)", "dest": "/api/index.py" },
-    { "src": "/v1", "dest": "/api/index.py" },
-    { "src": "/health(.*)", "dest": "/api/health.py" },
-    { "src": "/docs", "dest": "/api/index.py" },
-    { "src": "/openapi.json", "dest": "/api/index.py" },
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
+    { "src": "/api", "dest": "/api/index.py" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
