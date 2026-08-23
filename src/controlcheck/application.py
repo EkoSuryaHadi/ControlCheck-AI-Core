@@ -83,7 +83,11 @@ class AnalysisService:
             self.storage.delete(stored.key)
             raise ControlCheckApplicationError(
                 "workbook_project_mismatch",
-                "Workbook project ID does not match the target project code",
+                (
+                    f"Workbook Project ID '{dataset.project.project_id}' does not match "
+                    f"the active ControlCheck project code '{project.code}'. "
+                    "Select the matching project or update the workbook Project sheet before ingestion."
+                ),
                 422,
             )
 
@@ -193,4 +197,3 @@ class AnalysisService:
         raise ControlCheckApplicationError(
             code, safe_message, status_code, analysis_run_id=run_id
         ) from cause
-
