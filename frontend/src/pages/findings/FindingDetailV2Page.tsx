@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useProject } from "@/context/ProjectContext"
-import { api } from "@/lib/api"
+import { api, ClosureReadiness } from "@/lib/api"
 import { INITIAL_FINDINGS } from "./FindingsPage"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
 import { trackEvent } from "@/lib/analytics"
 import { createAction, getActionsForFinding, FindingAction, ActionPriority } from "@/lib/actionStore"
-import { ArrowLeft, CheckCircle2, FileSpreadsheet, Lightbulb, MapPin, ShieldCheck, Sparkles, Target, TriangleAlert, UserRound, CalendarDays, ClipboardCheck } from "lucide-react"
+import { ArrowLeft, CheckCircle2, FileSpreadsheet, Lightbulb, MapPin, ShieldCheck, Sparkles, Target, TriangleAlert, UserRound, CalendarDays, ClipboardCheck, LockKeyhole } from "lucide-react"
+
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 
 export const FindingDetailV2Page: React.FC = () => {
   const { findingId } = useParams<{ findingId: string }>()
@@ -16,6 +18,8 @@ export const FindingDetailV2Page: React.FC = () => {
   const [status, setStatus] = useState("open")
   const [isResolving, setIsResolving] = useState(false)
   const [actions, setActions] = useState<FindingAction[]>([])
+  const [closure, setClosure] = useState<ClosureReadiness | null>(null)
+  const [closureError, setClosureError] = useState<string | null>(null)
   const [owner, setOwner] = useState("Project Control Lead")
   const [dueDate, setDueDate] = useState("")
   const [priority, setPriority] = useState<ActionPriority>("high")
@@ -23,18 +27,39 @@ export const FindingDetailV2Page: React.FC = () => {
 
   const finding: any = useMemo(() => liveFindings.find((f: any) => f.id === findingId || f.rule_id === findingId) || INITIAL_FINDINGS.find((f: any) => f.id === findingId) || INITIAL_FINDINGS[0], [findingId, liveFindings])
   const canonicalFindingId = finding.id || finding.rule_id || findingId || "unknown"
+  const serverGoverned = isUuid(canonicalFindingId)
+
+  const refreshClosure = useCallback(async () => {
+    if (!serverGoverned) return
+    try {
+      const readiness = await api.findings.closureReadiness(canonicalFindingId)
+      setClosure(readiness)
+      setClosureError(null)
+    } catch {
+      setClosure(null)
+    }
+  }, [canonicalFindingId, serverGoverned])
 
   useEffect(() => {
     setStatus(finding.status || "open")
     setActions(getActionsForFinding(canonicalFindingId))
     trackEvent("finding_detail_viewed", { finding_id: canonicalFindingId, severity: finding.severity })
-    if (finding.id) {
-      api.findings.getEvidence(finding.id).then((res) => {
+
+    if (serverGoverned) {
+      api.findings.getEvidence(canonicalFindingId).then((res) => {
         const items = Array.isArray(res) ? res : res?.items || []
-        if (items.length) setEvidence(items)
+        setEvidence(items)
       }).catch(() => {})
+      void refreshClosure()
     }
-  }, [finding, canonicalFindingId])
+
+    const syncLocal = () => {
+      setActions(getActionsForFinding(canonicalFindingId))
+      void refreshClosure()
+    }
+    window.addEventListener("controlcheck-actions-updated", syncLocal)
+    return () => window.removeEventListener("controlcheck-actions-updated", syncLocal)
+  }, [finding, canonicalFindingId, serverGoverned, refreshClosure])
 
   const fallbackEvidence = [
     { source_sheet: "Actual_Cost", source_rows: [142], fields: { WBS: finding.wbs || "03.02", Amount: finding.actual || "Rp 958,400,000", Source: "Actual Cost Register" } },
@@ -59,14 +84,48 @@ export const FindingDetailV2Page: React.FC = () => {
     return Math.round((checks.filter(Boolean).length / checks.length) * 100)
   }, [evidenceItems, finding])
 
+  const localClosure = useMemo<ClosureReadiness>(() => {
+    const activeActions = actions.filter((item) => !["completed", "cancelled"].includes(item.status))
+    const evidenceReady = evidenceItems.length > 0
+    const actionsReady = activeActions.length === 0
+    return {
+      can_close: evidenceReady && actionsReady,
+      evidence_ready: evidenceReady,
+      actions_ready: actionsReady,
+      action_count: actions.length,
+      open_action_count: activeActions.length,
+      completed_action_count: actions.filter((item) => item.status === "completed").length,
+      blockers: [
+        ...(!evidenceReady ? ["At least one evidence record is required before closure."] : []),
+        ...(!actionsReady ? ["All corrective actions must be completed or cancelled before closure."] : []),
+      ],
+    }
+  }, [actions, evidenceItems])
+
+  const closureState = closure || localClosure
+
   const resolveFinding = async () => {
+    setClosureError(null)
+    if (!closureState.can_close) {
+      setClosureError(closureState.blockers.join(" "))
+      trackEvent("finding_closure_blocked", { finding_id: canonicalFindingId, blocker_count: closureState.blockers.length })
+      return
+    }
+
     setIsResolving(true)
     try {
-      if (finding.id) await api.findings.updateStatus(finding.id, "resolved")
+      if (serverGoverned) {
+        await api.findings.closeGoverned(canonicalFindingId)
+      }
       setStatus("resolved")
-      trackEvent("finding_resolved", { finding_id: canonicalFindingId })
-    } catch {
-      setStatus("resolved")
+      trackEvent("finding_closed_governed", { finding_id: canonicalFindingId, server_governed: serverGoverned })
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        await refreshClosure()
+        setClosureError("Closure blocked by governance. Complete required evidence and corrective actions before closing this finding.")
+      } else {
+        setClosureError("Finding could not be closed. Please verify the latest evidence and action status.")
+      }
     } finally {
       setIsResolving(false)
     }
@@ -78,14 +137,16 @@ export const FindingDetailV2Page: React.FC = () => {
       findingId: canonicalFindingId,
       findingTitle: finding.title,
       owner: owner.trim() || "Unassigned",
-      dueDate: dueDate || "Not set",
+      dueDate: dueDate || new Date().toISOString().slice(0, 10),
       priority,
       status: "open",
       notes: notes.trim(),
     })
     setActions(getActionsForFinding(canonicalFindingId))
     setNotes("")
+    setClosure((current) => current ? { ...current, can_close: false, actions_ready: false, action_count: current.action_count + 1, open_action_count: current.open_action_count + 1, blockers: Array.from(new Set([...current.blockers, "All corrective actions must be completed or cancelled before closure."])) } : current)
     trackEvent("finding_action_created", { finding_id: canonicalFindingId, action_id: created.id, priority })
+    window.setTimeout(() => void refreshClosure(), 900)
   }
 
   return (
@@ -95,11 +156,28 @@ export const FindingDetailV2Page: React.FC = () => {
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2"><SeverityBadge severity={finding.severity || "observation"} /><StatusBadge status={status} /><span className="font-mono text-xs text-slate-400">{canonicalFindingId}</span></div>
+            <div className="flex flex-wrap items-center gap-2"><SeverityBadge severity={finding.severity || "observation"} /><StatusBadge status={status} /><span className="font-mono text-xs text-slate-400">{canonicalFindingId}</span>{serverGoverned && <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold uppercase text-blue-700">Governed Closure</span>}</div>
             <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">{finding.title}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{finding.description || "Project-control exception detected and flagged for evidence-backed review."}</p>
           </div>
-          {status !== "resolved" ? <button onClick={resolveFinding} disabled={isResolving} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> {isResolving ? "Updating..." : "Mark Reviewed / Resolved"}</button> : <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Resolved</div>}
+          {status !== "resolved" ? <button onClick={resolveFinding} disabled={isResolving || !closureState.can_close} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"><CheckCircle2 className="h-4 w-4" /> {isResolving ? "Closing..." : "Close Finding"}</button> : <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Resolved</div>}
+        </div>
+      </section>
+
+      <section className={`rounded-2xl border p-5 ${closureState.can_close ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <div>
+            <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${closureState.can_close ? "text-emerald-700" : "text-amber-800"}`}><LockKeyhole className="h-4 w-4" /> Closure Readiness</div>
+            <div className="mt-2 text-lg font-bold text-slate-900">{closureState.can_close ? "Ready for governed closure" : "Closure requirements are not complete"}</div>
+            {closureState.blockers.length > 0 && <div className="mt-2 space-y-1 text-xs text-amber-900">{closureState.blockers.map((blocker) => <div key={blocker}>• {blocker}</div>)}</div>}
+            {closureError && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">{closureError}</div>}
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+            <ReadinessMetric label="Evidence" value={closureState.evidence_ready ? "Ready" : "Missing"} ready={closureState.evidence_ready} />
+            <ReadinessMetric label="Actions" value={closureState.actions_ready ? "Ready" : `${closureState.open_action_count} Open`} ready={closureState.actions_ready} />
+            <ReadinessMetric label="Completed" value={String(closureState.completed_action_count)} ready />
+            <ReadinessMetric label="Total Actions" value={String(closureState.action_count)} ready />
+          </div>
         </div>
       </section>
 
@@ -127,7 +205,7 @@ export const FindingDetailV2Page: React.FC = () => {
             <p className="mt-3 text-sm font-semibold leading-6 text-slate-800">{action}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <label><span className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-500"><UserRound className="h-3 w-3" /> Owner</span><input value={owner} onChange={(e) => setOwner(e.target.value)} className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs" /></label>
-              <label><span className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-500"><CalendarDays className="h-3 w-3" /> Due Date</span><input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs" /></label>
+              <label><span className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-500"><CalendarDays className="h-3 w-3" /> Due Date</span><input required type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs" /></label>
               <label><span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">Priority</span><select value={priority} onChange={(e) => setPriority(e.target.value as ActionPriority)} className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
               <label><span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">Notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional context" className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs" /></label>
             </div>
@@ -139,6 +217,8 @@ export const FindingDetailV2Page: React.FC = () => {
     </div>
   )
 }
+
+const ReadinessMetric = ({ label, value, ready }: { label: string; value: string; ready: boolean }) => <div className="min-w-24 rounded-xl border border-white/70 bg-white/70 px-3 py-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</div><div className={`mt-1 text-xs font-black ${ready ? "text-emerald-700" : "text-amber-700"}`}>{value}</div></div>
 
 const DecisionCard = ({ icon: Icon, label, title, text, tone = "slate" }: { icon: React.ElementType; label: string; title: string; text: string; tone?: "slate" | "red" | "amber" | "green" | "blue" }) => {
   const tones = { slate: "border-slate-200 bg-white text-slate-700", red: "border-red-200 bg-red-50/60 text-red-700", amber: "border-amber-200 bg-amber-50/60 text-amber-800", green: "border-emerald-200 bg-emerald-50/60 text-emerald-800", blue: "border-blue-200 bg-blue-50/60 text-blue-800" }
