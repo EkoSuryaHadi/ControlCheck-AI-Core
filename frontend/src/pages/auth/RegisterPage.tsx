@@ -21,7 +21,8 @@ export const RegisterPage: React.FC = () => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
-    trackEvent("registration_started", { source: searchParams.get("source") || "direct" })
+    const source = searchParams.get("source") || "direct"
+    trackEvent("registration_started", { source })
 
     try {
       const res = await api.auth.register({
@@ -31,15 +32,19 @@ export const RegisterPage: React.FC = () => {
         organization_name: organizationName,
       })
 
-      if (res.access_token) {
-        login(
-          res.access_token,
-          { id: res.user_id || "usr-new", email, name: res.name || fullName, role: "Project Control" },
-          res.org_id || "org-new"
-        )
+      if (!res.access_token || !res.org_id) {
+        trackEvent("registration_account_created", { source })
+        navigate(`/login?next=/onboarding&source=${encodeURIComponent(source)}`)
+        return
       }
 
-      trackEvent("registration_completed", { source: searchParams.get("source") || "direct" })
+      login(
+        res.access_token,
+        { id: res.user_id || "usr-new", email, name: res.name || fullName, role: "Project Control" },
+        res.org_id
+      )
+
+      trackEvent("registration_completed", { source })
       navigate("/onboarding")
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Registration could not be completed. Please try again or sign in if you already have an account.")
