@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -237,8 +237,7 @@ class WBSNodeRecord(Base):
     raw_row_id: Mapped[UUID | None] = mapped_column(ForeignKey("raw_rows.id", ondelete="SET NULL"))
     wbs_code: Mapped[str] = mapped_column(String(80), index=True)
     wbs_name: Mapped[str] = mapped_column(String(255))
-    parent_wbs: Mapped[str | None] = mapped_column(String(80))
-    discipline: Mapped[str | None] = mapped_column(String(100))
+    parent_wbs_code: Mapped[str | None] = mapped_column(String(80))
     level: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -250,13 +249,12 @@ class BudgetRecordRecord(Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     dataset_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("dataset_snapshots.id", ondelete="CASCADE"), index=True)
     raw_row_id: Mapped[UUID | None] = mapped_column(ForeignKey("raw_rows.id", ondelete="SET NULL"))
-    budget_id: Mapped[str] = mapped_column(String(100))
-    wbs_code: Mapped[str | None] = mapped_column(String(80), index=True)
+    budget_id: Mapped[str] = mapped_column(String(100), index=True)
+    wbs_code: Mapped[str] = mapped_column(String(80), index=True)
     cost_code: Mapped[str | None] = mapped_column(String(80))
-    description: Mapped[str] = mapped_column(Text)
     budget_amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))
+    approved_date: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(50))
-    effective_date: Mapped[date] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -435,5 +433,21 @@ class AIMessageRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-
-
+class ReportPackageRecord(Base):
+    __tablename__ = "report_packages"
+    __table_args__ = (
+        CheckConstraint("report_type IN ('monthly','executive','cost','schedule','progress')", name="ck_report_packages_type"),
+        Index("ix_report_packages_org_project_created", "organization_id", "project_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    analysis_run_id: Mapped[UUID] = mapped_column(ForeignKey("analysis_runs.id", ondelete="RESTRICT"), index=True)
+    generated_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    report_name: Mapped[str] = mapped_column(String(255))
+    report_type: Mapped[str] = mapped_column(String(30))
+    period: Mapped[str] = mapped_column(String(80))
+    snapshot: Mapped[dict] = mapped_column(JSONB)
+    pdf_bytes: Mapped[bytes] = mapped_column(LargeBinary)
+    pdf_size_bytes: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
