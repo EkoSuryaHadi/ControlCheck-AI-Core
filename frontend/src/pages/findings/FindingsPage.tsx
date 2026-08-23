@@ -1,16 +1,8 @@
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
-import {
-  Search,
-  Filter,
-  Download,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  ShieldAlert,
-} from "lucide-react"
+import { useProject } from "@/context/ProjectContext"
+import { Search, ChevronLeft, ChevronRight, ArrowRight, ShieldCheck, FileCheck2 } from "lucide-react"
 
 export const INITIAL_FINDINGS = [
   {
@@ -23,296 +15,146 @@ export const INITIAL_FINDINGS = [
     impact: "Rp 187.4M (24.3%)",
     status: "open",
     detected_on: "28 Oct 2024",
-    description:
-      "Actual cost on WBS 03.02 exceeds the approved budget by 24.3%. This indicates potential cost overrun risk if the trend continues.",
+    description: "Actual cost on WBS 03.02 exceeds the approved budget by 24.3%. This indicates potential cost overrun risk if the trend continues.",
     budget: "Rp 771,000,000",
     actual: "Rp 958,400,000",
     commitment: "Rp 210,000,000",
     eac: "Rp 1,168,400,000",
     variance: "187,400,000",
     variance_pct: "24.3%",
-    ai_summary:
-      "Main cost drivers are material purchase variance and additional work order on piping modification. Review PO 23017 and 23021 for detail.",
-    recommendation:
-      "Review material quantity variance and additional work order. Negotiate with vendor and optimize installation method.",
-    potential_impact:
-      "If not addressed, potential additional cost up to Rp 414.4M (EAC over budget).",
+    ai_summary: "Main cost drivers are material purchase variance and additional work order on piping modification. Review PO 23017 and 23021 for detail.",
+    recommendation: "Review material quantity variance and additional work order. Negotiate with vendor and optimize installation method.",
+    potential_impact: "If not addressed, potential additional cost up to Rp 414.4M (EAC over budget).",
   },
-  {
-    id: "FND-2024-002",
-    title: "PO Exposure exceeds Budget - WBS 11",
-    category: "Cost",
-    severity: "critical",
-    wbs: "11",
-    wbs_name: "Electrical Infrastructure",
-    impact: "Rp 28.7M",
-    status: "open",
-    detected_on: "28 Oct 2024",
-    description: "Total committed purchase orders exceed allocated WBS budget.",
-  },
-  {
-    id: "FND-2024-003",
-    title: "Activity Delay - Compressor Installation",
-    category: "Schedule",
-    severity: "critical",
-    wbs: "03.02.01",
-    wbs_name: "Mechanical Equipment",
-    impact: "18 days",
-    status: "open",
-    detected_on: "28 Oct 2024",
-    description: "Critical path activity is currently 18 days behind schedule.",
-  },
-  {
-    id: "FND-2024-004",
-    title: "Negative Total Float - 5 Activities",
-    category: "Schedule",
-    severity: "critical",
-    wbs: "Various",
-    wbs_name: "Schedule Network",
-    impact: "-12 days",
-    status: "open",
-    detected_on: "28 Oct 2024",
-    description: "Multiple driving schedule paths exhibit negative total float.",
-  },
-  {
-    id: "FND-2024-005",
-    title: "Cost Spike Detected - WBS 04.01",
-    category: "Cost",
-    severity: "warning",
-    wbs: "04.01",
-    wbs_name: "Civil & Structural",
-    impact: "+132%",
-    status: "open",
-    detected_on: "28 Oct 2024",
-    description: "Monthly actual cost increased by 132% compared to baseline spend.",
-  },
-  {
-    id: "FND-2024-006",
-    title: "Progress Lag - WBS 12",
-    category: "Progress",
-    severity: "warning",
-    wbs: "12",
-    wbs_name: "Instrumentation & Control",
-    impact: "-15%",
-    status: "open",
-    detected_on: "28 Oct 2024",
-    description: "Physical progress is lagging planned value by 15 percentage points.",
-  },
-  {
-    id: "FND-2024-007",
-    title: "Actual + Commitment exceeds Budget - WBS 03.01",
-    category: "Cost",
-    severity: "warning",
-    wbs: "03.01",
-    wbs_name: "Piping Fabrication",
-    impact: "Rp 15.6M",
-    status: "open",
-    detected_on: "28 Oct 2024",
-    description: "Incurred costs plus open commitments exceed the budget ceiling.",
-  },
-  {
-    id: "FND-2024-008",
-    title: "Vendor Concentration Risk - PT. Alpha",
-    category: "Cost",
-    severity: "warning",
-    wbs: "Various",
-    wbs_name: "Procurement Package",
-    impact: "68%",
-    status: "open",
-    detected_on: "28 Oct 2024",
-    description: "Single vendor represents over 68% of outstanding procurement commitments.",
-  },
+  { id: "FND-2024-002", title: "PO Exposure exceeds Budget - WBS 11", category: "Cost", severity: "critical", wbs: "11", wbs_name: "Electrical Infrastructure", impact: "Rp 28.7M", status: "open", detected_on: "28 Oct 2024", description: "Total committed purchase orders exceed allocated WBS budget." },
+  { id: "FND-2024-003", title: "Activity Delay - Compressor Installation", category: "Schedule", severity: "critical", wbs: "03.02.01", wbs_name: "Mechanical Equipment", impact: "18 days", status: "open", detected_on: "28 Oct 2024", description: "Critical path activity is currently 18 days behind schedule." },
+  { id: "FND-2024-004", title: "Negative Total Float - 5 Activities", category: "Schedule", severity: "critical", wbs: "Various", wbs_name: "Schedule Network", impact: "-12 days", status: "open", detected_on: "28 Oct 2024", description: "Multiple driving schedule paths exhibit negative total float." },
+  { id: "FND-2024-005", title: "Cost Spike Detected - WBS 04.01", category: "Cost", severity: "warning", wbs: "04.01", wbs_name: "Civil & Structural", impact: "+132%", status: "open", detected_on: "28 Oct 2024", description: "Monthly actual cost increased by 132% compared to baseline spend." },
+  { id: "FND-2024-006", title: "Progress Lag - WBS 12", category: "Progress", severity: "warning", wbs: "12", wbs_name: "Instrumentation & Control", impact: "-15%", status: "open", detected_on: "28 Oct 2024", description: "Physical progress is lagging planned value by 15 percentage points." },
+  { id: "FND-2024-007", title: "Actual + Commitment exceeds Budget - WBS 03.01", category: "Cost", severity: "warning", wbs: "03.01", wbs_name: "Piping Fabrication", impact: "Rp 15.6M", status: "open", detected_on: "28 Oct 2024", description: "Incurred costs plus open commitments exceed the budget ceiling." },
+  { id: "FND-2024-008", title: "Vendor Concentration Risk - PT. Alpha", category: "Cost", severity: "warning", wbs: "Various", wbs_name: "Procurement Package", impact: "68%", status: "open", detected_on: "28 Oct 2024", description: "Single vendor represents over 68% of outstanding procurement commitments." },
 ]
 
 export const FindingsPage: React.FC = () => {
   const navigate = useNavigate()
+  const { liveFindings } = useProject()
   const [searchTerm, setSearchTerm] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  const filteredFindings = INITIAL_FINDINGS.filter((f) => {
-    const matchesSearch =
-      f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.wbs.toLowerCase().includes(searchTerm.toLowerCase())
+  const sourceFindings = liveFindings.length > 0 ? liveFindings : INITIAL_FINDINGS
 
-    const matchesSeverity =
-      severityFilter === "all" || f.severity.toLowerCase() === severityFilter.toLowerCase()
+  const filteredFindings = useMemo(() => sourceFindings.filter((f: any) => {
+    const title = String(f.title || "")
+    const id = String(f.id || f.rule_id || "")
+    const wbs = String(f.wbs || f.wbs_code || "")
+    const category = String(f.category || "")
+    const severity = String(f.severity || "")
+    const status = String(f.status || "open")
 
-    const matchesCategory =
-      categoryFilter === "all" || f.category.toLowerCase() === categoryFilter.toLowerCase()
-
-    const matchesStatus =
-      statusFilter === "all" || f.status.toLowerCase() === statusFilter.toLowerCase()
-
+    const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) || id.toLowerCase().includes(searchTerm.toLowerCase()) || wbs.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSeverity = severityFilter === "all" || severity.toLowerCase() === severityFilter.toLowerCase()
+    const matchesCategory = categoryFilter === "all" || category.toLowerCase() === categoryFilter.toLowerCase()
+    const matchesStatus = statusFilter === "all" || status.toLowerCase() === statusFilter.toLowerCase()
     return matchesSearch && matchesSeverity && matchesCategory && matchesStatus
-  })
+  }), [sourceFindings, searchTerm, severityFilter, categoryFilter, statusFilter])
+
+  const criticalCount = sourceFindings.filter((f: any) => String(f.severity).toLowerCase() === "critical").length
+  const warningCount = sourceFindings.filter((f: any) => String(f.severity).toLowerCase() === "warning").length
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto pb-12">
-      {/* Header with Title and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="mx-auto max-w-7xl space-y-5 pb-12">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Findings</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Central project-control risk register and deterministic audit findings
-          </p>
+          <div className="text-xs font-bold uppercase tracking-wider text-blue-600">Project Assurance Findings</div>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">What needs review now</h1>
+          <p className="mt-1 text-xs text-slate-500">Each finding is designed to show what happened, where, why, impact, evidence and recommended action.</p>
         </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => alert("Action creation modal triggered")}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Action</span>
-          </button>
-          <button
-            onClick={() => alert("Exporting findings to CSV...")}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export</span>
-          </button>
+        <div className="flex gap-2 text-xs">
+          <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-bold text-red-700">{criticalCount} Critical</div>
+          <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 font-bold text-amber-700">{warningCount} Warning</div>
         </div>
       </div>
 
-      {/* Filter Toolbar matching Mockup */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
-        {/* Severity */}
-        <div className="flex flex-col min-w-30">
-          <label className="text-[10px] uppercase font-bold text-slate-400 mb-1">Severity</label>
-          <select
-            value={severityFilter}
-            onChange={(e) => setSeverityFilter(e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="all">All</option>
-            <option value="critical">Critical</option>
-            <option value="warning">Warning</option>
-            <option value="observation">Observation</option>
-          </select>
-        </div>
-
-        {/* Category */}
-        <div className="flex flex-col min-w-30">
-          <label className="text-[10px] uppercase font-bold text-slate-400 mb-1">Category</label>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="all">All</option>
-            <option value="cost">Cost</option>
-            <option value="schedule">Schedule</option>
-            <option value="progress">Progress</option>
-          </select>
-        </div>
-
-        {/* Status */}
-        <div className="flex flex-col min-w-30">
-          <label className="text-[10px] uppercase font-bold text-slate-400 mb-1">Status</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="all">All</option>
-            <option value="open">Open</option>
-            <option value="in_review">In Review</option>
-            <option value="resolved">Resolved</option>
-          </select>
-        </div>
-
-        {/* Search bar */}
-        <div className="flex flex-col flex-1 min-w-50">
-          <label className="text-[10px] uppercase font-bold text-slate-400 mb-1">Search</label>
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[140px_140px_140px_1fr]">
+        <FilterSelect label="Severity" value={severityFilter} onChange={setSeverityFilter} options={["all","critical","warning","observation"]} />
+        <FilterSelect label="Category" value={categoryFilter} onChange={setCategoryFilter} options={["all","cost","schedule","progress","data_quality"]} />
+        <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={["all","open","in_review","resolved"]} />
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Search</span>
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search findings by ID, title, WBS..."
-              className="w-full text-xs pl-8 pr-3 py-1 bg-slate-50 border border-slate-200 rounded-md text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, title, WBS..." className="w-full rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
-        </div>
+        </label>
       </div>
 
-      {/* Dense Enterprise Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-4">ID</th>
-                <th className="py-3 px-4">Title</th>
-                <th className="py-3 px-4">Category</th>
-                <th className="py-3 px-4">Severity</th>
-                <th className="py-3 px-4">WBS</th>
-                <th className="py-3 px-4 text-right">Impact</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Detected On</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredFindings.map((f) => (
-                <tr
-                  key={f.id}
-                  onClick={() => navigate(`/findings/${f.id}`)}
-                  className="hover:bg-blue-50/40 cursor-pointer transition-colors group"
-                >
-                  <td className="py-3 px-4 font-mono font-bold text-blue-600 group-hover:underline">
-                    {f.id}
-                  </td>
-                  <td className="py-3 px-4 text-slate-900 font-semibold max-w-xs truncate">
-                    {f.title}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600">{f.category}</td>
-                  <td className="py-3 px-4">
-                    <SeverityBadge severity={f.severity} />
-                  </td>
-                  <td className="py-3 px-4 font-mono text-slate-700">{f.wbs}</td>
-                  <td className="py-3 px-4 text-right font-bold text-slate-900 tabular-nums">
-                    {f.impact}
-                  </td>
-                  <td className="py-3 px-4">
-                    <StatusBadge status={f.status} />
-                  </td>
-                  <td className="py-3 px-4 text-slate-500">{f.detected_on}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="space-y-3">
+        {filteredFindings.map((f: any) => {
+          const id = f.id || f.rule_id
+          const evidenceCount = f.evidence_records?.length || 0
+          return (
+            <article key={id} onClick={() => navigate(`/findings/${id}`)} className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
+              <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SeverityBadge severity={f.severity || "observation"} />
+                    <StatusBadge status={f.status || "open"} />
+                    <span className="font-mono text-[11px] text-slate-400">{id}</span>
+                  </div>
+                  <h2 className="mt-3 text-base font-bold text-slate-900 group-hover:text-blue-700">{f.title}</h2>
+                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{f.description || f.ai_summary || "Open this finding to review the control logic, supporting evidence and recommended action."}</p>
+                </div>
 
-        {/* Pagination Bar */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <div>
-            Showing <strong className="text-slate-900">1-{filteredFindings.length}</strong> of{" "}
-            <strong className="text-slate-900">{filteredFindings.length}</strong> findings
-          </div>
-          <div className="flex items-center gap-1">
-            <button className="p-1 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-40">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button className="w-6 h-6 rounded bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
-              1
-            </button>
-            <button className="w-6 h-6 rounded hover:bg-slate-200 text-slate-700 text-xs flex items-center justify-center">
-              2
-            </button>
-            <button className="w-6 h-6 rounded hover:bg-slate-200 text-slate-700 text-xs flex items-center justify-center">
-              3
-            </button>
-            <button className="p-1 rounded hover:bg-slate-200 text-slate-600">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+                <div className="grid shrink-0 grid-cols-2 gap-3 text-xs sm:grid-cols-4 lg:w-[470px]">
+                  <Meta label="WHERE" value={`${f.wbs || f.wbs_code || "Project"}${f.wbs_name ? ` · ${f.wbs_name}` : ""}`} />
+                  <Meta label="IMPACT" value={f.impact || f.business_impact || f.potential_impact || "Review required"} emphasize />
+                  <Meta label="EVIDENCE" value={evidenceCount > 0 ? `${evidenceCount} source record${evidenceCount > 1 ? "s" : ""}` : "Trace available"} />
+                  <Meta label="ACTION" value={f.recommendation ? "Recommendation ready" : "Review finding"} />
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <div className="flex items-center gap-4 text-[11px] text-slate-500">
+                  <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-blue-600" /> Rule / audit trace</span>
+                  <span className="inline-flex items-center gap-1"><FileCheck2 className="h-3.5 w-3.5 text-emerald-600" /> Evidence-backed review</span>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600">Open finding <ArrowRight className="h-3.5 w-3.5" /></span>
+              </div>
+            </article>
+          )
+        })}
+
+        {filteredFindings.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No findings match the selected filters.</div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+        <span>Showing <strong className="text-slate-900">{filteredFindings.length}</strong> findings</span>
+        <div className="flex items-center gap-1">
+          <button className="rounded p-1 hover:bg-slate-200"><ChevronLeft className="h-4 w-4" /></button>
+          <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-600 font-bold text-white">1</span>
+          <button className="rounded p-1 hover:bg-slate-200"><ChevronRight className="h-4 w-4" /></button>
         </div>
       </div>
     </div>
   )
 }
+
+const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
+  <label className="block">
+    <span className="mb-1 block text-[10px] font-bold uppercase text-slate-400">{label}</span>
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs capitalize outline-none focus:ring-1 focus:ring-blue-500">
+      {options.map((option) => <option key={option} value={option}>{option.replace("_", " ")}</option>)}
+    </select>
+  </label>
+)
+
+const Meta = ({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) => (
+  <div className="rounded-lg bg-slate-50 p-3">
+    <div className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</div>
+    <div className={`mt-1 line-clamp-2 font-semibold ${emphasize ? "text-red-600" : "text-slate-800"}`}>{value}</div>
+  </div>
+)
