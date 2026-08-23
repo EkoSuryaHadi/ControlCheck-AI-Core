@@ -45,12 +45,15 @@ try:
     from controlcheck.api import create_configured_app
     from controlcheck.actions_api import install_action_routes
     from controlcheck.governance_api import install_governance_routes
+    from controlcheck.reports_api import install_report_routes
     inner_app = create_configured_app()
     install_action_routes(inner_app)
     install_governance_routes(inner_app)
+    install_report_routes(inner_app)
     import_status["controlcheck_api"] = "OK"
     import_status["action_governance_api"] = "OK"
     import_status["approval_escalation_api"] = "OK"
+    import_status["reports_api"] = "OK"
 except Exception as e:
     err_tb = traceback.format_exc()
     import_status["controlcheck_api"] = f"ERROR: {e}\n{err_tb}"
