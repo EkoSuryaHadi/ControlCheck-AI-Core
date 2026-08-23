@@ -10,6 +10,25 @@ from .action_models import FindingActionHistoryRecord, FindingActionRecord
 from .models import FindingRecord
 
 
+def evaluate_closure_readiness(action_statuses: list[str], evidence_count: int) -> dict:
+    open_statuses = [status for status in action_statuses if status not in {"completed", "cancelled"}]
+    completed_count = sum(1 for status in action_statuses if status == "completed")
+    evidence_ready = evidence_count > 0
+    actions_ready = len(open_statuses) == 0
+    return {
+        "can_close": evidence_ready and actions_ready,
+        "evidence_ready": evidence_ready,
+        "actions_ready": actions_ready,
+        "action_count": len(action_statuses),
+        "open_action_count": len(open_statuses),
+        "completed_action_count": completed_count,
+        "blockers": [
+            *([] if evidence_ready else ["At least one evidence record is required before closure."]),
+            *([] if actions_ready else ["All corrective actions must be completed or cancelled before closure."]),
+        ],
+    }
+
+
 class FindingActionRepository:
     def __init__(self, session: Session):
         self.session = session
@@ -108,22 +127,7 @@ class FindingActionRepository:
 
     def closure_readiness(self, organization_id: UUID, finding_id: UUID, evidence_count: int):
         actions = self.list_for_finding(organization_id, finding_id)
-        open_actions = [item for item in actions if item.status not in {"completed", "cancelled"}]
-        completed_actions = [item for item in actions if item.status == "completed"]
-        evidence_ready = evidence_count > 0
-        actions_ready = len(actions) == 0 or len(open_actions) == 0
-        return {
-            "can_close": evidence_ready and actions_ready,
-            "evidence_ready": evidence_ready,
-            "actions_ready": actions_ready,
-            "action_count": len(actions),
-            "open_action_count": len(open_actions),
-            "completed_action_count": len(completed_actions),
-            "blockers": [
-                *([] if evidence_ready else ["At least one evidence record is required before closure."]),
-                *([] if actions_ready else ["All corrective actions must be completed or cancelled before closure."]),
-            ],
-        }
+        return evaluate_closure_readiness([item.status for item in actions], evidence_count)
 
     def _history(self, organization_id: UUID, action_id: UUID, event_type: str, actor: str | None, changes: dict | None):
         self.session.add(FindingActionHistoryRecord(
