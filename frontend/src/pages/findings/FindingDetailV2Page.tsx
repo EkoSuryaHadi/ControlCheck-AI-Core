@@ -15,7 +15,6 @@ import {
   FileSpreadsheet,
   Lightbulb,
   MapPin,
-  Send,
   ShieldCheck,
   Sparkles,
   Target,
@@ -26,8 +25,7 @@ import {
 } from "lucide-react"
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-
-type ResolutionStep = "review" | "action" | "evidence" | "approval" | "closed"
+type ResolutionStep = "review" | "action" | "evidence" | "closed"
 
 export const FindingDetailV2Page: React.FC = () => {
   const { findingId } = useParams<{ findingId: string }>()
@@ -36,7 +34,6 @@ export const FindingDetailV2Page: React.FC = () => {
   const [evidence, setEvidence] = useState<any[]>([])
   const [status, setStatus] = useState("open")
   const [isResolving, setIsResolving] = useState(false)
-  const [isRequestingApproval, setIsRequestingApproval] = useState(false)
   const [actions, setActions] = useState<FindingAction[]>([])
   const [closure, setClosure] = useState<ClosureReadiness | null>(null)
   const [resolutionError, setResolutionError] = useState<string | null>(null)
@@ -51,11 +48,12 @@ export const FindingDetailV2Page: React.FC = () => {
       || INITIAL_FINDINGS[0],
     [findingId, liveFindings],
   )
+
   const canonicalFindingId = finding.id || finding.rule_id || findingId || "unknown"
-  const serverGoverned = isUuid(canonicalFindingId)
+  const serverBacked = isUuid(canonicalFindingId)
 
   const refreshClosure = useCallback(async () => {
-    if (!serverGoverned) return
+    if (!serverBacked) return
     try {
       const readiness = await api.findings.closureReadiness(canonicalFindingId)
       setClosure(readiness)
@@ -63,14 +61,14 @@ export const FindingDetailV2Page: React.FC = () => {
     } catch {
       setClosure(null)
     }
-  }, [canonicalFindingId, serverGoverned])
+  }, [canonicalFindingId, serverBacked])
 
   useEffect(() => {
     setStatus(finding.status || "open")
     setActions(getActionsForFinding(canonicalFindingId))
     trackEvent("finding_detail_viewed", { finding_id: canonicalFindingId, severity: finding.severity })
 
-    if (serverGoverned) {
+    if (serverBacked) {
       api.findings.getEvidence(canonicalFindingId).then((res) => {
         const items = Array.isArray(res) ? res : res?.items || []
         setEvidence(items)
@@ -84,7 +82,7 @@ export const FindingDetailV2Page: React.FC = () => {
     }
     window.addEventListener("controlcheck-actions-updated", syncLocal)
     return () => window.removeEventListener("controlcheck-actions-updated", syncLocal)
-  }, [finding, canonicalFindingId, serverGoverned, refreshClosure])
+  }, [finding, canonicalFindingId, serverBacked, refreshClosure])
 
   const fallbackEvidence = [
     { source_sheet: "Actual_Cost", source_rows: [142], fields: { WBS: finding.wbs || "03.02", Amount: finding.actual || "Rp 958,400,000", Source: "Actual Cost Register" } },
@@ -133,25 +131,20 @@ export const FindingDetailV2Page: React.FC = () => {
   }, [actions, evidenceItems])
 
   const closureState = closure || localClosure
-  const approvalPending = closureState.approval_required && closureState.approval_decision === "pending"
-  const approvalRejected = closureState.approval_required && closureState.approval_decision === "rejected"
-  const preApprovalReady = closureState.evidence_ready && closureState.actions_ready
   const hasAction = closureState.action_count > 0
   const isClosed = status === "resolved" || status === "closed"
 
   const currentStep = useMemo<ResolutionStep>(() => {
     if (isClosed) return "closed"
-    if (!hasAction) return "action"
-    if (!closureState.actions_ready) return "action"
+    if (!hasAction || !closureState.actions_ready) return "action"
     if (!closureState.evidence_ready) return "evidence"
-    return "approval"
+    return "closed"
   }, [isClosed, hasAction, closureState.actions_ready, closureState.evidence_ready])
 
   const steps = [
     { key: "review" as const, label: "Review", done: true },
     { key: "action" as const, label: "Action", done: hasAction && closureState.actions_ready },
     { key: "evidence" as const, label: "Evidence", done: closureState.evidence_ready },
-    { key: "approval" as const, label: "Approval", done: !closureState.approval_required || closureState.approval_ready },
     { key: "closed" as const, label: "Closed", done: isClosed },
   ]
 
@@ -160,24 +153,8 @@ export const FindingDetailV2Page: React.FC = () => {
     if (!hasAction) items.push("Create a corrective action")
     else if (!closureState.actions_ready) items.push(`Complete ${closureState.open_action_count} open corrective action${closureState.open_action_count === 1 ? "" : "s"}`)
     if (!closureState.evidence_ready) items.push("Attach or link supporting evidence")
-    if (closureState.approval_required && approvalRejected) items.push("Address the approval rejection and resubmit")
     return items
-  }, [hasAction, closureState.actions_ready, closureState.open_action_count, closureState.evidence_ready, closureState.approval_required, approvalRejected])
-
-  const requestApproval = async () => {
-    if (!serverGoverned || !closureState.approval_required) return
-    setIsRequestingApproval(true)
-    setResolutionError(null)
-    try {
-      await api.findings.requestClosureApproval(canonicalFindingId, "Evidence and corrective actions reviewed; requesting closure approval.")
-      trackEvent("finding_closure_approval_requested", { finding_id: canonicalFindingId })
-      await refreshClosure()
-    } catch (err: any) {
-      setResolutionError(err?.response?.data?.error?.message || "Approval request could not be created.")
-    } finally {
-      setIsRequestingApproval(false)
-    }
-  }
+  }, [hasAction, closureState.actions_ready, closureState.open_action_count, closureState.evidence_ready])
 
   const resolveFinding = async () => {
     setResolutionError(null)
@@ -189,9 +166,9 @@ export const FindingDetailV2Page: React.FC = () => {
 
     setIsResolving(true)
     try {
-      if (serverGoverned) await api.findings.closeGoverned(canonicalFindingId)
+      if (serverBacked) await api.findings.closeGoverned(canonicalFindingId)
       setStatus("resolved")
-      trackEvent("finding_closed_governed", { finding_id: canonicalFindingId, server_governed: serverGoverned })
+      trackEvent("finding_closed", { finding_id: canonicalFindingId, server_backed: serverBacked })
     } catch (err: any) {
       if (err?.response?.status === 409) {
         await refreshClosure()
@@ -236,10 +213,6 @@ export const FindingDetailV2Page: React.FC = () => {
     if (!hasAction) return { label: "Create Action", onClick: () => document.getElementById("resolution-action-form")?.scrollIntoView({ behavior: "smooth" }), disabled: false }
     if (!closureState.actions_ready) return { label: "Update Action", onClick: () => navigate("/actions"), disabled: false }
     if (!closureState.evidence_ready) return { label: "Review Evidence", onClick: () => document.getElementById("evidence-trace")?.scrollIntoView({ behavior: "smooth" }), disabled: false }
-    if (closureState.approval_required && !closureState.approval_ready) {
-      if (approvalPending) return { label: "Approval Pending", onClick: () => {}, disabled: true }
-      return { label: approvalRejected ? "Submit Again" : "Submit for Approval", onClick: requestApproval, disabled: isRequestingApproval }
-    }
     return { label: isResolving ? "Closing..." : "Close Finding", onClick: resolveFinding, disabled: isResolving }
   }
 
@@ -271,11 +244,11 @@ export const FindingDetailV2Page: React.FC = () => {
           <div className="max-w-3xl flex-1">
             <div className="text-xs font-black uppercase tracking-wider text-blue-700">Resolution</div>
             <h2 className="mt-1 text-xl font-bold text-slate-900">Resolve this finding step by step</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Complete the action and evidence here. Governance is only used by managers to review approvals, escalations and SLA exceptions.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Review the finding, complete the corrective action, verify the supporting evidence, then close the finding.</p>
 
-            <div className="mt-5 grid grid-cols-5 gap-2">
+            <div className="mt-5 grid grid-cols-4 gap-2">
               {steps.map((step, index) => {
-                const active = step.key === currentStep
+                const active = step.key === currentStep && !step.done
                 return (
                   <div key={step.key} className="relative">
                     <div className={`flex min-h-20 flex-col items-center justify-center rounded-xl border px-2 text-center ${step.done ? "border-emerald-200 bg-emerald-50" : active ? "border-blue-300 bg-blue-100" : "border-slate-200 bg-white"}`}>
@@ -291,10 +264,8 @@ export const FindingDetailV2Page: React.FC = () => {
             <div className="mt-5 rounded-xl border border-white bg-white/80 p-4">
               {isClosed ? (
                 <div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-5 w-5" /> Finding closed. Resolution requirements are complete.</div>
-              ) : approvalPending ? (
-                <div><div className="flex items-center gap-2 text-sm font-bold text-indigo-700"><Clock3 className="h-5 w-5" /> Awaiting manager approval</div><p className="mt-1 text-xs leading-5 text-slate-500">No action is required from the Project Controller right now. The request is available in Governance Center for an authorized reviewer.</p></div>
               ) : remainingItems.length === 0 ? (
-                <div><div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-5 w-5" /> Ready for {closureState.approval_required ? "approval" : "closure"}</div><p className="mt-1 text-xs text-slate-500">All required actions and evidence are complete.</p></div>
+                <div><div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-5 w-5" /> Ready to close</div><p className="mt-1 text-xs text-slate-500">All required actions and evidence are complete.</p></div>
               ) : (
                 <div><div className="text-sm font-bold text-slate-900">{remainingItems.length} item{remainingItems.length === 1 ? "" : "s"} remaining</div><div className="mt-2 space-y-1">{remainingItems.map((item) => <div key={item} className="flex items-center gap-2 text-xs text-slate-600"><Circle className="h-3 w-3 text-slate-300" /> {item}</div>)}</div></div>
               )}
@@ -305,9 +276,9 @@ export const FindingDetailV2Page: React.FC = () => {
           <div className="w-full rounded-2xl border border-slate-200 bg-white p-5 xl:w-72">
             <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Next step</div>
             <div className="mt-2 text-base font-bold text-slate-900">
-              {isClosed ? "Completed" : !hasAction ? "Create corrective action" : !closureState.actions_ready ? "Complete corrective action" : !closureState.evidence_ready ? "Complete evidence" : closureState.approval_required && !closureState.approval_ready ? "Get approval" : "Close finding"}
+              {isClosed ? "Completed" : !hasAction ? "Create corrective action" : !closureState.actions_ready ? "Complete corrective action" : !closureState.evidence_ready ? "Complete evidence" : "Close finding"}
             </div>
-            {cta && <button onClick={cta.onClick} disabled={cta.disabled} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{closureState.approval_required && !closureState.approval_ready && !approvalPending ? <Send className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} {cta.label}</button>}
+            {cta && <button onClick={cta.onClick} disabled={cta.disabled} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"><CheckCircle2 className="h-4 w-4" /> {cta.label}</button>}
             {hasAction && !isClosed && <button onClick={() => navigate("/actions")} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Open Actions</button>}
           </div>
         </div>
