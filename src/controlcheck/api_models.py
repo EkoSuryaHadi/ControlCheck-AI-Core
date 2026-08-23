@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -106,7 +107,10 @@ class EvidenceListResponse(BaseModel):
 
 
 class FindingStatusUpdate(BaseModel):
-    status: str
+    # `resolved` is intentionally excluded. Resolution must use the governed
+    # /v1/findings/{finding_id}/close endpoint so evidence/action gates cannot
+    # be bypassed through this legacy status mutation endpoint.
+    status: Literal["open", "in_review", "dismissed"]
 
 
 class HealthSnapshotResponse(BaseModel):
