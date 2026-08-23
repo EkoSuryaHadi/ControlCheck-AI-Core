@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from fastapi import Depends, Header
@@ -46,9 +46,9 @@ class ActionResponse(BaseModel):
     status: str
     notes: str | None = None
     created_by: str | None = None
-    completed_at: object | None = None
-    created_at: object
-    updated_at: object
+    completed_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class ActionListResponse(BaseModel):
@@ -110,14 +110,9 @@ def install_action_routes(application) -> None:
             raise ControlCheckApplicationError("invalid_action_priority", "Action priority is invalid", 422)
         with session_factory() as session:
             action = FindingActionRepository(session).create(
-                organization_id,
-                finding_id,
-                title=payload.title,
-                owner=payload.owner,
-                due_date=payload.due_date,
-                priority=payload.priority,
-                notes=payload.notes,
-                actor=payload.actor,
+                organization_id, finding_id, title=payload.title, owner=payload.owner,
+                due_date=payload.due_date, priority=payload.priority,
+                notes=payload.notes, actor=payload.actor,
             )
             if action is None:
                 raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
@@ -148,8 +143,7 @@ def install_action_routes(application) -> None:
             if finding_repo.get(organization_id, finding_id) is None:
                 raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
             evidence_count = len(finding_repo.evidence(organization_id, finding_id))
-            result = FindingActionRepository(session).closure_readiness(organization_id, finding_id, evidence_count)
-            return ClosureReadinessResponse(**result)
+            return ClosureReadinessResponse(**FindingActionRepository(session).closure_readiness(organization_id, finding_id, evidence_count))
 
     @application.post("/v1/findings/{finding_id}/close", response_model=dict)
     def close_finding(finding_id: UUID, organization_id: UUID = Depends(require_org)):
