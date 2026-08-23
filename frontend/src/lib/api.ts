@@ -110,6 +110,7 @@ export const api = {
   governance: {
     getPolicy: async (projectId: string): Promise<GovernancePolicy> => (await apiClient.get(`/v1/projects/${projectId}/governance-policy`)).data,
     updatePolicy: async (projectId: string, patch: Partial<Omit<GovernancePolicy, "project_id">>): Promise<GovernancePolicy> => (await apiClient.patch(`/v1/projects/${projectId}/governance-policy`, patch)).data,
+    listApprovals: async (projectId: string, decision?: string): Promise<{ items: ClosureApproval[] }> => (await apiClient.get(`/v1/projects/${projectId}/closure-approvals`, { params: { decision } })).data,
     decideApproval: async (approvalId: string, decision: "approved" | "rejected", note?: string): Promise<ClosureApproval> => (await apiClient.post(`/v1/closure-approvals/${approvalId}/decision`, { decision, note })).data,
     scanEscalations: async (projectId: string): Promise<{ items: GovernanceEscalation[] }> => (await apiClient.post(`/v1/projects/${projectId}/governance-escalations/scan`)).data,
     listEscalations: async (projectId: string, status?: string): Promise<{ items: GovernanceEscalation[] }> => (await apiClient.get(`/v1/projects/${projectId}/governance-escalations`, { params: { status } })).data,
