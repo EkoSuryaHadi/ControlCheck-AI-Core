@@ -1,9 +1,11 @@
 import React from "react"
+import { useNavigate } from "react-router-dom"
 import { useProject } from "@/context/ProjectContext"
 import { FolderKanban, Plus, ExternalLink, ShieldCheck } from "lucide-react"
 
 export const ProjectsPage: React.FC = () => {
   const { projects, setCurrentProject } = useProject()
+  const navigate = useNavigate()
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -15,7 +17,7 @@ export const ProjectsPage: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => alert("Create project modal triggered")}
+          onClick={() => navigate("/onboarding")}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" />
