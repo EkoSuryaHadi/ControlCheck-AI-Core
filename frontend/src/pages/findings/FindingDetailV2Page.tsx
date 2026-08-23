@@ -6,9 +6,28 @@ import { INITIAL_FINDINGS } from "./FindingsPage"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
 import { trackEvent } from "@/lib/analytics"
 import { createAction, getActionsForFinding, FindingAction, ActionPriority } from "@/lib/actionStore"
-import { ArrowLeft, CheckCircle2, FileSpreadsheet, Lightbulb, MapPin, ShieldCheck, Sparkles, Target, TriangleAlert, UserRound, CalendarDays, ClipboardCheck, LockKeyhole, Send, Clock3 } from "lucide-react"
+import {
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  Circle,
+  Clock3,
+  FileSpreadsheet,
+  Lightbulb,
+  MapPin,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TriangleAlert,
+  UserRound,
+  CalendarDays,
+  ClipboardCheck,
+} from "lucide-react"
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+
+type ResolutionStep = "review" | "action" | "evidence" | "approval" | "closed"
 
 export const FindingDetailV2Page: React.FC = () => {
   const { findingId } = useParams<{ findingId: string }>()
@@ -20,13 +39,18 @@ export const FindingDetailV2Page: React.FC = () => {
   const [isRequestingApproval, setIsRequestingApproval] = useState(false)
   const [actions, setActions] = useState<FindingAction[]>([])
   const [closure, setClosure] = useState<ClosureReadiness | null>(null)
-  const [closureError, setClosureError] = useState<string | null>(null)
+  const [resolutionError, setResolutionError] = useState<string | null>(null)
   const [owner, setOwner] = useState("Project Control Lead")
   const [dueDate, setDueDate] = useState("")
   const [priority, setPriority] = useState<ActionPriority>("high")
   const [notes, setNotes] = useState("")
 
-  const finding: any = useMemo(() => liveFindings.find((f: any) => f.id === findingId || f.rule_id === findingId) || INITIAL_FINDINGS.find((f: any) => f.id === findingId) || INITIAL_FINDINGS[0], [findingId, liveFindings])
+  const finding: any = useMemo(
+    () => liveFindings.find((f: any) => f.id === findingId || f.rule_id === findingId)
+      || INITIAL_FINDINGS.find((f: any) => f.id === findingId)
+      || INITIAL_FINDINGS[0],
+    [findingId, liveFindings],
+  )
   const canonicalFindingId = finding.id || finding.rule_id || findingId || "unknown"
   const serverGoverned = isUuid(canonicalFindingId)
 
@@ -35,7 +59,7 @@ export const FindingDetailV2Page: React.FC = () => {
     try {
       const readiness = await api.findings.closureReadiness(canonicalFindingId)
       setClosure(readiness)
-      setClosureError(null)
+      setResolutionError(null)
     } catch {
       setClosure(null)
     }
@@ -88,7 +112,7 @@ export const FindingDetailV2Page: React.FC = () => {
   const localClosure = useMemo<ClosureReadiness>(() => {
     const activeActions = actions.filter((item) => !["completed", "cancelled"].includes(item.status))
     const evidenceReady = evidenceItems.length > 0
-    const actionsReady = activeActions.length === 0
+    const actionsReady = actions.length > 0 && activeActions.length === 0
     return {
       can_close: evidenceReady && actionsReady,
       evidence_ready: evidenceReady,
@@ -101,8 +125,9 @@ export const FindingDetailV2Page: React.FC = () => {
       open_action_count: activeActions.length,
       completed_action_count: actions.filter((item) => item.status === "completed").length,
       blockers: [
-        ...(!evidenceReady ? ["At least one evidence record is required before closure."] : []),
-        ...(!actionsReady ? ["All corrective actions must be completed or cancelled before closure."] : []),
+        ...(actions.length === 0 ? ["Create at least one corrective action."] : []),
+        ...(!evidenceReady ? ["Supporting evidence is required."] : []),
+        ...(actions.length > 0 && !actionsReady ? ["Complete or cancel all open corrective actions."] : []),
       ],
     }
   }, [actions, evidenceItems])
@@ -111,26 +136,53 @@ export const FindingDetailV2Page: React.FC = () => {
   const approvalPending = closureState.approval_required && closureState.approval_decision === "pending"
   const approvalRejected = closureState.approval_required && closureState.approval_decision === "rejected"
   const preApprovalReady = closureState.evidence_ready && closureState.actions_ready
+  const hasAction = closureState.action_count > 0
+  const isClosed = status === "resolved" || status === "closed"
+
+  const currentStep = useMemo<ResolutionStep>(() => {
+    if (isClosed) return "closed"
+    if (!hasAction) return "action"
+    if (!closureState.actions_ready) return "action"
+    if (!closureState.evidence_ready) return "evidence"
+    return "approval"
+  }, [isClosed, hasAction, closureState.actions_ready, closureState.evidence_ready])
+
+  const steps = [
+    { key: "review" as const, label: "Review", done: true },
+    { key: "action" as const, label: "Action", done: hasAction && closureState.actions_ready },
+    { key: "evidence" as const, label: "Evidence", done: closureState.evidence_ready },
+    { key: "approval" as const, label: "Approval", done: !closureState.approval_required || closureState.approval_ready },
+    { key: "closed" as const, label: "Closed", done: isClosed },
+  ]
+
+  const remainingItems = useMemo(() => {
+    const items: string[] = []
+    if (!hasAction) items.push("Create a corrective action")
+    else if (!closureState.actions_ready) items.push(`Complete ${closureState.open_action_count} open corrective action${closureState.open_action_count === 1 ? "" : "s"}`)
+    if (!closureState.evidence_ready) items.push("Attach or link supporting evidence")
+    if (closureState.approval_required && approvalRejected) items.push("Address the approval rejection and resubmit")
+    return items
+  }, [hasAction, closureState.actions_ready, closureState.open_action_count, closureState.evidence_ready, closureState.approval_required, approvalRejected])
 
   const requestApproval = async () => {
     if (!serverGoverned || !closureState.approval_required) return
     setIsRequestingApproval(true)
-    setClosureError(null)
+    setResolutionError(null)
     try {
-      await api.findings.requestClosureApproval(canonicalFindingId, "Evidence and corrective actions reviewed; requesting governed closure approval.")
+      await api.findings.requestClosureApproval(canonicalFindingId, "Evidence and corrective actions reviewed; requesting closure approval.")
       trackEvent("finding_closure_approval_requested", { finding_id: canonicalFindingId })
       await refreshClosure()
     } catch (err: any) {
-      setClosureError(err?.response?.data?.error?.message || "Closure approval request could not be created.")
+      setResolutionError(err?.response?.data?.error?.message || "Approval request could not be created.")
     } finally {
       setIsRequestingApproval(false)
     }
   }
 
   const resolveFinding = async () => {
-    setClosureError(null)
+    setResolutionError(null)
     if (!closureState.can_close) {
-      setClosureError(closureState.blockers.join(" "))
+      setResolutionError(remainingItems.length ? remainingItems.join(" · ") : closureState.blockers.join(" "))
       trackEvent("finding_closure_blocked", { finding_id: canonicalFindingId, blocker_count: closureState.blockers.length })
       return
     }
@@ -143,11 +195,11 @@ export const FindingDetailV2Page: React.FC = () => {
     } catch (err: any) {
       if (err?.response?.status === 409) {
         await refreshClosure()
-        setClosureError(err?.response?.data?.error?.message || "Closure blocked by governance.")
+        setResolutionError(err?.response?.data?.error?.message || "Finding is not ready to close yet.")
       } else if (err?.response?.status === 403) {
-        setClosureError(err?.response?.data?.error?.message || "You do not have authority to close this governed finding.")
+        setResolutionError(err?.response?.data?.error?.message || "You do not have authority to close this finding.")
       } else {
-        setClosureError("Finding could not be closed. Please verify the latest governance state.")
+        setResolutionError("Finding could not be closed. Refresh the page and verify the latest status.")
       }
     } finally {
       setIsResolving(false)
@@ -167,49 +219,96 @@ export const FindingDetailV2Page: React.FC = () => {
     })
     setActions(getActionsForFinding(canonicalFindingId))
     setNotes("")
-    setClosure((current) => current ? { ...current, can_close: false, actions_ready: false, action_count: current.action_count + 1, open_action_count: current.open_action_count + 1, blockers: Array.from(new Set([...current.blockers, "All corrective actions must be completed or cancelled before closure."])) } : current)
+    setClosure((current) => current ? {
+      ...current,
+      can_close: false,
+      actions_ready: false,
+      action_count: current.action_count + 1,
+      open_action_count: current.open_action_count + 1,
+      blockers: Array.from(new Set([...current.blockers, "Complete or cancel all open corrective actions."])),
+    } : current)
     trackEvent("finding_action_created", { finding_id: canonicalFindingId, action_id: created.id, priority })
     window.setTimeout(() => void refreshClosure(), 900)
   }
 
+  const primaryAction = () => {
+    if (isClosed) return null
+    if (!hasAction) return { label: "Create Action", onClick: () => document.getElementById("resolution-action-form")?.scrollIntoView({ behavior: "smooth" }), disabled: false }
+    if (!closureState.actions_ready) return { label: "Update Action", onClick: () => navigate("/actions"), disabled: false }
+    if (!closureState.evidence_ready) return { label: "Review Evidence", onClick: () => document.getElementById("evidence-trace")?.scrollIntoView({ behavior: "smooth" }), disabled: false }
+    if (closureState.approval_required && !closureState.approval_ready) {
+      if (approvalPending) return { label: "Approval Pending", onClick: () => {}, disabled: true }
+      return { label: approvalRejected ? "Submit Again" : "Submit for Approval", onClick: requestApproval, disabled: isRequestingApproval }
+    }
+    return { label: isResolving ? "Closing..." : "Close Finding", onClick: resolveFinding, disabled: isResolving }
+  }
+
+  const cta = primaryAction()
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-12">
-      <button onClick={() => navigate("/findings")} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900"><ArrowLeft className="h-3.5 w-3.5" /> Back to Findings</button>
+      <button onClick={() => navigate("/findings")} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900">
+        <ArrowLeft className="h-3.5 w-3.5" /> Back to Findings
+      </button>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2"><SeverityBadge severity={finding.severity || "observation"} /><StatusBadge status={status} /><span className="font-mono text-xs text-slate-400">{canonicalFindingId}</span>{serverGoverned && <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold uppercase text-blue-700">Governed Closure</span>}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <SeverityBadge severity={finding.severity || "observation"} />
+              <StatusBadge status={status} />
+              <span className="font-mono text-xs text-slate-400">{canonicalFindingId}</span>
+            </div>
             <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">{finding.title}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{finding.description || "Project-control exception detected and flagged for evidence-backed review."}</p>
           </div>
-          {status !== "resolved" ? <button onClick={resolveFinding} disabled={isResolving || !closureState.can_close} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"><CheckCircle2 className="h-4 w-4" /> {isResolving ? "Closing..." : "Close Finding"}</button> : <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Resolved</div>}
+          {isClosed && <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Closed</div>}
         </div>
       </section>
 
-      <section className={`rounded-2xl border p-5 ${closureState.can_close ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-        <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-          <div className="max-w-2xl">
-            <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${closureState.can_close ? "text-emerald-700" : "text-amber-800"}`}><LockKeyhole className="h-4 w-4" /> Closure Readiness</div>
-            <div className="mt-2 text-lg font-bold text-slate-900">{closureState.can_close ? "Ready for governed closure" : approvalPending ? "Waiting for independent approval" : "Closure requirements are not complete"}</div>
-            {closureState.blockers.length > 0 && <div className="mt-2 space-y-1 text-xs text-amber-900">{closureState.blockers.map((blocker) => <div key={blocker}>• {blocker}</div>)}</div>}
-            {closureError && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">{closureError}</div>}
-            {serverGoverned && closureState.approval_required && !closureState.approval_ready && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {approvalPending ? (
-                  <><span className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700"><Clock3 className="h-4 w-4" /> Approval Pending</span><button onClick={() => navigate("/governance")} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">Open Governance Queue</button></>
-                ) : (
-                  <button onClick={requestApproval} disabled={!preApprovalReady || isRequestingApproval} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-45"><Send className="h-4 w-4" /> {isRequestingApproval ? "Requesting..." : approvalRejected ? "Request Approval Again" : "Request Closure Approval"}</button>
-                )}
-              </div>
-            )}
+      <section className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-sm">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl flex-1">
+            <div className="text-xs font-black uppercase tracking-wider text-blue-700">Resolution</div>
+            <h2 className="mt-1 text-xl font-bold text-slate-900">Resolve this finding step by step</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Complete the action and evidence here. Governance is only used by managers to review approvals, escalations and SLA exceptions.</p>
+
+            <div className="mt-5 grid grid-cols-5 gap-2">
+              {steps.map((step, index) => {
+                const active = step.key === currentStep
+                return (
+                  <div key={step.key} className="relative">
+                    <div className={`flex min-h-20 flex-col items-center justify-center rounded-xl border px-2 text-center ${step.done ? "border-emerald-200 bg-emerald-50" : active ? "border-blue-300 bg-blue-100" : "border-slate-200 bg-white"}`}>
+                      {step.done ? <Check className="h-4 w-4 text-emerald-700" /> : active ? <Clock3 className="h-4 w-4 text-blue-700" /> : <Circle className="h-4 w-4 text-slate-300" />}
+                      <span className={`mt-2 text-[10px] font-black uppercase tracking-wide ${step.done ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-400"}`}>{step.label}</span>
+                    </div>
+                    {index < steps.length - 1 && <div className="pointer-events-none absolute left-[calc(100%-2px)] top-10 hidden h-px w-2 bg-slate-200 sm:block" />}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-5 rounded-xl border border-white bg-white/80 p-4">
+              {isClosed ? (
+                <div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-5 w-5" /> Finding closed. Resolution requirements are complete.</div>
+              ) : approvalPending ? (
+                <div><div className="flex items-center gap-2 text-sm font-bold text-indigo-700"><Clock3 className="h-5 w-5" /> Awaiting manager approval</div><p className="mt-1 text-xs leading-5 text-slate-500">No action is required from the Project Controller right now. The request is available in Governance Center for an authorized reviewer.</p></div>
+              ) : remainingItems.length === 0 ? (
+                <div><div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-5 w-5" /> Ready for {closureState.approval_required ? "approval" : "closure"}</div><p className="mt-1 text-xs text-slate-500">All required actions and evidence are complete.</p></div>
+              ) : (
+                <div><div className="text-sm font-bold text-slate-900">{remainingItems.length} item{remainingItems.length === 1 ? "" : "s"} remaining</div><div className="mt-2 space-y-1">{remainingItems.map((item) => <div key={item} className="flex items-center gap-2 text-xs text-slate-600"><Circle className="h-3 w-3 text-slate-300" /> {item}</div>)}</div></div>
+              )}
+              {resolutionError && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">{resolutionError}</div>}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-5">
-            <ReadinessMetric label="Evidence" value={closureState.evidence_ready ? "Ready" : "Missing"} ready={closureState.evidence_ready} />
-            <ReadinessMetric label="Actions" value={closureState.actions_ready ? "Ready" : `${closureState.open_action_count} Open`} ready={closureState.actions_ready} />
-            <ReadinessMetric label="Approval" value={!closureState.approval_required ? "N/A" : closureState.approval_ready ? "Approved" : (closureState.approval_decision || "Required")} ready={closureState.approval_ready} />
-            <ReadinessMetric label="Completed" value={String(closureState.completed_action_count)} ready />
-            <ReadinessMetric label="Total Actions" value={String(closureState.action_count)} ready />
+
+          <div className="w-full rounded-2xl border border-slate-200 bg-white p-5 xl:w-72">
+            <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Next step</div>
+            <div className="mt-2 text-base font-bold text-slate-900">
+              {isClosed ? "Completed" : !hasAction ? "Create corrective action" : !closureState.actions_ready ? "Complete corrective action" : !closureState.evidence_ready ? "Complete evidence" : closureState.approval_required && !closureState.approval_ready ? "Get approval" : "Close finding"}
+            </div>
+            {cta && <button onClick={cta.onClick} disabled={cta.disabled} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{closureState.approval_required && !closureState.approval_ready && !approvalPending ? <Send className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} {cta.label}</button>}
+            {hasAction && !isClosed && <button onClick={() => navigate("/actions")} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Open Actions</button>}
           </div>
         </div>
       </section>
@@ -224,16 +323,30 @@ export const FindingDetailV2Page: React.FC = () => {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-4"><div><div className="text-xs font-bold uppercase tracking-wider text-blue-600">Evidence Trace</div><h2 className="mt-1 text-lg font-bold text-slate-900">Source records behind this finding</h2></div><div className="text-right"><div className="text-2xl font-black text-emerald-600">{evidenceCompleteness}%</div><div className="text-[10px] font-bold uppercase text-slate-400">Completeness</div></div></div>
+        <div id="evidence-trace" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div><div className="text-xs font-bold uppercase tracking-wider text-blue-600">Evidence</div><h2 className="mt-1 text-lg font-bold text-slate-900">Source records behind this finding</h2></div>
+            <div className="text-right"><div className="text-2xl font-black text-emerald-600">{evidenceCompleteness}%</div><div className="text-[10px] font-bold uppercase text-slate-400">Completeness</div></div>
+          </div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${evidenceCompleteness}%` }} /></div>
-          <div className="mt-5 space-y-3">{evidenceItems.map((item: any, index: number) => <div key={item.id || index} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-mono text-xs font-bold text-slate-800">{item.source_sheet || item.table || `Evidence ${index + 1}`}</div><div className="text-[11px] text-slate-400">Rows: {(item.source_rows || item.row || []).toString() || "linked"}</div></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(item.fields || item).filter(([key]) => !["id","source_sheet","source_rows","record_ids","aggregation"].includes(key)).slice(0, 6).map(([key, value]) => <div key={key} className="rounded-lg bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{key.replaceAll("_", " ")}</div><div className="mt-1 break-words text-xs font-semibold text-slate-700">{String(value)}</div></div>)}</div></div>)}</div>
+          <div className="mt-5 space-y-3">
+            {evidenceItems.map((item: any, index: number) => (
+              <div key={item.id || index} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-mono text-xs font-bold text-slate-800">{item.source_sheet || item.table || `Evidence ${index + 1}`}</div><div className="text-[11px] text-slate-400">Rows: {(item.source_rows || item.row || []).toString() || "linked"}</div></div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(item.fields || item).filter(([key]) => !["id", "source_sheet", "source_rows", "record_ids", "aggregation"].includes(key)).slice(0, 6).map(([key, value]) => <div key={key} className="rounded-lg bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{key.replaceAll("_", " ")}</div><div className="mt-1 break-words text-xs font-semibold text-slate-700">{String(value)}</div></div>)}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-2xl border border-purple-200 bg-purple-50 p-6"><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-purple-700"><Sparkles className="h-4 w-4" /> AI-assisted interpretation</div><p className="mt-4 text-sm leading-6 text-slate-700">{why}</p><div className="mt-4 rounded-xl border border-purple-100 bg-white/70 p-4 text-xs leading-5 text-slate-600">AI interpretation is supporting context. The deterministic rule, calculations and source evidence remain the review basis.</div></div>
+          <div className="rounded-2xl border border-purple-200 bg-purple-50 p-6">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-purple-700"><Sparkles className="h-4 w-4" /> AI-assisted interpretation</div>
+            <p className="mt-4 text-sm leading-6 text-slate-700">{why}</p>
+            <div className="mt-4 rounded-xl border border-purple-100 bg-white/70 p-4 text-xs leading-5 text-slate-600">AI interpretation is supporting context. The deterministic rule, calculations and source evidence remain the review basis.</div>
+          </div>
 
-          <form onSubmit={handleCreateAction} className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
+          <form id="resolution-action-form" onSubmit={handleCreateAction} className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700"><ClipboardCheck className="h-4 w-4" /> Corrective Action</div>
             <p className="mt-3 text-sm font-semibold leading-6 text-slate-800">{action}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -251,10 +364,14 @@ export const FindingDetailV2Page: React.FC = () => {
   )
 }
 
-const ReadinessMetric = ({ label, value, ready }: { label: string; value: string; ready: boolean }) => <div className="min-w-24 rounded-xl border border-white/70 bg-white/70 px-3 py-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</div><div className={`mt-1 text-xs font-black capitalize ${ready ? "text-emerald-700" : "text-amber-700"}`}>{value}</div></div>
-
 const DecisionCard = ({ icon: Icon, label, title, text, tone = "slate" }: { icon: React.ElementType; label: string; title: string; text: string; tone?: "slate" | "red" | "amber" | "green" | "blue" }) => {
-  const tones = { slate: "border-slate-200 bg-white text-slate-700", red: "border-red-200 bg-red-50/60 text-red-700", amber: "border-amber-200 bg-amber-50/60 text-amber-800", green: "border-emerald-200 bg-emerald-50/60 text-emerald-800", blue: "border-blue-200 bg-blue-50/60 text-blue-800" }
+  const tones = {
+    slate: "border-slate-200 bg-white text-slate-700",
+    red: "border-red-200 bg-red-50/60 text-red-700",
+    amber: "border-amber-200 bg-amber-50/60 text-amber-800",
+    green: "border-emerald-200 bg-emerald-50/60 text-emerald-800",
+    blue: "border-blue-200 bg-blue-50/60 text-blue-800",
+  }
   return <div className={`rounded-xl border p-5 ${tones[tone]}`}><div className="flex items-center gap-2 text-[10px] font-black tracking-wider"><Icon className="h-4 w-4" /> {label}</div><div className="mt-3 text-sm font-bold text-slate-900">{title}</div><p className="mt-2 text-xs leading-5 text-slate-600">{text}</p></div>
 }
 
