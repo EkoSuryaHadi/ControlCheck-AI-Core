@@ -43,6 +43,20 @@ export const DEMO_HEALTH: HealthSnapshot = {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 
+const isSuccessfulRun = (run: AnalysisRun) => ["succeeded", "completed"].includes(String(run.status || "").toLowerCase())
+
+const runTimestamp = (run: AnalysisRun) => {
+  const raw = run.completed_at || run.started_at || run.created_at || ""
+  const value = Date.parse(raw)
+  return Number.isFinite(value) ? value : 0
+}
+
+const latestSuccessfulRun = (runs: AnalysisRun[]): AnalysisRun | null => {
+  const successful = runs.filter(isSuccessfulRun)
+  if (successful.length === 0) return null
+  return [...successful].sort((a, b) => runTimestamp(b) - runTimestamp(a))[0]
+}
+
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { orgId, isAuthenticated } = useAuth()
   const [projects, setProjects] = useState<Project[]>([DEMO_PROJECT])
@@ -76,18 +90,24 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!currentProject) return
     try {
       const runsData = await api.runs.list(currentProject.id)
-      const runs = Array.isArray(runsData) ? runsData : runsData.items || []
+      const runs: AnalysisRun[] = Array.isArray(runsData) ? runsData : runsData.items || []
       if (runs.length === 0) {
         setCurrentRun(null)
         setLiveFindings([])
         return
       }
 
-      const latestRun = runs[0]
-      setCurrentRun(latestRun)
+      const successfulRun = latestSuccessfulRun(runs)
+      if (!successfulRun) {
+        setCurrentRun(null)
+        setLiveFindings([])
+        return
+      }
+
+      setCurrentRun(successfulRun)
 
       try {
-        const rawHealth = await api.runs.getHealth(latestRun.id)
+        const rawHealth = await api.runs.getHealth(successfulRun.id)
         const mappedHealth: HealthSnapshot = {
           id: rawHealth.id,
           overall_score: Math.round(rawHealth.overall_score || 0),
@@ -110,7 +130,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       try {
-        const findingsData = await api.runs.getFindings(latestRun.id)
+        const findingsData = await api.runs.getFindings(successfulRun.id)
         const items = Array.isArray(findingsData) ? findingsData : findingsData.items || []
         setLiveFindings(items)
       } catch {
@@ -132,7 +152,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const res = await api.runs.upload(currentProject.id, file)
       if (!res?.id) throw new Error("Upload API did not return a valid analysis run ID.")
 
-      setCurrentRun(res)
+      setCurrentRun(isSuccessfulRun(res) ? res : null)
       const summary = {
         runId: res.id,
         projectId: currentProject.id,
