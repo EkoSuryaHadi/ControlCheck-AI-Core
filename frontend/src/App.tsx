@@ -14,7 +14,6 @@ import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { FindingsPage } from "@/pages/findings/FindingsPage"
 import { FindingDetailV2Page } from "@/pages/findings/FindingDetailV2Page"
 import { ActionsPage } from "@/pages/actions/ActionsPage"
-import { GovernancePage } from "@/pages/governance/GovernancePage"
 import { DataImportWizard } from "@/pages/data/DataImportWizard"
 import { AnalysisProgressPage } from "@/pages/analysis/AnalysisProgressPage"
 import { AIAssistantPage } from "@/pages/assistant/AIAssistantPage"
@@ -55,7 +54,7 @@ export const App: React.FC = () => {
                 <Route path="/findings" element={<FindingsPage />} />
                 <Route path="/findings/:findingId" element={<FindingDetailV2Page />} />
                 <Route path="/actions" element={<ActionsPage />} />
-                <Route path="/governance" element={<GovernancePage />} />
+                <Route path="/governance" element={<Navigate to="/findings" replace />} />
                 <Route path="/cost" element={<CostPage />} />
                 <Route path="/schedule" element={<SchedulePage />} />
                 <Route path="/progress" element={<ProgressPage />} />
