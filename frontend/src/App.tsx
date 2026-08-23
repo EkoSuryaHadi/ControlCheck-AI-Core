@@ -5,6 +5,8 @@ import { AuthProvider } from "@/context/AuthContext"
 import { ProjectProvider } from "@/context/ProjectContext"
 import { AppShell } from "@/components/layout/AppShell"
 
+import { HomePage } from "@/pages/public/HomePage"
+import { SampleAuditPage } from "@/pages/public/SampleAuditPage"
 import { LoginPage } from "@/pages/auth/LoginPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { FindingsPage } from "@/pages/findings/FindingsPage"
@@ -34,11 +36,13 @@ export const App: React.FC = () => {
         <ProjectProvider>
           <BrowserRouter>
             <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/demo" element={<SampleAuditPage />} />
               <Route path="/login" element={<LoginPage />} />
 
-              {/* Protected App Frame */}
+              {/* Application workspace */}
               <Route element={<AppShell />}>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/data" element={<DataImportWizard />} />
@@ -52,7 +56,7 @@ export const App: React.FC = () => {
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
 
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
         </ProjectProvider>
