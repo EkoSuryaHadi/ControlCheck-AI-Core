@@ -72,6 +72,28 @@ export interface GovernanceEscalation {
   status: "open" | "acknowledged" | "resolved"; reason: string; metadata_json?: Record<string, any> | null;
   triggered_at: string; acknowledged_by?: string | null; acknowledged_at?: string | null; resolved_at?: string | null
 }
+export interface ReportPackage {
+  id: string
+  organization_id: string
+  project_id: string
+  analysis_run_id: string
+  generated_by?: string | null
+  report_name: string
+  report_type: "monthly" | "executive" | "cost" | "schedule" | "progress" | string
+  period: string
+  snapshot: {
+    schema_version?: string
+    generated_at?: string
+    generated_by_name?: string
+    project?: Record<string, any>
+    analysis_run?: Record<string, any>
+    health?: Record<string, any>
+    summary?: Record<string, any>
+    findings?: Array<Record<string, any>>
+  }
+  pdf_size_bytes: number
+  created_at: string
+}
 
 export const api = {
   auth: {
@@ -106,6 +128,17 @@ export const api = {
     listFinding: async (findingId: string): Promise<{ items: PersistentFindingAction[] }> => (await apiClient.get(`/v1/findings/${findingId}/actions`)).data,
     create: async (findingId: string, data: { title: string; owner: string; due_date: string; priority: string; notes?: string; actor?: string }) => (await apiClient.post(`/v1/findings/${findingId}/actions`, data)).data,
     update: async (actionId: string, data: { title?: string; owner?: string; due_date?: string; priority?: string; status?: string; notes?: string; actor?: string }) => (await apiClient.patch(`/v1/actions/${actionId}`, data)).data,
+  },
+  reports: {
+    listProject: async (projectId: string): Promise<{ items: ReportPackage[] }> => (await apiClient.get(`/v1/projects/${projectId}/reports`)).data,
+    create: async (projectId: string, data: { analysis_run_id: string; report_name: string; report_type: string; period: string }): Promise<ReportPackage> => (await apiClient.post(`/v1/projects/${projectId}/reports`, data)).data,
+    get: async (reportId: string): Promise<ReportPackage> => (await apiClient.get(`/v1/reports/${reportId}`)).data,
+    openPdf: async (reportId: string) => {
+      const response = await apiClient.get(`/v1/reports/${reportId}/pdf`, { responseType: "blob" })
+      const url = URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }))
+      window.open(url, "_blank", "noopener,noreferrer")
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    },
   },
   governance: {
     getPolicy: async (projectId: string): Promise<GovernancePolicy> => (await apiClient.get(`/v1/projects/${projectId}/governance-policy`)).data,
