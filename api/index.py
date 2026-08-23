@@ -43,8 +43,11 @@ test_imports()
 
 try:
     from controlcheck.api import create_configured_app
+    from controlcheck.actions_api import install_action_routes
     inner_app = create_configured_app()
+    install_action_routes(inner_app)
     import_status["controlcheck_api"] = "OK"
+    import_status["action_governance_api"] = "OK"
 except Exception as e:
     err_tb = traceback.format_exc()
     import_status["controlcheck_api"] = f"ERROR: {e}\n{err_tb}"
@@ -87,8 +90,7 @@ class StripApiPrefixASGI:
                 scope["path"] = "/health"
             elif path.startswith("/api/"):
                 scope = dict(scope)
-                # Keep both stripped path for /v1 routes and raw path for /api routes
-                stripped = path[4:] # remove /api
+                stripped = path[4:]
                 scope["path"] = stripped if stripped else "/"
         await self.app(scope, receive, send)
 
