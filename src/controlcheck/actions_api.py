@@ -23,7 +23,6 @@ class ActionCreate(BaseModel):
     due_date: date
     priority: str = "medium"
     notes: str | None = None
-    actor: str | None = None
 
 
 class ActionUpdate(BaseModel):
@@ -33,7 +32,6 @@ class ActionUpdate(BaseModel):
     priority: str | None = None
     status: str | None = None
     notes: str | None = None
-    actor: str | None = None
 
 
 class ActionResponse(BaseModel):
@@ -92,27 +90,9 @@ def install_action_routes(application) -> None:
         return
     session_factory = create_session_factory(database_url)
 
-    def require_org(
-        x_organization_id: str | None = Header(None),
-        authorization: str | None = Header(None),
-    ) -> UUID:
-        if authorization and authorization.startswith("Bearer "):
-            try:
-                payload = decode_token(authorization[7:].strip())
-                if payload.get("org_id"):
-                    return UUID(payload["org_id"])
-            except Exception as exc:
-                raise ControlCheckApplicationError("invalid_token", "Authentication token is invalid or expired", 401) from exc
-        if not x_organization_id:
-            raise ControlCheckApplicationError("missing_tenant_context", "Organization context is required", 400)
-        try:
-            return UUID(x_organization_id)
-        except ValueError as exc:
-            raise ControlCheckApplicationError("invalid_tenant_context", "Organization context must be a UUID", 400) from exc
-
     def require_identity(authorization: str | None = Header(None)) -> dict:
         if not authorization or not authorization.startswith("Bearer "):
-            raise ControlCheckApplicationError("authentication_required", "Authentication is required to close a finding", 401)
+            raise ControlCheckApplicationError("authentication_required", "Authentication is required for corrective-action operations", 401)
         try:
             payload = decode_token(authorization[7:].strip())
             if not payload.get("org_id") or not payload.get("sub"):
@@ -178,13 +158,15 @@ def install_action_routes(application) -> None:
         }
 
     @application.get("/v1/projects/{project_id}/actions", response_model=ActionListResponse)
-    def list_project_actions(project_id: UUID, organization_id: UUID = Depends(require_org)):
+    def list_project_actions(project_id: UUID, identity: dict = Depends(require_identity)):
+        organization_id = identity["organization_id"]
         with session_factory() as session:
             items = FindingActionRepository(session).list_for_project(organization_id, project_id)
             return ActionListResponse(items=[ActionResponse.model_validate(item) for item in items])
 
     @application.get("/v1/findings/{finding_id}/actions", response_model=ActionListResponse)
-    def list_finding_actions(finding_id: UUID, organization_id: UUID = Depends(require_org)):
+    def list_finding_actions(finding_id: UUID, identity: dict = Depends(require_identity)):
+        organization_id = identity["organization_id"]
         with session_factory() as session:
             finding = FindingRepository(session).get(organization_id, finding_id)
             if finding is None:
@@ -193,9 +175,11 @@ def install_action_routes(application) -> None:
             return ActionListResponse(items=[ActionResponse.model_validate(item) for item in items])
 
     @application.post("/v1/findings/{finding_id}/actions", response_model=ActionResponse, status_code=201)
-    def create_finding_action(finding_id: UUID, payload: ActionCreate, organization_id: UUID = Depends(require_org)):
+    def create_finding_action(finding_id: UUID, payload: ActionCreate, identity: dict = Depends(require_identity)):
         if payload.priority not in {"high", "medium", "low"}:
             raise ControlCheckApplicationError("invalid_action_priority", "Action priority is invalid", 422)
+        organization_id = identity["organization_id"]
+        actor = str(identity["user_id"])
         with session_factory() as session:
             action = FindingActionRepository(session).create(
                 organization_id,
@@ -205,7 +189,7 @@ def install_action_routes(application) -> None:
                 due_date=payload.due_date,
                 priority=payload.priority,
                 notes=payload.notes,
-                actor=payload.actor,
+                actor=actor,
             )
             if action is None:
                 raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
@@ -214,13 +198,14 @@ def install_action_routes(application) -> None:
             return ActionResponse.model_validate(action)
 
     @application.patch("/v1/actions/{action_id}", response_model=ActionResponse)
-    def update_action(action_id: UUID, payload: ActionUpdate, organization_id: UUID = Depends(require_org)):
+    def update_action(action_id: UUID, payload: ActionUpdate, identity: dict = Depends(require_identity)):
         patch = payload.model_dump(exclude_none=True)
-        actor = patch.pop("actor", None)
         if patch.get("priority") not in {None, "high", "medium", "low"}:
             raise ControlCheckApplicationError("invalid_action_priority", "Action priority is invalid", 422)
         if patch.get("status") not in {None, "open", "in_review", "completed", "cancelled"}:
             raise ControlCheckApplicationError("invalid_action_status", "Action status is invalid", 422)
+        organization_id = identity["organization_id"]
+        actor = str(identity["user_id"])
         with session_factory() as session:
             action = FindingActionRepository(session).update(organization_id, action_id, patch, actor=actor)
             if action is None:
@@ -230,7 +215,8 @@ def install_action_routes(application) -> None:
             return ActionResponse.model_validate(action)
 
     @application.get("/v1/findings/{finding_id}/closure-readiness", response_model=ClosureReadinessResponse)
-    def closure_readiness(finding_id: UUID, organization_id: UUID = Depends(require_org)):
+    def closure_readiness(finding_id: UUID, identity: dict = Depends(require_identity)):
+        organization_id = identity["organization_id"]
         with session_factory() as session:
             finding = FindingRepository(session).get(organization_id, finding_id)
             if finding is None:
