@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AuthProvider } from "@/context/AuthContext"
 import { ProjectProvider } from "@/context/ProjectContext"
 import { AppShell } from "@/components/layout/AppShell"
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
 
 import { HomePage } from "@/pages/public/HomePage"
 import { SampleAuditPage } from "@/pages/public/SampleAuditPage"
@@ -44,9 +45,9 @@ export const App: React.FC = () => {
               <Route path="/demo" element={<SampleAuditPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
 
-              <Route element={<AppShell />}>
+              <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/data" element={<DataImportWizard />} />
