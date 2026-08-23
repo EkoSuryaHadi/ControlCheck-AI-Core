@@ -308,6 +308,16 @@ Coverage includes:
 
 Existing v0.5 tests continue to cover evidence/action closure readiness.
 
+### CI portability correction — 23 Aug 2026
+
+GitHub CI reached **143 passed / 18 skipped** with one remaining failure in the legacy PRD preservation test. The failure was not an application defect: `tests/test_prd_v02.py` referenced the founder workstation path `C:\Users\USER\Downloads\ControlCheck_AI_PRD_v0.1.docx`, which is not available on Linux CI runners.
+
+The preservation test is now portable:
+
+- the repository copy `docs/ControlCheck_AI_PRD_v0.1.docx` must exist and be non-empty on every environment;
+- when the original workstation source file is available, SHA-256 byte-for-byte comparison is still performed;
+- CI no longer depends on a developer-specific local filesystem path.
+
 ## 16. Acceptance Criteria
 
 v0.6 is functionally accepted when all of the following pass:
