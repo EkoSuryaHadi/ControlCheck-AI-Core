@@ -65,6 +65,10 @@ class ApprovalResponse(BaseModel):
     decided_at: datetime | None = None
 
 
+class ApprovalListResponse(BaseModel):
+    items: list[ApprovalResponse]
+
+
 class EscalationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -160,6 +164,16 @@ def install_governance_routes(application) -> None:
             session.commit()
             session.refresh(record)
             return GovernancePolicyResponse.model_validate(record)
+
+    @application.get("/v1/projects/{project_id}/closure-approvals", response_model=ApprovalListResponse)
+    def list_closure_approvals(project_id: UUID, decision: str | None = None, identity: GovernanceIdentity = Depends(require_identity)):
+        if decision not in {None, "pending", "approved", "rejected", "withdrawn"}:
+            raise ControlCheckApplicationError("invalid_approval_decision", "Approval decision filter is invalid", 422)
+        with session_factory() as session:
+            if ProjectRepository(session).get_scoped(identity.organization_id, project_id) is None:
+                raise ControlCheckApplicationError("project_not_found", "Project was not found for this organization", 404)
+            items = GovernanceRepository(session).list_approvals(identity.organization_id, project_id, decision=decision)
+            return ApprovalListResponse(items=[ApprovalResponse.model_validate(item) for item in items])
 
     @application.get("/v1/findings/{finding_id}/closure-approval", response_model=ApprovalResponse | None)
     def get_closure_approval(finding_id: UUID, identity: GovernanceIdentity = Depends(require_identity)):
