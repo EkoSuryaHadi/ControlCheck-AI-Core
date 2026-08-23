@@ -32,6 +32,8 @@ export const FindingDetailV2Page: React.FC = () => {
   const navigate = useNavigate()
   const { liveFindings } = useProject()
   const [evidence, setEvidence] = useState<any[]>([])
+  const [evidenceLoaded, setEvidenceLoaded] = useState(false)
+  const [evidenceError, setEvidenceError] = useState<string | null>(null)
   const [status, setStatus] = useState("open")
   const [isResolving, setIsResolving] = useState(false)
   const [actions, setActions] = useState<FindingAction[]>([])
@@ -66,13 +68,21 @@ export const FindingDetailV2Page: React.FC = () => {
   useEffect(() => {
     setStatus(finding.status || "open")
     setActions(getActionsForFinding(canonicalFindingId))
+    setEvidence([])
+    setEvidenceLoaded(!serverBacked)
+    setEvidenceError(null)
     trackEvent("finding_detail_viewed", { finding_id: canonicalFindingId, severity: finding.severity })
 
     if (serverBacked) {
       api.findings.getEvidence(canonicalFindingId).then((res) => {
         const items = Array.isArray(res) ? res : res?.items || []
         setEvidence(items)
-      }).catch(() => {})
+        setEvidenceLoaded(true)
+      }).catch(() => {
+        setEvidence([])
+        setEvidenceLoaded(true)
+        setEvidenceError("Server evidence could not be loaded. Refresh before closing this finding.")
+      })
       void refreshClosure()
     }
 
@@ -89,13 +99,16 @@ export const FindingDetailV2Page: React.FC = () => {
     { source_sheet: "Budget", source_rows: [12], fields: { WBS: finding.wbs || "03.02", BAC: finding.budget || "Rp 771,000,000", Source: "Approved Baseline" } },
     { source_sheet: "Commitment", source_rows: [37], fields: { WBS: finding.wbs || "03.02", PO: "PO-23017", Source: "PO Register" } },
   ]
-  const evidenceItems = evidence.length ? evidence : (finding.evidence_records?.length ? finding.evidence_records : fallbackEvidence)
+  const evidenceItems = serverBacked
+    ? evidence
+    : (finding.evidence_records?.length ? finding.evidence_records : fallbackEvidence)
   const why = finding.ai_summary || finding.description || "This finding crossed the configured project-control threshold and requires review against its supporting records."
   const impact = finding.potential_impact || finding.business_impact || finding.impact || "Potential project impact requires review."
   const action = finding.recommendation || "Validate the source evidence, confirm the project impact, assign an owner, and agree the corrective action."
   const location = `${finding.wbs || finding.wbs_code || "Project"}${finding.wbs_name ? ` · ${finding.wbs_name}` : ""}`
 
   const evidenceCompleteness = useMemo(() => {
+    if (serverBacked && (!evidenceLoaded || evidenceError)) return 0
     const checks = [
       evidenceItems.length > 0,
       evidenceItems.some((e: any) => Boolean(e.source_sheet || e.table)),
@@ -105,11 +118,11 @@ export const FindingDetailV2Page: React.FC = () => {
       Boolean(finding.recommendation),
     ]
     return Math.round((checks.filter(Boolean).length / checks.length) * 100)
-  }, [evidenceItems, finding])
+  }, [evidenceItems, evidenceError, evidenceLoaded, finding, serverBacked])
 
   const localClosure = useMemo<ClosureReadiness>(() => {
     const activeActions = actions.filter((item) => !["completed", "cancelled"].includes(item.status))
-    const evidenceReady = evidenceItems.length > 0
+    const evidenceReady = evidenceItems.length > 0 && (!serverBacked || (evidenceLoaded && !evidenceError))
     const actionsReady = actions.length > 0 && activeActions.length === 0
     return {
       can_close: evidenceReady && actionsReady,
@@ -128,7 +141,7 @@ export const FindingDetailV2Page: React.FC = () => {
         ...(actions.length > 0 && !actionsReady ? ["Complete or cancel all open corrective actions."] : []),
       ],
     }
-  }, [actions, evidenceItems])
+  }, [actions, evidenceError, evidenceItems, evidenceLoaded, serverBacked])
 
   const closureState = closure || localClosure
   const hasAction = closureState.action_count > 0
@@ -152,9 +165,9 @@ export const FindingDetailV2Page: React.FC = () => {
     const items: string[] = []
     if (!hasAction) items.push("Create a corrective action")
     else if (!closureState.actions_ready) items.push(`Complete ${closureState.open_action_count} open corrective action${closureState.open_action_count === 1 ? "" : "s"}`)
-    if (!closureState.evidence_ready) items.push("Attach or link supporting evidence")
+    if (!closureState.evidence_ready) items.push(serverBacked ? "Verify server-backed supporting evidence" : "Attach or link supporting evidence")
     return items
-  }, [hasAction, closureState.actions_ready, closureState.open_action_count, closureState.evidence_ready])
+  }, [hasAction, closureState.actions_ready, closureState.open_action_count, closureState.evidence_ready, serverBacked])
 
   const resolveFinding = async () => {
     setResolutionError(null)
@@ -289,7 +302,7 @@ export const FindingDetailV2Page: React.FC = () => {
         <DecisionCard icon={MapPin} label="WHERE" title="Where it exists" text={location} />
         <DecisionCard icon={ShieldCheck} label="WHY" title="Why ControlCheck flagged it" text={why} />
         <DecisionCard icon={Target} label="IMPACT" title="Potential project impact" text={impact} tone="amber" />
-        <DecisionCard icon={FileSpreadsheet} label="EVIDENCE" title={`Evidence Completeness ${evidenceCompleteness}%`} text={`${evidenceItems.length} linked evidence record${evidenceItems.length === 1 ? "" : "s"}. Completeness reflects source, row lineage, field context, WBS context and recommended action availability.`} tone="green" />
+        <DecisionCard icon={FileSpreadsheet} label="EVIDENCE" title={`Evidence Completeness ${evidenceCompleteness}%`} text={evidenceItems.length ? `${evidenceItems.length} linked evidence record${evidenceItems.length === 1 ? "" : "s"}. Completeness reflects source, row lineage, field context, WBS context and recommended action availability.` : serverBacked ? "No server-backed evidence is currently linked. Closure remains blocked until traceable evidence is available." : "No linked evidence records."} tone="green" />
         <DecisionCard icon={Lightbulb} label="ACTION" title="Recommended next action" text={action} tone="blue" />
       </section>
 
@@ -301,7 +314,16 @@ export const FindingDetailV2Page: React.FC = () => {
           </div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${evidenceCompleteness}%` }} /></div>
           <div className="mt-5 space-y-3">
-            {evidenceItems.map((item: any, index: number) => (
+            {serverBacked && !evidenceLoaded ? (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs font-semibold text-blue-800">Loading server-backed evidence…</div>
+            ) : evidenceError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700">{evidenceError}</div>
+            ) : evidenceItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-5">
+                <div className="flex items-center gap-2 text-sm font-bold text-amber-800"><TriangleAlert className="h-4 w-4" /> No server evidence available</div>
+                <p className="mt-2 text-xs leading-5 text-amber-800/80">This is a live finding, so ControlCheck will not substitute demo evidence. Link or regenerate traceable evidence before closure.</p>
+              </div>
+            ) : evidenceItems.map((item: any, index: number) => (
               <div key={item.id || index} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-mono text-xs font-bold text-slate-800">{item.source_sheet || item.table || `Evidence ${index + 1}`}</div><div className="text-[11px] text-slate-400">Rows: {(item.source_rows || item.row || []).toString() || "linked"}</div></div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(item.fields || item).filter(([key]) => !["id", "source_sheet", "source_rows", "record_ids", "aggregation"].includes(key)).slice(0, 6).map(([key, value]) => <div key={key} className="rounded-lg bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{key.replaceAll("_", " ")}</div><div className="mt-1 break-words text-xs font-semibold text-slate-700">{String(value)}</div></div>)}</div>
