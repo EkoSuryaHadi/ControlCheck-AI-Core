@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { api, Project, AnalysisRun, HealthSnapshot, Finding } from "@/lib/api"
 import { useAuth } from "./AuthContext"
+import { trackEvent } from "@/lib/analytics"
 
 interface ProjectContextType {
   projects: Project[]
@@ -16,7 +17,6 @@ interface ProjectContextType {
   uploadWorkbook: (file: File) => Promise<AnalysisRun | null>
 }
 
-// Fallback baseline matching approved mockup
 export const DEMO_PROJECT: Project = {
   id: "demo-prj-001",
   organization_id: "demo-org-001",
@@ -81,7 +81,6 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const latestRun = runs[0]
         setCurrentRun(latestRun)
 
-        // Fetch health snapshot
         try {
           const rawHealth = await api.runs.getHealth(latestRun.id)
           const mappedHealth: HealthSnapshot = {
@@ -105,13 +104,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setHealthData(DEMO_HEALTH)
         }
 
-        // Fetch live findings
         try {
           const findingsData = await api.runs.getFindings(latestRun.id)
           const items = Array.isArray(findingsData) ? findingsData : findingsData.items || []
-          if (items.length > 0) {
-            setLiveFindings(items)
-          }
+          if (items.length > 0) setLiveFindings(items)
         } catch {
           // Keep existing findings
         }
@@ -125,12 +121,35 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!currentProject) return null
     try {
       setIsUploading(true)
+      trackEvent("project_check_upload_started", {
+        project_id: currentProject.id,
+        file_name: file.name,
+      })
+
       const res = await api.runs.upload(currentProject.id, file)
       setCurrentRun(res)
       await refreshHealthAndFindings()
+
+      const summary = {
+        runId: res?.id || "unknown",
+        projectId: currentProject.id,
+        ruleCount: res?.rule_count || 20,
+        findingCount: res?.finding_count || 0,
+        durationMs: res?.duration_ms,
+        completedAt: res?.completed_at || new Date().toISOString(),
+      }
+      localStorage.setItem("controlcheck_last_analysis_summary", JSON.stringify(summary))
+      trackEvent("project_check_upload_completed", {
+        project_id: currentProject.id,
+        run_id: summary.runId,
+        finding_count: summary.findingCount,
+      })
+
+      window.location.assign("/analysis-progress")
       return res
     } catch (err) {
       console.error("Upload error:", err)
+      trackEvent("project_check_upload_failed", { project_id: currentProject.id })
       throw err
     } finally {
       setIsUploading(false)
@@ -138,9 +157,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   useEffect(() => {
-    if (isAuthenticated && orgId) {
-      refreshProjects()
-    }
+    if (isAuthenticated && orgId) refreshProjects()
   }, [isAuthenticated, orgId, refreshProjects])
 
   useEffect(() => {
