@@ -2,9 +2,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 # Set serverless upload directory to /tmp
@@ -31,6 +29,8 @@ def test_imports():
         ("psycopg", "psycopg"),
         ("pandas", "pandas"),
         ("openpyxl", "openpyxl"),
+        ("bcrypt", "bcrypt"),
+        ("jwt", "jwt"),
     ]
     for name, mod in modules:
         try:
@@ -44,10 +44,13 @@ test_imports()
 try:
     from controlcheck.api import create_configured_app
     from controlcheck.actions_api import install_action_routes
+    from controlcheck.governance_api import install_governance_routes
     inner_app = create_configured_app()
     install_action_routes(inner_app)
+    install_governance_routes(inner_app)
     import_status["controlcheck_api"] = "OK"
     import_status["action_governance_api"] = "OK"
+    import_status["approval_escalation_api"] = "OK"
 except Exception as e:
     err_tb = traceback.format_exc()
     import_status["controlcheck_api"] = f"ERROR: {e}\n{err_tb}"
