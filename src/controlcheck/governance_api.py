@@ -11,6 +11,7 @@ from sqlalchemy import select
 from .auth import decode_token
 from .errors import ControlCheckApplicationError
 from .governance import can_decide_approval
+from .persistence.action_repository import FindingActionRepository
 from .persistence.database import create_session_factory
 from .persistence.governance_models import FindingClosureApprovalRecord, GovernanceEscalationRecord, ProjectGovernancePolicyRecord
 from .persistence.governance_repository import GovernanceRepository
@@ -187,13 +188,25 @@ def install_governance_routes(application) -> None:
     @application.post("/v1/findings/{finding_id}/closure-approval", response_model=ApprovalResponse, status_code=201)
     def request_closure_approval(finding_id: UUID, payload: ApprovalRequestPayload, identity: GovernanceIdentity = Depends(require_identity)):
         with session_factory() as session:
-            finding = FindingRepository(session).get(identity.organization_id, finding_id)
+            finding_repo = FindingRepository(session)
+            finding = finding_repo.get(identity.organization_id, finding_id)
             if finding is None:
                 raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
-            gate = GovernanceRepository(session).approval_status(identity.organization_id, finding)
+            governance_repo = GovernanceRepository(session)
+            gate = governance_repo.approval_status(identity.organization_id, finding)
             if not gate["approval_required"]:
                 raise ControlCheckApplicationError("approval_not_required", "Closure approval is not required for this finding", 409)
-            approval = GovernanceRepository(session).request_approval(identity.organization_id, finding_id, identity.user_id)
+
+            evidence_count = len(finding_repo.evidence(identity.organization_id, finding_id))
+            action_readiness = FindingActionRepository(session).closure_readiness(identity.organization_id, finding_id, evidence_count)
+            if not action_readiness["can_close"]:
+                raise ControlCheckApplicationError(
+                    "approval_request_not_ready",
+                    "Closure approval can only be requested after evidence is present and all corrective actions are completed or cancelled",
+                    409,
+                )
+
+            approval = governance_repo.request_approval(identity.organization_id, finding_id, identity.user_id)
             if approval is None:
                 raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
             if payload.note:
