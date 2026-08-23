@@ -8,6 +8,8 @@ import { AppShell } from "@/components/layout/AppShell"
 import { HomePage } from "@/pages/public/HomePage"
 import { SampleAuditPage } from "@/pages/public/SampleAuditPage"
 import { LoginPage } from "@/pages/auth/LoginPage"
+import { RegisterPage } from "@/pages/auth/RegisterPage"
+import { OnboardingPage } from "@/pages/onboarding/OnboardingPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { FindingsPage } from "@/pages/findings/FindingsPage"
 import { FindingDetailPage } from "@/pages/findings/FindingDetailPage"
@@ -36,10 +38,14 @@ export const App: React.FC = () => {
         <ProjectProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public routes */}
+              {/* Public acquisition routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/demo" element={<SampleAuditPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+
+              {/* First-run conversion route */}
+              <Route path="/onboarding" element={<OnboardingPage />} />
 
               {/* Application workspace */}
               <Route element={<AppShell />}>
