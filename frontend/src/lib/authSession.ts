@@ -7,7 +7,7 @@ export interface AuthIdentity {
   role: string
 }
 
-const decodeJwtPayload = (token: string): Record<string, any> => {
+export const decodeJwtPayload = (token: string): Record<string, any> => {
   const parts = token.split(".")
   if (parts.length !== 3) return {}
   try {
@@ -19,12 +19,20 @@ const decodeJwtPayload = (token: string): Record<string, any> => {
   }
 }
 
+export const isJwtExpired = (token: string, skewSeconds = 15): boolean => {
+  const claims = decodeJwtPayload(token)
+  const exp = Number(claims.exp)
+  if (!Number.isFinite(exp)) return true
+  return exp <= Math.floor(Date.now() / 1000) + skewSeconds
+}
+
 export const normalizeAuthResponse = (
   response: any,
   fallback: { email: string; fullName?: string }
 ): AuthIdentity => {
   const accessToken = response?.access_token
   if (!accessToken) throw new Error("Authentication response did not include an access token.")
+  if (isJwtExpired(accessToken, 0)) throw new Error("Authentication response returned an expired access token.")
 
   const claims = decodeJwtPayload(accessToken)
   const orgId = String(response?.org_id || claims.org_id || "")
