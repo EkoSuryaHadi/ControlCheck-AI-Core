@@ -5,6 +5,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def _database_url_from_env() -> str:
+    """Resolve the durable database URL consistently across local and hosted runtimes.
+
+    ControlCheck-specific configuration takes precedence, while the conventional
+    DATABASE_URL name is accepted for Vercel/Postgres/Supabase integrations.
+    """
+    return (
+        os.environ.get("CONTROLCHECK_DATABASE_URL", "").strip()
+        or os.environ.get("DATABASE_URL", "").strip()
+    )
+
+
 @dataclass(frozen=True)
 class PersistenceSettings:
     database_url: str
@@ -12,9 +24,11 @@ class PersistenceSettings:
 
     @classmethod
     def from_env(cls) -> "PersistenceSettings":
-        database_url = os.environ.get("CONTROLCHECK_DATABASE_URL", "").strip()
+        database_url = _database_url_from_env()
         if not database_url:
-            raise RuntimeError("CONTROLCHECK_DATABASE_URL is required for durable API endpoints")
+            raise RuntimeError(
+                "CONTROLCHECK_DATABASE_URL or DATABASE_URL is required for durable API endpoints"
+            )
         return cls(
             database_url=database_url,
             upload_root=Path(os.environ.get("CONTROLCHECK_UPLOAD_ROOT", "var/uploads")),
@@ -34,7 +48,7 @@ class ProductionSettings:
     def from_env(cls) -> "ProductionSettings":
         env = os.environ.get("CONTROLCHECK_ENV", os.environ.get("ENV", "development")).lower()
         jwt_secret = os.environ.get("CONTROLCHECK_JWT_SECRET", "dev-secret-key-change-in-production")
-        database_url = os.environ.get("CONTROLCHECK_DATABASE_URL", "")
+        database_url = _database_url_from_env()
         cors_raw = os.environ.get("CONTROLCHECK_CORS_ORIGINS", "*")
         cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
         max_upload = int(os.environ.get("CONTROLCHECK_MAX_UPLOAD_BYTES", 25 * 1024 * 1024))
