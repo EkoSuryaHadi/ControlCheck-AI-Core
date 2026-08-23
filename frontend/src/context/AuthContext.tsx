@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from "react"
-import { api, User } from "@/lib/api"
+import React, { createContext, useContext, useState } from "react"
+import { User } from "@/lib/api"
+import { isJwtExpired } from "@/lib/authSession"
 
 interface AuthContextType {
   user: User | null
@@ -13,16 +14,40 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("controlcheck_token"))
-  const [orgId, setOrgId] = useState<string | null>(localStorage.getItem("controlcheck_org_id"))
-  const [user, setUser] = useState<User | null>(() => {
+const clearStoredSession = () => {
+  localStorage.removeItem("controlcheck_token")
+  localStorage.removeItem("controlcheck_user")
+  localStorage.removeItem("controlcheck_org_id")
+  localStorage.removeItem("controlcheck_current_project_id")
+}
+
+const loadStoredToken = () => {
+  const saved = localStorage.getItem("controlcheck_token")
+  if (!saved || isJwtExpired(saved)) {
+    if (saved) clearStoredSession()
+    return null
+  }
+  return saved
+}
+
+const loadStoredUser = (): User | null => {
+  try {
     const saved = localStorage.getItem("controlcheck_user")
     return saved ? JSON.parse(saved) : null
-  })
-  const [isLoading, setIsLoading] = useState(false)
+  } catch {
+    clearStoredSession()
+    return null
+  }
+}
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [token, setToken] = useState<string | null>(() => loadStoredToken())
+  const [orgId, setOrgId] = useState<string | null>(() => token ? localStorage.getItem("controlcheck_org_id") : null)
+  const [user, setUser] = useState<User | null>(() => token ? loadStoredUser() : null)
+  const isLoading = false
 
   const login = (newToken: string, newUser: User, newOrgId: string) => {
+    if (isJwtExpired(newToken, 0)) throw new Error("Cannot start a session with an expired token.")
     setToken(newToken)
     setUser(newUser)
     setOrgId(newOrgId)
@@ -35,10 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null)
     setUser(null)
     setOrgId(null)
-    localStorage.removeItem("controlcheck_token")
-    localStorage.removeItem("controlcheck_user")
-    localStorage.removeItem("controlcheck_org_id")
-    localStorage.removeItem("controlcheck_current_project_id")
+    clearStoredSession()
   }
 
   return (
@@ -47,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         orgId,
-        isAuthenticated: !!token,
+        isAuthenticated: Boolean(token && user && orgId),
         isLoading,
         login,
         logout,
