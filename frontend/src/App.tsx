@@ -12,7 +12,7 @@ import { RegisterPage } from "@/pages/auth/RegisterPage"
 import { OnboardingPage } from "@/pages/onboarding/OnboardingPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { FindingsPage } from "@/pages/findings/FindingsPage"
-import { FindingDetailPage } from "@/pages/findings/FindingDetailPage"
+import { FindingDetailV2Page } from "@/pages/findings/FindingDetailV2Page"
 import { DataImportWizard } from "@/pages/data/DataImportWizard"
 import { AnalysisProgressPage } from "@/pages/analysis/AnalysisProgressPage"
 import { AIAssistantPage } from "@/pages/assistant/AIAssistantPage"
@@ -55,7 +55,7 @@ export const App: React.FC = () => {
                 <Route path="/data" element={<DataImportWizard />} />
                 <Route path="/analysis-progress" element={<AnalysisProgressPage />} />
                 <Route path="/findings" element={<FindingsPage />} />
-                <Route path="/findings/:findingId" element={<FindingDetailPage />} />
+                <Route path="/findings/:findingId" element={<FindingDetailV2Page />} />
                 <Route path="/cost" element={<CostPage />} />
                 <Route path="/schedule" element={<SchedulePage />} />
                 <Route path="/progress" element={<ProgressPage />} />
