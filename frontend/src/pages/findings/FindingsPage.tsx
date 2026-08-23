@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
 import { useProject } from "@/context/ProjectContext"
-import { Search, ChevronLeft, ChevronRight, ArrowRight, ShieldCheck, FileCheck2 } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, ArrowRight, ShieldCheck, FileCheck2, CheckCircle2 } from "lucide-react"
 
 export const INITIAL_FINDINGS = [
   {
@@ -37,11 +37,15 @@ export const INITIAL_FINDINGS = [
 
 export const FindingsPage: React.FC = () => {
   const navigate = useNavigate()
-  const { liveFindings } = useProject()
+  const { liveFindings, refreshHealthAndFindings } = useProject()
   const [searchTerm, setSearchTerm] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
+
+  useEffect(() => {
+    void refreshHealthAndFindings()
+  }, [refreshHealthAndFindings])
 
   const sourceFindings = liveFindings.length > 0 ? liveFindings : INITIAL_FINDINGS
 
@@ -60,8 +64,10 @@ export const FindingsPage: React.FC = () => {
     return matchesSearch && matchesSeverity && matchesCategory && matchesStatus
   }), [sourceFindings, searchTerm, severityFilter, categoryFilter, statusFilter])
 
-  const criticalCount = sourceFindings.filter((f: any) => String(f.severity).toLowerCase() === "critical").length
-  const warningCount = sourceFindings.filter((f: any) => String(f.severity).toLowerCase() === "warning").length
+  const activeFindings = sourceFindings.filter((f: any) => !["resolved", "closed"].includes(String(f.status || "open").toLowerCase()))
+  const criticalCount = activeFindings.filter((f: any) => String(f.severity).toLowerCase() === "critical").length
+  const warningCount = activeFindings.filter((f: any) => String(f.severity).toLowerCase() === "warning").length
+  const resolvedCount = sourceFindings.filter((f: any) => ["resolved", "closed"].includes(String(f.status || "").toLowerCase())).length
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 pb-12">
@@ -71,9 +77,10 @@ export const FindingsPage: React.FC = () => {
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">What needs review now</h1>
           <p className="mt-1 text-xs text-slate-500">Each finding is designed to show what happened, where, why, impact, evidence and recommended action.</p>
         </div>
-        <div className="flex gap-2 text-xs">
-          <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-bold text-red-700">{criticalCount} Critical</div>
-          <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 font-bold text-amber-700">{warningCount} Warning</div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-bold text-red-700">{criticalCount} Critical Active</div>
+          <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 font-bold text-amber-700">{warningCount} Warning Active</div>
+          <div className="inline-flex items-center gap-1 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 font-bold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> {resolvedCount} Resolved</div>
         </div>
       </div>
 
@@ -94,8 +101,9 @@ export const FindingsPage: React.FC = () => {
         {filteredFindings.map((f: any) => {
           const id = f.id || f.rule_id
           const evidenceCount = f.evidence_records?.length || 0
+          const isResolved = ["resolved", "closed"].includes(String(f.status || "").toLowerCase())
           return (
-            <article key={id} onClick={() => navigate(`/findings/${id}`)} className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
+            <article key={id} onClick={() => navigate(`/findings/${id}`)} className={`group cursor-pointer rounded-xl border bg-white p-5 shadow-sm transition-all hover:border-blue-300 hover:shadow-md ${isResolved ? "border-emerald-200 bg-emerald-50/20" : "border-slate-200"}`}>
               <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -109,9 +117,9 @@ export const FindingsPage: React.FC = () => {
 
                 <div className="grid shrink-0 grid-cols-2 gap-3 text-xs sm:grid-cols-4 lg:w-[470px]">
                   <Meta label="WHERE" value={`${f.wbs || f.wbs_code || "Project"}${f.wbs_name ? ` · ${f.wbs_name}` : ""}`} />
-                  <Meta label="IMPACT" value={f.impact || f.business_impact || f.potential_impact || "Review required"} emphasize />
+                  <Meta label="IMPACT" value={f.impact || f.business_impact || f.potential_impact || "Review required"} emphasize={!isResolved} />
                   <Meta label="EVIDENCE" value={evidenceCount > 0 ? `${evidenceCount} source record${evidenceCount > 1 ? "s" : ""}` : "Trace available"} />
-                  <Meta label="ACTION" value={f.recommendation ? "Recommendation ready" : "Review finding"} />
+                  <Meta label="ACTION" value={isResolved ? "Resolution complete" : f.recommendation ? "Recommendation ready" : "Review finding"} />
                 </div>
               </div>
 
@@ -120,7 +128,7 @@ export const FindingsPage: React.FC = () => {
                   <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-blue-600" /> Rule / audit trace</span>
                   <span className="inline-flex items-center gap-1"><FileCheck2 className="h-3.5 w-3.5 text-emerald-600" /> Evidence-backed review</span>
                 </div>
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600">Open finding <ArrowRight className="h-3.5 w-3.5" /></span>
+                <span className={`inline-flex items-center gap-1 text-xs font-bold ${isResolved ? "text-emerald-700" : "text-blue-600"}`}>{isResolved ? "View resolution" : "Open finding"} <ArrowRight className="h-3.5 w-3.5" /></span>
               </div>
             </article>
           )
