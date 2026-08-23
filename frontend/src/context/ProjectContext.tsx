@@ -66,7 +66,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setCurrentProject(found)
       }
     } catch {
-      // Retain demo project on network fallback
+      // Keep current state; do not synthesize server success.
     } finally {
       setIsLoading(false)
     }
@@ -77,75 +77,72 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const runsData = await api.runs.list(currentProject.id)
       const runs = Array.isArray(runsData) ? runsData : runsData.items || []
-      if (runs.length > 0) {
-        const latestRun = runs[0]
-        setCurrentRun(latestRun)
+      if (runs.length === 0) {
+        setCurrentRun(null)
+        setLiveFindings([])
+        return
+      }
 
-        try {
-          const rawHealth = await api.runs.getHealth(latestRun.id)
-          const mappedHealth: HealthSnapshot = {
-            id: rawHealth.id,
-            overall_score: Math.round(rawHealth.overall_score || 0),
-            cost_score: Math.round(rawHealth.cost_score || 0),
-            schedule_score: Math.round(rawHealth.schedule_score || 0),
-            progress_score: Math.round(rawHealth.progress_score || 0),
-            data_quality_score: Math.round(rawHealth.dq_score || rawHealth.data_quality_score || 0),
-            status_label: rawHealth.score_band?.toUpperCase() || (rawHealth.overall_score >= 80 ? "HEALTHY" : rawHealth.overall_score >= 60 ? "MODERATE" : "HIGH RISK"),
-            critical_findings_count: rawHealth.component_breakdown?.critical_count ?? 17,
-            warning_findings_count: rawHealth.component_breakdown?.warning_count ?? 23,
-            observation_findings_count: rawHealth.component_breakdown?.observation_count ?? 12,
-            score_band: rawHealth.score_band,
-            component_breakdown: rawHealth.component_breakdown,
-            key_drivers: rawHealth.key_drivers,
-            created_at: rawHealth.created_at,
-          }
-          setHealthData(mappedHealth)
-        } catch {
-          setHealthData(DEMO_HEALTH)
-        }
+      const latestRun = runs[0]
+      setCurrentRun(latestRun)
 
-        try {
-          const findingsData = await api.runs.getFindings(latestRun.id)
-          const items = Array.isArray(findingsData) ? findingsData : findingsData.items || []
-          if (items.length > 0) setLiveFindings(items)
-        } catch {
-          // Keep existing findings
+      try {
+        const rawHealth = await api.runs.getHealth(latestRun.id)
+        const mappedHealth: HealthSnapshot = {
+          id: rawHealth.id,
+          overall_score: Math.round(rawHealth.overall_score || 0),
+          cost_score: Math.round(rawHealth.cost_score || 0),
+          schedule_score: Math.round(rawHealth.schedule_score || 0),
+          progress_score: Math.round(rawHealth.progress_score || 0),
+          data_quality_score: Math.round(rawHealth.dq_score || rawHealth.data_quality_score || 0),
+          status_label: rawHealth.score_band?.toUpperCase() || (rawHealth.overall_score >= 80 ? "HEALTHY" : rawHealth.overall_score >= 60 ? "MODERATE" : "HIGH RISK"),
+          critical_findings_count: rawHealth.component_breakdown?.critical_count ?? 0,
+          warning_findings_count: rawHealth.component_breakdown?.warning_count ?? 0,
+          observation_findings_count: rawHealth.component_breakdown?.observation_count ?? 0,
+          score_band: rawHealth.score_band,
+          component_breakdown: rawHealth.component_breakdown,
+          key_drivers: rawHealth.key_drivers,
+          created_at: rawHealth.created_at,
         }
+        setHealthData(mappedHealth)
+      } catch {
+        // Preserve prior health rather than claiming synthetic server output.
+      }
+
+      try {
+        const findingsData = await api.runs.getFindings(latestRun.id)
+        const items = Array.isArray(findingsData) ? findingsData : findingsData.items || []
+        setLiveFindings(items)
+      } catch {
+        // Preserve current findings if the server read fails.
       }
     } catch {
-      // Retain demo state
+      // Preserve current workspace state on transient failures.
     }
   }, [currentProject])
 
   const uploadWorkbook = async (file: File): Promise<AnalysisRun | null> => {
-    if (!currentProject) return null
+    if (!currentProject?.id) throw new Error("A project must be selected before upload.")
+    if (!file || file.size <= 0) throw new Error("A non-empty source file is required.")
+
     try {
       setIsUploading(true)
-      trackEvent("project_check_upload_started", {
-        project_id: currentProject.id,
-        file_name: file.name,
-      })
+      trackEvent("project_check_upload_started", { project_id: currentProject.id, file_name: file.name })
 
       const res = await api.runs.upload(currentProject.id, file)
-      setCurrentRun(res)
-      await refreshHealthAndFindings()
+      if (!res?.id) throw new Error("Upload API did not return a valid analysis run ID.")
 
+      setCurrentRun(res)
       const summary = {
-        runId: res?.id || "unknown",
+        runId: res.id,
         projectId: currentProject.id,
-        ruleCount: res?.rule_count || 20,
-        findingCount: res?.finding_count || 0,
-        durationMs: res?.duration_ms,
-        completedAt: res?.completed_at || new Date().toISOString(),
+        ruleCount: Number(res.rule_count ?? 0),
+        findingCount: Number(res.finding_count ?? 0),
+        durationMs: res.duration_ms,
+        completedAt: res.completed_at || null,
       }
       localStorage.setItem("controlcheck_last_analysis_summary", JSON.stringify(summary))
-      trackEvent("project_check_upload_completed", {
-        project_id: currentProject.id,
-        run_id: summary.runId,
-        finding_count: summary.findingCount,
-      })
-
-      window.location.assign("/analysis-progress")
+      trackEvent("project_check_upload_accepted", { project_id: currentProject.id, run_id: res.id, finding_count: summary.findingCount })
       return res
     } catch (err) {
       console.error("Upload error:", err)
@@ -168,21 +165,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [currentProject, refreshHealthAndFindings])
 
   return (
-    <ProjectContext.Provider
-      value={{
-        projects,
-        currentProject,
-        currentRun,
-        healthData,
-        liveFindings,
-        isLoading,
-        isUploading,
-        setCurrentProject,
-        refreshProjects,
-        refreshHealthAndFindings,
-        uploadWorkbook,
-      }}
-    >
+    <ProjectContext.Provider value={{ projects, currentProject, currentRun, healthData, liveFindings, isLoading, isUploading, setCurrentProject, refreshProjects, refreshHealthAndFindings, uploadWorkbook }}>
       {children}
     </ProjectContext.Provider>
   )
