@@ -53,8 +53,24 @@ export interface PersistentFindingAction {
   created_by?: string | null; completed_at?: string | null; created_at: string; updated_at: string
 }
 export interface ClosureReadiness {
-  can_close: boolean; evidence_ready: boolean; actions_ready: boolean; action_count: number; open_action_count: number;
+  can_close: boolean; evidence_ready: boolean; actions_ready: boolean; approval_required: boolean; approval_ready: boolean;
+  approval_decision?: string | null; approval_id?: string | null; action_count: number; open_action_count: number;
   completed_action_count: number; blockers: string[]
+}
+export interface GovernancePolicy {
+  project_id: string; critical_sla_days: number; warning_sla_days: number; observation_sla_days: number;
+  require_critical_closure_approval: boolean; require_warning_closure_approval: boolean
+}
+export interface ClosureApproval {
+  id: string; organization_id: string; project_id: string; finding_id: string; requested_by?: string | null;
+  decision: "pending" | "approved" | "rejected" | "withdrawn"; decided_by?: string | null; decision_note?: string | null;
+  requested_at: string; decided_at?: string | null
+}
+export interface GovernanceEscalation {
+  id: string; organization_id: string; project_id: string; finding_id: string; action_id?: string | null;
+  escalation_type: "finding_sla" | "action_overdue"; severity: "critical" | "warning" | "observation";
+  status: "open" | "acknowledged" | "resolved"; reason: string; metadata_json?: Record<string, any> | null;
+  triggered_at: string; acknowledged_by?: string | null; acknowledged_at?: string | null; resolved_at?: string | null
 }
 
 export const api = {
@@ -82,12 +98,22 @@ export const api = {
     getEvidence: async (findingId: string) => (await apiClient.get(`/v1/findings/${findingId}/evidence`)).data,
     closureReadiness: async (findingId: string): Promise<ClosureReadiness> => (await apiClient.get(`/v1/findings/${findingId}/closure-readiness`)).data,
     closeGoverned: async (findingId: string) => (await apiClient.post(`/v1/findings/${findingId}/close`)).data,
+    getClosureApproval: async (findingId: string): Promise<ClosureApproval | null> => (await apiClient.get(`/v1/findings/${findingId}/closure-approval`)).data,
+    requestClosureApproval: async (findingId: string, note?: string): Promise<ClosureApproval> => (await apiClient.post(`/v1/findings/${findingId}/closure-approval`, { note })).data,
   },
   actions: {
     listProject: async (projectId: string): Promise<{ items: PersistentFindingAction[] }> => (await apiClient.get(`/v1/projects/${projectId}/actions`)).data,
     listFinding: async (findingId: string): Promise<{ items: PersistentFindingAction[] }> => (await apiClient.get(`/v1/findings/${findingId}/actions`)).data,
     create: async (findingId: string, data: { title: string; owner: string; due_date: string; priority: string; notes?: string; actor?: string }) => (await apiClient.post(`/v1/findings/${findingId}/actions`, data)).data,
     update: async (actionId: string, data: { title?: string; owner?: string; due_date?: string; priority?: string; status?: string; notes?: string; actor?: string }) => (await apiClient.patch(`/v1/actions/${actionId}`, data)).data,
+  },
+  governance: {
+    getPolicy: async (projectId: string): Promise<GovernancePolicy> => (await apiClient.get(`/v1/projects/${projectId}/governance-policy`)).data,
+    updatePolicy: async (projectId: string, patch: Partial<Omit<GovernancePolicy, "project_id">>): Promise<GovernancePolicy> => (await apiClient.patch(`/v1/projects/${projectId}/governance-policy`, patch)).data,
+    decideApproval: async (approvalId: string, decision: "approved" | "rejected", note?: string): Promise<ClosureApproval> => (await apiClient.post(`/v1/closure-approvals/${approvalId}/decision`, { decision, note })).data,
+    scanEscalations: async (projectId: string): Promise<{ items: GovernanceEscalation[] }> => (await apiClient.post(`/v1/projects/${projectId}/governance-escalations/scan`)).data,
+    listEscalations: async (projectId: string, status?: string): Promise<{ items: GovernanceEscalation[] }> => (await apiClient.get(`/v1/projects/${projectId}/governance-escalations`, { params: { status } })).data,
+    acknowledgeEscalation: async (escalationId: string): Promise<GovernanceEscalation> => (await apiClient.post(`/v1/governance-escalations/${escalationId}/acknowledge`)).data,
   },
   health: { getTrend: async (projectId: string) => (await apiClient.get(`/v1/projects/${projectId}/health-trend`)).data },
   ai: {
