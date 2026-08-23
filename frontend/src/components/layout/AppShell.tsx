@@ -37,7 +37,7 @@ export const AppShell: React.FC = () => {
     { name: "Data", path: "/data", icon: Database },
     { name: "Findings", path: "/findings", icon: ShieldAlert },
     { name: "Actions", path: "/actions", icon: ClipboardCheck },
-    { name: "Governance", path: "/governance", icon: ShieldCheck },
+    { name: "Governance Center", path: "/governance", icon: ShieldCheck },
     { name: "Cost", path: "/cost", icon: CircleDollarSign },
     { name: "Schedule", path: "/schedule", icon: CalendarClock },
     { name: "Progress", path: "/progress", icon: LineChart },
