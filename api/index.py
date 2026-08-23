@@ -56,6 +56,14 @@ except Exception as e:
     import_status["controlcheck_api"] = f"ERROR: {e}\n{err_tb}"
     inner_app = FastAPI(title="ControlCheck Diagnostic API")
 
+
+def database_configured() -> bool:
+    return bool(
+        os.environ.get("CONTROLCHECK_DATABASE_URL", "").strip()
+        or os.environ.get("DATABASE_URL", "").strip()
+    )
+
+
 # Direct health check endpoint
 @inner_app.get("/health")
 @inner_app.get("/api/health")
@@ -66,7 +74,7 @@ def health_endpoint():
         "platform": "Vercel",
         "imports": import_status,
         "catalogue_exists": catalogue_path.exists(),
-        "db_configured": bool(os.environ.get("DATABASE_URL")),
+        "db_configured": database_configured(),
     }
 
 @inner_app.get("/diagnostic")
@@ -77,6 +85,7 @@ def diagnostic_endpoint():
         "sys_path": sys.path,
         "cwd": os.getcwd(),
         "import_status": import_status,
+        "db_configured": database_configured(),
         "env_keys": [k for k in os.environ.keys() if "KEY" not in k and "SECRET" not in k and "PASS" not in k],
     }
 
