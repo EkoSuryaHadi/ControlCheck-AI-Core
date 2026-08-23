@@ -72,6 +72,20 @@ class ClosureReadinessResponse(BaseModel):
     blockers: list[str]
 
 
+def governance_enabled() -> bool:
+    """Return whether approval/escalation governance participates in closure.
+
+    Governance is intentionally opt-in while the module is parked from the active
+    product experience. Re-enable with CONTROLCHECK_GOVERNANCE_ENABLED=true.
+    """
+    return os.environ.get("CONTROLCHECK_GOVERNANCE_ENABLED", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def install_action_routes(application) -> None:
     database_url = os.environ.get("DATABASE_URL") or os.environ.get("CONTROLCHECK_DATABASE_URL")
     if not database_url:
@@ -98,7 +112,7 @@ def install_action_routes(application) -> None:
 
     def require_identity(authorization: str | None = Header(None)) -> dict:
         if not authorization or not authorization.startswith("Bearer "):
-            raise ControlCheckApplicationError("authentication_required", "Authentication is required for governed closure", 401)
+            raise ControlCheckApplicationError("authentication_required", "Authentication is required to close a finding", 401)
         try:
             payload = decode_token(authorization[7:].strip())
             if not payload.get("org_id") or not payload.get("sub"):
@@ -114,6 +128,10 @@ def install_action_routes(application) -> None:
             raise ControlCheckApplicationError("invalid_token", "Authentication token is invalid or expired", 401) from exc
 
     def ensure_closure_authority(session, identity: dict, project_id: UUID) -> None:
+        # While Governance is parked, any authenticated user in the tenant can
+        # close a finding once evidence/action readiness is satisfied.
+        if not governance_enabled():
+            return
         if identity.get("role") == "org_admin":
             return
         membership = session.scalar(
@@ -133,6 +151,18 @@ def install_action_routes(application) -> None:
         finding_repo = FindingRepository(session)
         evidence_count = len(finding_repo.evidence(organization_id, finding.id))
         base = FindingActionRepository(session).closure_readiness(organization_id, finding.id, evidence_count)
+
+        if not governance_enabled():
+            return {
+                **base,
+                "approval_required": False,
+                "approval_ready": True,
+                "approval_decision": None,
+                "approval_id": None,
+                "can_close": bool(base["can_close"]),
+                "blockers": list(base["blockers"]),
+            }
+
         approval = GovernanceRepository(session).approval_status(organization_id, finding)
         blockers = list(base["blockers"])
         if approval.get("blocker"):
@@ -168,9 +198,14 @@ def install_action_routes(application) -> None:
             raise ControlCheckApplicationError("invalid_action_priority", "Action priority is invalid", 422)
         with session_factory() as session:
             action = FindingActionRepository(session).create(
-                organization_id, finding_id, title=payload.title, owner=payload.owner,
-                due_date=payload.due_date, priority=payload.priority,
-                notes=payload.notes, actor=payload.actor,
+                organization_id,
+                finding_id,
+                title=payload.title,
+                owner=payload.owner,
+                due_date=payload.due_date,
+                priority=payload.priority,
+                notes=payload.notes,
+                actor=payload.actor,
             )
             if action is None:
                 raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
@@ -214,8 +249,8 @@ def install_action_routes(application) -> None:
             readiness = build_readiness(session, organization_id, finding)
             if not readiness["can_close"]:
                 raise ControlCheckApplicationError(
-                    "closure_governance_blocked",
-                    "Finding cannot be closed until evidence, corrective action, and approval requirements are satisfied",
+                    "closure_requirements_incomplete",
+                    "Finding cannot be closed until evidence and corrective-action requirements are satisfied",
                     409,
                 )
             finding = finding_repo.update_status(organization_id, finding_id, "resolved")
