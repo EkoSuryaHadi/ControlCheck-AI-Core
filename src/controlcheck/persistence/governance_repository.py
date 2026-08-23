@@ -61,6 +61,15 @@ class GovernanceRepository:
         )
         return self.session.scalar(statement)
 
+    def list_approvals(self, organization_id: UUID, project_id: UUID, decision: str | None = None):
+        statement = select(FindingClosureApprovalRecord).where(
+            FindingClosureApprovalRecord.organization_id == organization_id,
+            FindingClosureApprovalRecord.project_id == project_id,
+        )
+        if decision:
+            statement = statement.where(FindingClosureApprovalRecord.decision == decision)
+        return list(self.session.scalars(statement.order_by(FindingClosureApprovalRecord.requested_at.desc())))
+
     def request_approval(self, organization_id: UUID, finding_id: UUID, requested_by: UUID | None):
         finding = self.session.scalar(
             select(FindingRecord).where(
