@@ -90,7 +90,6 @@ class FindingListResponse(BaseModel):
     has_more: bool = False
 
 
-
 class EvidenceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -152,6 +151,11 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user_id: UUID | None = None
+    email: str | None = None
+    full_name: str | None = None
+    org_id: UUID | None = None
+    role: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -204,6 +208,3 @@ class AIMessageResponse(BaseModel):
     content: str
     tool_calls: dict | list | None = None
     created_at: datetime
-
-
-
