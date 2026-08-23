@@ -8,32 +8,57 @@
 
 Preview testing identified that a newly registered user could not continue into a newly created workspace.
 
-The backend registration endpoint created the user and organization correctly and embedded `org_id`, `sub`, `email`, and `role` claims inside the access JWT. However, the frontend expected `org_id` and `user_id` as top-level JSON fields in the authentication response.
+The first observed UI symptom was a red **Not Found** message after clicking **Create Workspace** in Vercel Preview.
 
-Because the existing `TokenResponse` only returned token fields, the Register page interpreted the successful registration as an incomplete workspace response and redirected the user back to Login instead of continuing to Onboarding.
+Two separate compatibility issues were identified:
 
-## 2. Root Cause
+1. the frontend/backend auth response contract did not expose workspace identity consistently;
+2. the hosted runtime could enter offline mode when Vercel/Postgres exposed the standard `DATABASE_URL` variable instead of the ControlCheck-specific `CONTROLCHECK_DATABASE_URL` variable.
 
-Backend behavior before the fix:
+When the runtime entered offline mode, durable/auth routes such as `/v1/auth/register` were not installed, producing HTTP 404 even though the frontend registration page was available.
+
+## 2. Root Causes
+
+### 2.1 Auth response-contract mismatch
+
+Backend registration behavior:
 
 1. Create user.
 2. Create organization when `organization_name` is provided.
 3. Add user as `org_admin`.
-4. Create access token containing `org_id` and user identity claims.
-5. Return `access_token` and `refresh_token`.
+4. Create access token containing `org_id`, `sub`, `email`, and `role` claims.
+5. Return the access/refresh tokens.
 
-Frontend behavior before the fix:
+Earlier frontend behavior expected `res.org_id` and `res.user_id` as top-level fields and did not decode the JWT claims. This could redirect a successful registration back to login instead of continuing to onboarding.
 
-- required `res.org_id`;
-- required/fell back from `res.user_id`;
-- did not decode JWT claims;
-- redirected back to login when `res.org_id` was absent.
+### 2.2 Hosted database environment mismatch
 
-This was a frontend/backend response-contract mismatch.
+`ProductionSettings` previously read only:
 
-## 3. Fix
+`CONTROLCHECK_DATABASE_URL`
 
-### 3.1 Auth identity normalization
+The Vercel/Postgres/Supabase ecosystem commonly provides:
+
+`DATABASE_URL`
+
+When only `DATABASE_URL` existed, `ProductionSettings.database_url` became empty. `create_configured_app()` then intentionally created an offline application without the persistent registration/login/project routes.
+
+Result:
+
+`POST /api/v1/auth/register` → `404 Not Found`
+
+## 3. Fixes
+
+### 3.1 Database URL resolution
+
+`src/controlcheck/settings.py` now resolves database configuration using:
+
+1. `CONTROLCHECK_DATABASE_URL` — explicit ControlCheck override;
+2. `DATABASE_URL` — standard hosted Postgres fallback.
+
+The same resolver is used by both `ProductionSettings` and `PersistenceSettings` so deployment/runtime behavior is consistent.
+
+### 3.2 Auth identity normalization
 
 Added:
 
@@ -48,7 +73,7 @@ The helper:
 - resolves email and role from response or token claims;
 - rejects authentication if no workspace organization or user identity can be resolved.
 
-### 3.2 Register flow
+### 3.3 Register flow
 
 `RegisterPage.tsx` now:
 
@@ -58,30 +83,24 @@ The helper:
 4. redirects directly to `/onboarding`;
 5. displays the backend error message when registration fails.
 
-The obsolete redirect back to Login for successful token responses was removed.
-
-### 3.3 Login flow
+### 3.4 Login flow
 
 `LoginPage.tsx` now uses the same normalized JWT identity.
 
-This removes the previous fallback to fake `org-01` when a valid backend token omitted top-level `org_id`.
+The previous fake `org-01` fallback has been removed.
 
-### 3.4 Demo authentication separation
+### 3.5 Demo authentication separation
 
-Previously, any real login API error could silently authenticate the user into a demo workspace.
-
-That behavior has been removed.
+A failed real login no longer silently creates a demo session.
 
 Current behavior:
 
 - failed real login displays an error;
-- demo access is available only through the explicit **Enter Demo Workspace** button.
+- demo access is available only through the explicit **Enter Demo Workspace** action.
 
-This prevents incorrect credentials from appearing to succeed.
+### 3.6 Backend token response compatibility
 
-## 4. Backend Contract Improvement
-
-`TokenResponse` has also been extended with optional identity fields:
+`TokenResponse` includes optional identity fields:
 
 - `user_id`
 - `email`
@@ -89,12 +108,26 @@ This prevents incorrect credentials from appearing to succeed.
 - `org_id`
 - `role`
 
-The JWT remains the authoritative compatibility source for existing backend responses until all auth endpoints explicitly populate these response fields.
+JWT claims remain a compatibility source until every auth endpoint explicitly returns all identity fields.
+
+## 4. Automated Tests
+
+Added:
+
+`tests/test_settings_database_url.py`
+
+Coverage:
+
+- `ProductionSettings` accepts a standard `DATABASE_URL` when the ControlCheck-specific variable is absent;
+- `CONTROLCHECK_DATABASE_URL` takes precedence when both variables exist;
+- `PersistenceSettings` uses the same resolution behavior.
 
 ## 5. Acceptance Criteria
 
 v0.6.1 is accepted when:
 
+- [ ] Vercel Preview installs durable auth routes when `DATABASE_URL` is present.
+- [ ] `POST /api/v1/auth/register` no longer returns HTTP 404 because of database env-name mismatch.
 - [ ] New email + organization can register successfully.
 - [ ] User remains authenticated immediately after registration.
 - [ ] Correct organization ID is stored in `controlcheck_org_id`.
@@ -103,39 +136,46 @@ v0.6.1 is accepted when:
 - [ ] Existing account can log in using the real JWT organization claim.
 - [ ] Incorrect password displays an authentication error.
 - [ ] Incorrect password does not create a demo session.
-- [ ] Explicit Enter Demo Workspace still works.
+- [ ] Explicit Demo Workspace access remains intentional/separate.
 - [ ] Frontend build/typecheck passes.
 - [ ] Backend test suite passes.
 
-## 6. Test Script
+## 6. Preview Test Script
 
-Use a new email address for each registration attempt while testing the preview environment.
+Use a new email address for each registration attempt if the previous request may have persisted data.
 
-1. Open `/register`.
+1. Open `/register` in the Vercel Preview.
 2. Enter Full Name.
 3. Enter a unique Organization name.
 4. Enter a new email address.
 5. Enter a password with at least 8 characters.
 6. Click **Create Workspace**.
-7. Expected: redirect to `/onboarding`.
-8. Create a project code/name.
-9. Expected: project creation succeeds under the newly created organization.
-10. Logout.
-11. Login with the same email/password.
-12. Expected: return to the real workspace.
-13. Test an incorrect password.
-14. Expected: error is shown and no demo login occurs.
-15. Click **Enter Demo Workspace** separately.
-16. Expected: demo workspace opens intentionally.
+7. Expected: no `Not Found` error.
+8. Expected: redirect to `/onboarding`.
+9. Create a project code/name.
+10. Expected: project creation succeeds under the newly created organization.
+11. Logout.
+12. Login with the same email/password.
+13. Expected: return to the real workspace.
+14. Test an incorrect password.
+15. Expected: error is shown and no demo login occurs.
 
 ## 7. Files Changed
 
 - `src/controlcheck/api_models.py`
+- `src/controlcheck/settings.py`
+- `tests/test_settings_database_url.py`
 - `frontend/src/lib/authSession.ts`
 - `frontend/src/pages/auth/RegisterPage.tsx`
 - `frontend/src/pages/auth/LoginPage.tsx`
 - `docs/ControlCheck_AI_Implementation_Update_v0.6.1.md`
 
-## 8. Release Note
+## 8. Deployment Note
 
-This is a blocking preview hotfix. v0.7 feature development should continue only after the registration/onboarding flow is verified in Vercel Preview.
+This hotfix assumes the Vercel project has either `CONTROLCHECK_DATABASE_URL` or `DATABASE_URL` configured with a reachable PostgreSQL database.
+
+If neither variable exists in the Vercel Preview environment, the application will still operate without durable workspace registration because there is no database to persist users/organizations. In that case the deployment environment must be configured before end-to-end registration testing can pass.
+
+## 9. Release Gate
+
+This is a blocking preview hotfix. v0.7 feature development should continue only after the registration → onboarding → first-project flow is verified successfully in Vercel Preview.
