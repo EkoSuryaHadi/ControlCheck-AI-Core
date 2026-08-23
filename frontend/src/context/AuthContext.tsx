@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react"
+import React, { createContext, useContext, useEffect, useState } from "react"
 import { User } from "@/lib/api"
 import { isJwtExpired } from "@/lib/authSession"
 
@@ -46,6 +46,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => token ? loadStoredUser() : null)
   const isLoading = false
 
+  const logout = () => {
+    setToken(null)
+    setUser(null)
+    setOrgId(null)
+    clearStoredSession()
+  }
+
   const login = (newToken: string, newUser: User, newOrgId: string) => {
     if (isJwtExpired(newToken, 0)) throw new Error("Cannot start a session with an expired token.")
     setToken(newToken)
@@ -56,12 +63,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem("controlcheck_org_id", newOrgId)
   }
 
-  const logout = () => {
-    setToken(null)
-    setUser(null)
-    setOrgId(null)
-    clearStoredSession()
-  }
+  useEffect(() => {
+    if (!token) return
+    const checkExpiry = () => {
+      if (isJwtExpired(token)) logout()
+    }
+    checkExpiry()
+    const timer = window.setInterval(checkExpiry, 30_000)
+    return () => window.clearInterval(timer)
+  }, [token])
 
   return (
     <AuthContext.Provider
