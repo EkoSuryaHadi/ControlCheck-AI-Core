@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { api } from "@/lib/api"
+import { normalizeAuthResponse } from "@/lib/authSession"
 import { useAuth } from "@/context/AuthContext"
 import { trackEvent } from "@/lib/analytics"
 import { BrandLogo } from "@/components/common/BrandLogo"
@@ -32,22 +33,19 @@ export const RegisterPage: React.FC = () => {
         organization_name: organizationName,
       })
 
-      if (!res.access_token || !res.org_id) {
-        trackEvent("registration_account_created", { source })
-        navigate(`/login?next=/onboarding&source=${encodeURIComponent(source)}`)
-        return
-      }
-
+      const identity = normalizeAuthResponse(res, { email, fullName })
       login(
-        res.access_token,
-        { id: res.user_id || "usr-new", email, name: res.name || fullName, role: "Project Control" },
-        res.org_id
+        identity.accessToken,
+        { id: identity.userId, email: identity.email, name: identity.fullName, role: identity.role },
+        identity.orgId
       )
 
-      trackEvent("registration_completed", { source })
-      navigate("/onboarding")
+      trackEvent("registration_completed", { source, role: identity.role })
+      navigate("/onboarding", { replace: true })
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "Registration could not be completed. Please try again or sign in if you already have an account.")
+      const apiMessage = err?.response?.data?.error?.message || err?.response?.data?.detail
+      setError(apiMessage || err?.message || "Registration could not be completed. Please try again or sign in if you already have an account.")
+      trackEvent("registration_failed", { source, status: err?.response?.status || 0 })
     } finally {
       setIsLoading(false)
     }
