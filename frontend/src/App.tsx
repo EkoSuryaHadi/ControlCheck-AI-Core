@@ -13,6 +13,7 @@ import { OnboardingPage } from "@/pages/onboarding/OnboardingPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { FindingsPage } from "@/pages/findings/FindingsPage"
 import { FindingDetailV2Page } from "@/pages/findings/FindingDetailV2Page"
+import { ActionsPage } from "@/pages/actions/ActionsPage"
 import { DataImportWizard } from "@/pages/data/DataImportWizard"
 import { AnalysisProgressPage } from "@/pages/analysis/AnalysisProgressPage"
 import { AIAssistantPage } from "@/pages/assistant/AIAssistantPage"
@@ -39,16 +40,12 @@ export const App: React.FC = () => {
         <ProjectProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public acquisition routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/demo" element={<SampleAuditPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-
-              {/* First-run conversion route */}
               <Route path="/onboarding" element={<OnboardingPage />} />
 
-              {/* Application workspace */}
               <Route element={<AppShell />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
@@ -56,6 +53,7 @@ export const App: React.FC = () => {
                 <Route path="/analysis-progress" element={<AnalysisProgressPage />} />
                 <Route path="/findings" element={<FindingsPage />} />
                 <Route path="/findings/:findingId" element={<FindingDetailV2Page />} />
+                <Route path="/actions" element={<ActionsPage />} />
                 <Route path="/cost" element={<CostPage />} />
                 <Route path="/schedule" element={<SchedulePage />} />
                 <Route path="/progress" element={<ProgressPage />} />
