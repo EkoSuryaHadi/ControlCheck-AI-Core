@@ -26,6 +26,7 @@ from .application import AnalysisService
 from .errors import ControlCheckApplicationError
 from .ingestion.profile import load_mapping_profile, mapping_profile_sha256
 from .ingestion.service import SnapshotIngestionService, _dedupe_key
+from .health import check_readiness
 from .loader import WorkbookSchemaError
 from .models import AuditResult
 from .persistence.ingestion_repositories import SnapshotRepository
@@ -148,6 +149,18 @@ def create_app(
     @application.get("/health")
     def health():
         return {"status": "ok", "engine_version": __version__}
+
+    @application.get("/health/live")
+    def health_live():
+        return {"status": "live"}
+
+    @application.get("/health/ready")
+    def health_ready():
+        ready = check_readiness(session_factory, storage, catalogue)
+        return JSONResponse(
+            status_code=200 if ready else 503,
+            content={"status": "ready" if ready else "not_ready"},
+        )
 
     @application.post("/v1/audits", response_model=AuditResult)
     async def audit(
