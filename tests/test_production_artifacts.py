@@ -65,3 +65,29 @@ def test_ci_runs_database_and_deterministic_release_gates(project_root: Path):
     ):
         assert required in workflow
     assert "pull_request_target" not in workflow
+
+
+def test_runbook_covers_required_operations(project_root: Path):
+    runbook = (project_root / "docs" / "PRODUCTION_RUNBOOK.md").read_text(
+        encoding="utf-8"
+    )
+
+    for topic in (
+        "Deployment",
+        "Alembic migrations",
+        "API key rotation",
+        "Backup verification",
+        "Rollback",
+        "Incident diagnostics",
+        "single replica",
+    ):
+        assert topic in runbook
+
+
+def test_production_prd_is_versioned_and_readme_links_runbook(project_root: Path):
+    production_prd = project_root / "docs" / "ControlCheck_AI_PRD_v0.5.docx"
+    readme = (project_root / "README.md").read_text(encoding="utf-8")
+
+    assert production_prd.exists() and production_prd.stat().st_size > 0
+    assert "docs/PRODUCTION_RUNBOOK.md" in readme
+    assert "development-only" in readme

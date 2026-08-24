@@ -21,5 +21,7 @@ Runtime catalogues and validation fixtures under `data/` remain the canonical ex
 - `ControlCheck_AI_ERD_Database_Spec_v0.3.docx` — immutable snapshot, raw lineage, canonical facts, and domain-gating contract.
 - `ControlCheck_AI_Control_Rule_Catalogue_v0.3.docx` — 20-rule execution and evidence semantics for canonical snapshots.
 - `003_controlcheck_canonical_ingestion_schema_v0.3.sql` — readable Phase 4B schema reference. Alembic migration `20260818_0002` remains the executable authority.
+- `ControlCheck_AI_PRD_v0.5.docx` — internal production MVP requirements: bearer API key, fixed tenant, health checks, managed PostgreSQL, persistent storage, container, CI, and explicit deferrals.
+- `PRODUCTION_RUNBOOK.md` — deployment, migration, rotation, backup verification, rollback, and incident procedures for the single-replica pilot.
 
 Rendered visual-QA previews are stored under `validation/previews/phase4a-docs/`.
