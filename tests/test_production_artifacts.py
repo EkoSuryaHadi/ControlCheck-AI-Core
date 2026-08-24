@@ -67,6 +67,18 @@ def test_ci_runs_database_and_deterministic_release_gates(project_root: Path):
     assert "pull_request_target" not in workflow
 
 
+def test_ci_points_persistence_tests_at_postgres_service(project_root: Path):
+    workflow = (
+        project_root / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "CONTROLCHECK_TEST_DATABASE_URL: "
+        "postgresql+psycopg://postgres@127.0.0.1:5432/controlcheck"
+        in workflow
+    )
+
+
 def test_runbook_covers_required_operations(project_root: Path):
     runbook = (project_root / "docs" / "PRODUCTION_RUNBOOK.md").read_text(
         encoding="utf-8"

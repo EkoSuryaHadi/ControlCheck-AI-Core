@@ -11,6 +11,7 @@ permissions:
 env:
   CONTROLCHECK_ENV: test
   CONTROLCHECK_DATABASE_URL: postgresql+psycopg://postgres@127.0.0.1:5432/controlcheck
+  CONTROLCHECK_TEST_DATABASE_URL: postgresql+psycopg://postgres@127.0.0.1:5432/controlcheck
   CONTROLCHECK_UPLOAD_ROOT: /tmp/controlcheck-uploads
   CONTROLCHECK_CATALOGUE: data/controlcheck_rule_catalogue_v0.2.json
 
