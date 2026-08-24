@@ -1,8 +1,21 @@
-# ControlCheck Core Engine v0.2
+# ControlCheck Core Engine v0.2 / Canonical Ingestion Phase 4B
 
 ControlCheck is a deterministic project-control audit engine for EPC cost, schedule, progress, and data-quality data. It reads versioned Excel datasets, executes 20 catalogue rules, attaches traceable evidence to every finding, and evaluates results against governed ground truth.
 
 No LLM, frontend, or database is used in the core engine.
+
+## Phase 4B canonical snapshot workflow
+
+The durable workflow is: governed template upload → immutable dataset snapshot → raw-row lineage and canonical facts → domain validation → gated deterministic analysis → persisted findings/evidence. Snapshot analysis is database-native; the compatibility `/v1/projects/{project_id}/analysis-runs` upload route remains available during migration.
+
+- Ingestion is template-only and preserves source anomalies unchanged.
+- Duplicate business IDs remain addressable through `source_key`; raw lineage uses BIGINT IDs.
+- `source_project_name` is preserved losslessly on the snapshot.
+- Progress above 100% and contradictory actual dates are detected by PRG-002 and DQ-003, not rewritten.
+- Partial-domain snapshots execute only rules whose required domains are valid; skipped rules are durable and explicit.
+- Authentication and complete RBAC are deferred; `X-Organization-ID` is a controlled development tenant contract.
+
+Golden parity acceptance is 59 findings with exact deterministic payload equality between Excel and database snapshot execution. Boundary acceptance is zero findings.
 
 ## v0.2 validation alignment
 

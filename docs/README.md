@@ -17,5 +17,9 @@ Runtime catalogues and validation fixtures under `data/` remain the canonical ex
 - `ControlCheck_AI_ERD_Database_Spec_v0.2.docx` — database specification aligned to the Phase 4A persistence contract.
 - `ControlCheck_AI_Control_Rule_Catalogue_v0.2.docx` — governed 20-rule runtime alignment and active thresholds.
 - `002_controlcheck_persistence_schema_v0.2.sql` — readable PostgreSQL schema reference. Alembic migration `20260817_0001` is the executable schema authority.
+- `ControlCheck_AI_PRD_v0.4.docx` — canonical-ingestion product requirements and Phase 4B acceptance criteria.
+- `ControlCheck_AI_ERD_Database_Spec_v0.3.docx` — immutable snapshot, raw lineage, canonical facts, and domain-gating contract.
+- `ControlCheck_AI_Control_Rule_Catalogue_v0.3.docx` — 20-rule execution and evidence semantics for canonical snapshots.
+- `003_controlcheck_canonical_ingestion_schema_v0.3.sql` — readable Phase 4B schema reference. Alembic migration `20260818_0002` remains the executable authority.
 
 Rendered visual-QA previews are stored under `validation/previews/phase4a-docs/`.
