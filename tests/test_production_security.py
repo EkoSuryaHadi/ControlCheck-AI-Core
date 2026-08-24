@@ -1,3 +1,4 @@
+from dataclasses import replace
 from uuid import UUID
 
 import pytest
@@ -101,3 +102,65 @@ def test_development_tenant_still_comes_from_header(monkeypatch):
     )
 
     assert tenant.organization_id == UUID(OVERRIDE_ORGANIZATION_ID)
+
+
+def test_production_disables_docs_and_rejects_unknown_host(production_client):
+    assert production_client.get("/docs").status_code == 404
+    assert production_client.get("/openapi.json").status_code == 404
+
+    response = production_client.get(
+        "/health", headers={"Host": "attacker.example"}
+    )
+
+    assert response.status_code == 400
+
+
+def test_unhandled_error_is_generic_and_has_safe_request_id(production_app):
+    @production_app.get("/test/unhandled")
+    def unhandled_error():
+        raise RuntimeError("private database detail")
+
+    with TestClient(production_app, raise_server_exceptions=False) as client:
+        response = client.get(
+            "/test/unhandled",
+            headers={"X-Request-ID": "bad id with spaces"},
+        )
+
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "internal_server_error"
+    assert response.json()["error"]["message"] == "The request could not be completed"
+    assert "private database detail" not in response.text
+    UUID(response.headers["X-Request-ID"])
+
+
+def test_safe_request_id_is_preserved(production_client):
+    response = production_client.get(
+        "/health", headers={"X-Request-ID": "pilot-request_001"}
+    )
+
+    assert response.headers["X-Request-ID"] == "pilot-request_001"
+
+
+def test_cors_is_absent_by_default_and_allows_only_configured_origin(
+    production_settings,
+):
+    default_client = TestClient(create_app(settings=production_settings))
+    configured_client = TestClient(create_app(settings=replace(
+        production_settings,
+        cors_origins=("https://app.example.com",),
+    )))
+
+    default_response = default_client.get(
+        "/health", headers={"Origin": "https://app.example.com"}
+    )
+    allowed_response = configured_client.get(
+        "/health", headers={"Origin": "https://app.example.com"}
+    )
+    rejected_response = configured_client.get(
+        "/health", headers={"Origin": "https://attacker.example"}
+    )
+
+    assert "access-control-allow-origin" not in default_response.headers
+    assert allowed_response.headers["access-control-allow-origin"] == "https://app.example.com"
+    assert "access-control-allow-credentials" not in allowed_response.headers
+    assert "access-control-allow-origin" not in rejected_response.headers

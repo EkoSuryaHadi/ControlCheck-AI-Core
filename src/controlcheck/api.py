@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import os
 import hashlib
+import logging
+import re
 from io import BytesIO
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -36,6 +40,8 @@ from .versioning import VersionCompatibilityError
 
 
 DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+logger = logging.getLogger(__name__)
 
 
 def _default_catalogue() -> Path:
@@ -62,7 +68,27 @@ def create_app(
         if max_upload_bytes is None
         else max_upload_bytes
     )
-    application = FastAPI(title="ControlCheck Core API", version=__version__)
+    docs_enabled = runtime_settings.enable_docs
+    application = FastAPI(
+        title="ControlCheck Core API",
+        version=__version__,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
+    )
+    if runtime_settings.is_production:
+        application.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=list(runtime_settings.trusted_hosts),
+        )
+    if runtime_settings.cors_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(runtime_settings.cors_origins),
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        )
     require_access = build_access_dependency(runtime_settings)
     require_tenant = build_tenant_dependency(runtime_settings)
     application.state.require_access = require_access
@@ -70,7 +96,12 @@ def create_app(
 
     @application.middleware("http")
     async def attach_request_id(request: Request, call_next):
-        request.state.request_id = request.headers.get("X-Request-ID") or str(uuid4())
+        supplied_request_id = request.headers.get("X-Request-ID", "")
+        request.state.request_id = (
+            supplied_request_id
+            if SAFE_REQUEST_ID.fullmatch(supplied_request_id)
+            else str(uuid4())
+        )
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
         return response
@@ -88,6 +119,23 @@ def create_app(
         return JSONResponse(
             status_code=exc.status_code, content={"error": error}, headers=headers
         )
+
+    if runtime_settings.is_production:
+        @application.exception_handler(Exception)
+        async def handle_unexpected_error(request: Request, exc: Exception):
+            request_id = getattr(request.state, "request_id", str(uuid4()))
+            logger.exception("Unhandled request error; request_id=%s", request_id)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": {
+                        "code": "internal_server_error",
+                        "message": "The request could not be completed",
+                        "request_id": request_id,
+                    }
+                },
+                headers={"X-Request-ID": request_id},
+            )
 
     def require_matching_organization(path_id: UUID, tenant: TenantContext) -> None:
         if path_id != tenant.organization_id:
