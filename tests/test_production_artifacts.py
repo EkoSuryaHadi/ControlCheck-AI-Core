@@ -44,3 +44,24 @@ def test_alembic_uses_runtime_database_url(project_root: Path):
     environment = (project_root / "alembic" / "env.py").read_text(encoding="utf-8")
 
     assert "CONTROLCHECK_DATABASE_URL" in environment
+
+
+def test_ci_runs_database_and_deterministic_release_gates(project_root: Path):
+    workflow = (
+        project_root / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+
+    for required in (
+        "permissions:",
+        "contents: read",
+        "postgres:16-alpine",
+        "alembic upgrade head",
+        "alembic check",
+        "python -m pytest",
+        "ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx",
+        "ControlCheck_AI_Boundary_Negative_Dataset_v0.2.xlsx",
+        "--strict",
+        "docker build",
+    ):
+        assert required in workflow
+    assert "pull_request_target" not in workflow
