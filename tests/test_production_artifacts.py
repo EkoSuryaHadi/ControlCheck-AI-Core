@@ -79,6 +79,14 @@ def test_ci_points_persistence_tests_at_postgres_service(project_root: Path):
     )
 
 
+def test_test_suite_does_not_depend_on_user_downloads(project_root: Path):
+    prd_test = (project_root / "tests" / "test_prd_v02.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "C:\\Users\\" not in prd_test
+
+
 def test_runbook_covers_required_operations(project_root: Path):
     runbook = (project_root / "docs" / "PRODUCTION_RUNBOOK.md").read_text(
         encoding="utf-8"
