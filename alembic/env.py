@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -12,6 +13,9 @@ from controlcheck.persistence import models  # noqa: F401
 config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
+runtime_database_url = os.environ.get("CONTROLCHECK_DATABASE_URL", "").strip()
+if runtime_database_url:
+    config.set_main_option("sqlalchemy.url", runtime_database_url.replace("%", "%%"))
 target_metadata = Base.metadata
 
 

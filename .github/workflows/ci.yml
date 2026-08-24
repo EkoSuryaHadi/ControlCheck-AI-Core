@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CONTROLCHECK_ENV: test
+  CONTROLCHECK_DATABASE_URL: postgresql+psycopg://postgres@127.0.0.1:5432/controlcheck
+  CONTROLCHECK_TEST_DATABASE_URL: postgresql+psycopg://postgres@127.0.0.1:5432/controlcheck
+  CONTROLCHECK_UPLOAD_ROOT: /tmp/controlcheck-uploads
+  CONTROLCHECK_CATALOGUE: data/controlcheck_rule_catalogue_v0.2.json
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: controlcheck
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d controlcheck"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install locked dependencies
+        run: uv sync --frozen --extra dev --extra docs
+      - name: Compile source
+        run: uv run python -m compileall -q src
+      - name: Apply and verify migrations
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+      - name: Run complete test suite
+        run: uv run python -m pytest -q -p no:cacheprovider
+      - name: Verify deterministic Golden fixture
+        run: >-
+          uv run controlcheck evaluate
+          data/ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx
+          --catalogue data/controlcheck_rule_catalogue_v0.2.json
+          --ground-truth data/controlcheck_golden_expected_findings_v0.2.json
+          --output results/ci-golden-evaluation.json
+          --strict
+      - name: Verify deterministic Boundary fixture
+        run: >-
+          uv run controlcheck evaluate
+          data/ControlCheck_AI_Boundary_Negative_Dataset_v0.2.xlsx
+          --catalogue data/controlcheck_rule_catalogue_v0.2.json
+          --ground-truth data/controlcheck_boundary_expected_findings_v0.2.json
+          --output results/ci-boundary-evaluation.json
+          --strict
+
+  container:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build -t controlcheck-core:ci .

@@ -4,6 +4,14 @@ ControlCheck is a deterministic project-control audit engine for EPC cost, sched
 
 No LLM, frontend, or database is used in the core engine.
 
+## Internal production pilot
+
+The production MVP is a single-organization, API-only deployment using one bearer API key, a server-fixed tenant UUID, managed PostgreSQL, a persistent upload volume, and exactly one application replica. Every `/v1/*` route is authenticated in production; `/health/live` and `/health/ready` remain public and minimal. API docs are disabled and CORS is absent by default.
+
+Use [the production runbook](docs/PRODUCTION_RUNBOOK.md) for environment variables, deployment, migrations, API key rotation, backup verification, rollback, and incident handling. Copy `.env.example` only as a placeholder contract; never commit real secrets.
+
+`X-Organization-ID` is a development-only tenant header. Production ignores it and derives the tenant exclusively from `CONTROLCHECK_ORGANIZATION_ID`. JWT, complete RBAC, object storage, multi-replica scaling, frontend, and LLM orchestration remain deferred.
+
 ## Phase 4B canonical snapshot workflow
 
 The durable workflow is: governed template upload → immutable dataset snapshot → raw-row lineage and canonical facts → domain validation → gated deterministic analysis → persisted findings/evidence. Snapshot analysis is database-native; the compatibility `/v1/projects/{project_id}/analysis-runs` upload route remains available during migration.
@@ -167,7 +175,7 @@ $env:CONTROLCHECK_UPLOAD_ROOT = "var\uploads"
 uvicorn controlcheck.api:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
-Durable endpoints require `X-Organization-ID: <uuid>`. This is an explicit development tenant context, not authentication. Login and complete RBAC are deferred. The primary workflow is project creation followed by `POST /v1/projects/{project_id}/analysis-runs`; run history, findings, evidence, filters, and finding status are then available through the `/v1` resources documented by FastAPI OpenAPI.
+Outside production, durable endpoints require `X-Organization-ID: <uuid>`. This is an explicit development-only tenant context, not authentication. Production uses bearer authentication and the server-fixed organization described in the runbook. Login and complete RBAC are deferred. The primary workflow is project creation followed by `POST /v1/projects/{project_id}/analysis-runs`; run history, findings, evidence, filters, and finding status are then available through the `/v1` resources documented by FastAPI OpenAPI in development.
 
 Rebuild the validation workbooks with the bundled artifact-tool runtime:
 

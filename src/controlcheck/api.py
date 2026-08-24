@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import os
 import hashlib
+import logging
+import re
 from io import BytesIO
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -22,6 +26,7 @@ from .application import AnalysisService
 from .errors import ControlCheckApplicationError
 from .ingestion.profile import load_mapping_profile, mapping_profile_sha256
 from .ingestion.service import SnapshotIngestionService, _dedupe_key
+from .health import check_readiness
 from .loader import WorkbookSchemaError
 from .models import AuditResult
 from .persistence.ingestion_repositories import SnapshotRepository
@@ -29,12 +34,15 @@ from .persistence.models import DatasetDomainStatusRecord, MappingProfileVersion
 from .persistence.repositories import AnalysisRepository, FindingRepository, OrganizationRepository, ProjectRepository
 from .persistence.database import create_session_factory
 from .service import run_audit
-from .settings import PersistenceSettings
+from .security import build_access_dependency, build_tenant_dependency
+from .settings import ApplicationSettings
 from .storage import FileStorage, LocalFileStorage
 from .versioning import VersionCompatibilityError
 
 
 DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+logger = logging.getLogger(__name__)
 
 
 def _default_catalogue() -> Path:
@@ -47,16 +55,54 @@ def _default_catalogue() -> Path:
 
 def create_app(
     catalogue_path: Path | str | None = None,
-    max_upload_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
+    max_upload_bytes: int | None = None,
     session_factory: sessionmaker[Session] | None = None,
     storage: FileStorage | None = None,
+    settings: ApplicationSettings | None = None,
 ) -> FastAPI:
-    catalogue = Path(catalogue_path) if catalogue_path else _default_catalogue()
-    application = FastAPI(title="ControlCheck Core API", version=__version__)
+    runtime_settings = settings or ApplicationSettings.from_env()
+    catalogue = Path(catalogue_path) if catalogue_path else (
+        runtime_settings.catalogue_path or _default_catalogue()
+    )
+    upload_limit = (
+        runtime_settings.max_upload_bytes
+        if max_upload_bytes is None
+        else max_upload_bytes
+    )
+    docs_enabled = runtime_settings.enable_docs
+    application = FastAPI(
+        title="ControlCheck Core API",
+        version=__version__,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
+    )
+    if runtime_settings.is_production:
+        application.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=list(runtime_settings.trusted_hosts),
+        )
+    if runtime_settings.cors_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(runtime_settings.cors_origins),
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        )
+    require_access = build_access_dependency(runtime_settings)
+    require_tenant = build_tenant_dependency(runtime_settings)
+    application.state.require_access = require_access
+    application.state.require_tenant = require_tenant
 
     @application.middleware("http")
     async def attach_request_id(request: Request, call_next):
-        request.state.request_id = request.headers.get("X-Request-ID") or str(uuid4())
+        supplied_request_id = request.headers.get("X-Request-ID", "")
+        request.state.request_id = (
+            supplied_request_id
+            if SAFE_REQUEST_ID.fullmatch(supplied_request_id)
+            else str(uuid4())
+        )
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
         return response
@@ -70,19 +116,27 @@ def create_app(
         }
         if exc.analysis_run_id is not None:
             error["analysis_run_id"] = str(exc.analysis_run_id)
-        return JSONResponse(status_code=exc.status_code, content={"error": error})
+        headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
+        return JSONResponse(
+            status_code=exc.status_code, content={"error": error}, headers=headers
+        )
 
-    def require_tenant(x_organization_id: str | None = Header(None)) -> TenantContext:
-        if x_organization_id is None:
-            raise ControlCheckApplicationError(
-                "missing_tenant_context", "X-Organization-ID is required", 400
+    if runtime_settings.is_production:
+        @application.exception_handler(Exception)
+        async def handle_unexpected_error(request: Request, exc: Exception):
+            request_id = getattr(request.state, "request_id", str(uuid4()))
+            logger.exception("Unhandled request error; request_id=%s", request_id)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": {
+                        "code": "internal_server_error",
+                        "message": "The request could not be completed",
+                        "request_id": request_id,
+                    }
+                },
+                headers={"X-Request-ID": request_id},
             )
-        try:
-            return TenantContext(organization_id=UUID(x_organization_id))
-        except ValueError as exc:
-            raise ControlCheckApplicationError(
-                "invalid_tenant_context", "X-Organization-ID must be a UUID", 400
-            ) from exc
 
     def require_matching_organization(path_id: UUID, tenant: TenantContext) -> None:
         if path_id != tenant.organization_id:
@@ -96,15 +150,30 @@ def create_app(
     def health():
         return {"status": "ok", "engine_version": __version__}
 
+    @application.get("/health/live")
+    def health_live():
+        return {"status": "live"}
+
+    @application.get("/health/ready")
+    def health_ready():
+        ready = check_readiness(session_factory, storage, catalogue)
+        return JSONResponse(
+            status_code=200 if ready else 503,
+            content={"status": "ready" if ready else "not_ready"},
+        )
+
     @application.post("/v1/audits", response_model=AuditResult)
-    async def audit(file: UploadFile) -> AuditResult:
+    async def audit(
+        file: UploadFile,
+        _access: None = Depends(require_access),
+    ) -> AuditResult:
         if not file.filename or not file.filename.lower().endswith(".xlsx"):
             raise HTTPException(415, {"code": "unsupported_file_type"})
         data = bytearray()
         while chunk := await file.read(1024 * 1024):
             data.extend(chunk)
-            if len(data) > max_upload_bytes:
-                raise HTTPException(413, {"code": "file_too_large", "max_bytes": max_upload_bytes})
+            if len(data) > upload_limit:
+                raise HTTPException(413, {"code": "file_too_large", "max_bytes": upload_limit})
         try:
             return run_audit(BytesIO(data), catalogue)
         except WorkbookSchemaError as exc:
@@ -210,10 +279,10 @@ def create_app(
                 data = bytearray()
                 while chunk := await file.read(1024 * 1024):
                     data.extend(chunk)
-                    if len(data) > max_upload_bytes:
+                    if len(data) > upload_limit:
                         raise ControlCheckApplicationError(
                             "snapshot_ingestion_failed",
-                            f"Upload exceeds the {max_upload_bytes} byte limit",
+                            f"Upload exceeds the {upload_limit} byte limit",
                             413,
                         )
                 return bytes(data)
@@ -342,10 +411,10 @@ def create_app(
                 data = bytearray()
                 while chunk := await file.read(1024 * 1024):
                     data.extend(chunk)
-                    if len(data) > max_upload_bytes:
+                    if len(data) > upload_limit:
                         raise ControlCheckApplicationError(
                             "file_too_large",
-                            f"Upload exceeds the {max_upload_bytes} byte limit",
+                            f"Upload exceeds the {upload_limit} byte limit",
                             413,
                         )
                 run = analysis_service.run(
@@ -431,15 +500,15 @@ def create_app(
 
 
 def create_configured_app() -> FastAPI:
-    catalogue = _default_catalogue()
-    try:
-        settings = PersistenceSettings.from_env()
-    except RuntimeError:
-        return create_app(catalogue)
+    settings = ApplicationSettings.from_env()
+    catalogue = settings.catalogue_path or _default_catalogue()
+    if settings.database_url is None:
+        return create_app(catalogue, settings=settings)
     return create_app(
         catalogue,
         session_factory=create_session_factory(settings.database_url),
         storage=LocalFileStorage(settings.upload_root),
+        settings=settings,
     )
 
 

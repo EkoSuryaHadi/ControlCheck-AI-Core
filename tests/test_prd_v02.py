@@ -13,6 +13,8 @@ REQUIRED_PRODUCT_CHANGES = [
     "Change Log v0.2",
 ]
 
+PRD_V01_SHA256 = "1705961a435502289c643251816ea343209f62c2e4460642908e01d425f51c91"
+
 
 def _all_text(path: Path) -> str:
     document = Document(path)
@@ -51,10 +53,9 @@ def test_prd_version_metadata_and_change_log_are_updated(project_root: Path):
 
 
 def test_prd_v01_is_preserved_byte_for_byte(project_root: Path):
-    source = Path(r"C:\Users\USER\Downloads\ControlCheck_AI_PRD_v0.1.docx")
     preserved = project_root / "docs" / "ControlCheck_AI_PRD_v0.1.docx"
 
-    assert _sha256(preserved) == _sha256(source)
+    assert _sha256(preserved) == PRD_V01_SHA256
 
 
 def test_prd_v02_has_no_internal_placeholders(project_root: Path):
