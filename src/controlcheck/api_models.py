@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -28,6 +28,39 @@ class ProjectResponse(BaseModel):
 
 class ProjectListResponse(BaseModel):
     items: list[ProjectResponse]
+
+
+class DomainStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    domain: str
+    status: str
+    row_count_raw: int
+    row_count_canonical: int
+    error_count: int
+    warning_count: int
+
+
+class DatasetSnapshotResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    source_project_id: str
+    dataset_version: str
+    data_date: date
+    mapping_profile_version: str
+    mapping_profile_sha256: str
+    workbook_sha256: str
+    status: str
+    row_count_raw: int
+    row_count_canonical: int
+    error_count: int
+    warning_count: int
+    domain_statuses: dict[str, DomainStatusResponse]
+    created_at: datetime
+
+
+class DatasetSnapshotListResponse(BaseModel):
+    items: list[DatasetSnapshotResponse]
 
 
 class AnalysisRunResponse(BaseModel):
