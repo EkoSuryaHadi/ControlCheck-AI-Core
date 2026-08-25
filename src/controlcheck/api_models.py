@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -35,6 +35,41 @@ class ProjectListResponse(BaseModel):
     has_more: bool = False
 
 
+class DomainStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    domain: str
+    status: str
+    row_count_raw: int
+    row_count_canonical: int
+    error_count: int
+    warning_count: int
+
+
+class DatasetSnapshotResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    source_project_id: str
+    source_project_name: str | None
+    dataset_version: str
+    data_date: date
+    mapping_profile_version: str | None
+    mapping_profile_sha256: str | None
+    workbook_sha256: str
+    status: str
+    row_count_raw: int | None
+    row_count_canonical: int | None
+    error_count: int
+    warning_count: int
+    domain_statuses: dict[str, DomainStatusResponse]
+    created_at: datetime
+    storage_contract: str
+
+
+class DatasetSnapshotListResponse(BaseModel):
+    items: list[DatasetSnapshotResponse]
+
+
 class AnalysisRunResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -45,6 +80,8 @@ class AnalysisRunResponse(BaseModel):
     status: str
     rule_count: int
     finding_count: int
+    executed_rule_ids: list[str]
+    skipped_rules: list[dict]
     duration_ms: int | None
     safe_error_code: str | None
     safe_error_message: str | None
@@ -98,6 +135,7 @@ class EvidenceResponse(BaseModel):
     source_sheet: str
     source_rows: list[int]
     record_ids: list[str]
+    raw_row_ids: list[int]
     fields: dict
     aggregation: dict | None
 

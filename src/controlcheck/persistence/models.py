@@ -110,17 +110,33 @@ class AnalysisRunRecord(Base):
         CheckConstraint("rule_count >= 0 AND finding_count >= 0", name="ck_analysis_runs_counts"),
         CheckConstraint("duration_ms IS NULL OR duration_ms >= 0", name="ck_analysis_runs_duration"),
         CheckConstraint("char_length(workbook_sha256) = 64", name="ck_analysis_runs_sha256"),
+        CheckConstraint(
+            "(dataset_snapshot_id IS NULL) <> (governed_dataset_snapshot_id IS NULL)",
+            name="ck_analysis_runs_one_snapshot_contract",
+        ),
     )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
-    dataset_snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("dataset_snapshots.id", ondelete="RESTRICT"))
+    dataset_snapshot_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("dataset_snapshots.id", ondelete="RESTRICT")
+    )
+    governed_dataset_snapshot_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("governed_dataset_snapshots.id", ondelete="RESTRICT"),
+        index=True,
+    )
     catalogue_version_id: Mapped[UUID] = mapped_column(ForeignKey("rule_catalogue_versions.id", ondelete="RESTRICT"))
     engine_version: Mapped[str] = mapped_column(String(20))
     workbook_sha256: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(20), default="running", index=True)
     rule_count: Mapped[int] = mapped_column(Integer, default=0)
     finding_count: Mapped[int] = mapped_column(Integer, default=0)
+    executed_rule_ids: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+    skipped_rules: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     safe_error_code: Mapped[str | None] = mapped_column(String(80))
     safe_error_message: Mapped[str | None] = mapped_column(Text)
@@ -168,6 +184,9 @@ class FindingEvidenceRecord(Base):
     source_sheet: Mapped[str] = mapped_column(String(100))
     source_rows: Mapped[list] = mapped_column(JSONB)
     record_ids: Mapped[list] = mapped_column(JSONB)
+    raw_row_ids: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
     fields: Mapped[dict] = mapped_column(JSONB)
     aggregation: Mapped[dict | None] = mapped_column(JSONB)
 

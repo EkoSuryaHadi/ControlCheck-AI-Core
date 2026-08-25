@@ -57,6 +57,16 @@ class ExceptionSpec(BaseModel):
 
 class RuleRuntimeV2(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    required_domains: list[
+        Literal[
+            "wbs",
+            "budget",
+            "actual_cost",
+            "commitments",
+            "schedule",
+            "progress",
+        ]
+    ] = Field(default_factory=list)
     evaluation_grain: Literal[
         "project", "wbs", "vendor_wbs", "transaction", "activity", "period_wbs"
     ]
@@ -106,6 +116,6 @@ def load_catalogue(path: Path | str) -> RuleCatalogue | RuleCatalogueV2:
     version = ArtifactVersion.parse(payload.get("version", "")).major_minor
     if version == "0.1":
         return RuleCatalogue.model_validate(payload)
-    if version == "0.2":
+    if version in {"0.2", "0.3"}:
         return RuleCatalogueV2.model_validate(payload)
     raise ValueError(f"Unsupported rule catalogue version: {payload.get('version')!r}")

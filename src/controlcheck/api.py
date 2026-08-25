@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 from io import BytesIO
 from pathlib import Path
@@ -10,6 +11,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 
@@ -18,6 +20,7 @@ from . import __version__
 from .api_models import (
     AIAskRequest, AIAskResponse, AIConversationListResponse, AIConversationResponse, AIMessageResponse,
     AnalysisRunListResponse, AnalysisRunResponse, EvidenceListResponse, EvidenceResponse,
+    DatasetSnapshotListResponse, DatasetSnapshotResponse, DomainStatusResponse,
     FindingListResponse, FindingResponse, FindingStatusUpdate,
     HealthSnapshotResponse, HealthTrendListResponse,
     ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext,
@@ -30,6 +33,8 @@ from .auth import (
     hash_password, verify_password,
 )
 from .errors import ControlCheckApplicationError
+from .ingestion.profile import load_mapping_profile, mapping_profile_sha256
+from .ingestion.service import SnapshotIngestionService, _dedupe_key
 from .loader import WorkbookSchemaError
 from .logging import clear_log_context, configure_logging, get_logger, set_log_context
 from .metrics import metrics_collector
@@ -37,6 +42,12 @@ from .models import AuditResult
 from .persistence.repositories import (
     AIRepository, AnalysisRepository, FindingRepository, HealthRepository,
     OrganizationRepository, ProjectRepository, UserRepository,
+)
+from .persistence.ingestion_repositories import SnapshotRepository
+from .persistence.models import (
+    GovernedDatasetDomainStatusRecord,
+    GovernedMappingProfileVersionRecord,
+    SourceFileRecord,
 )
 
 
@@ -398,6 +409,223 @@ def create_app(
 
         if storage is not None:
             analysis_service = AnalysisService(session_factory, storage, catalogue)
+            mapping_profile = load_mapping_profile(
+                catalogue.parent / "controlcheck_mapping_profile_v0.1.json"
+            )
+            snapshot_ingestion = SnapshotIngestionService(
+                session_factory, storage, mapping_profile
+            )
+
+            def snapshot_response(
+                session: Session, snapshot
+            ) -> DatasetSnapshotResponse:
+                source = session.scalar(
+                    select(SourceFileRecord).where(
+                        SourceFileRecord.id == snapshot.source_file_id,
+                        SourceFileRecord.organization_id
+                        == snapshot.organization_id,
+                        SourceFileRecord.project_id == snapshot.project_id,
+                    )
+                )
+                profile_id = getattr(
+                    snapshot, "mapping_profile_version_id", None
+                )
+                profile = (
+                    session.get(GovernedMappingProfileVersionRecord, profile_id)
+                    if profile_id is not None
+                    else None
+                )
+                statuses = session.scalars(
+                    select(GovernedDatasetDomainStatusRecord)
+                    .where(
+                        GovernedDatasetDomainStatusRecord.organization_id
+                        == snapshot.organization_id,
+                        GovernedDatasetDomainStatusRecord.project_id
+                        == snapshot.project_id,
+                        GovernedDatasetDomainStatusRecord.dataset_snapshot_id
+                        == snapshot.id,
+                    )
+                    .order_by(GovernedDatasetDomainStatusRecord.domain)
+                ).all()
+                return DatasetSnapshotResponse(
+                    id=snapshot.id,
+                    organization_id=snapshot.organization_id,
+                    project_id=snapshot.project_id,
+                    source_project_id=snapshot.source_project_id,
+                    source_project_name=getattr(
+                        snapshot, "source_project_name", None
+                    ),
+                    dataset_version=snapshot.dataset_version,
+                    data_date=snapshot.data_date,
+                    mapping_profile_version=(
+                        profile.version if profile is not None else None
+                    ),
+                    mapping_profile_sha256=(
+                        profile.sha256 if profile is not None else None
+                    ),
+                    workbook_sha256=source.sha256 if source is not None else "",
+                    status=snapshot.status,
+                    row_count_raw=getattr(snapshot, "row_count_raw", None),
+                    row_count_canonical=getattr(
+                        snapshot, "row_count_canonical", None
+                    ),
+                    error_count=sum(item.error_count for item in statuses),
+                    warning_count=sum(
+                        item.warning_count for item in statuses
+                    ),
+                    domain_statuses={
+                        item.domain: DomainStatusResponse.model_validate(item)
+                        for item in statuses
+                    },
+                    created_at=snapshot.created_at,
+                    storage_contract=getattr(
+                        snapshot, "storage_contract", "governed"
+                    ),
+                )
+
+            async def read_snapshot_upload(file: UploadFile) -> bytes:
+                if not file.filename or not file.filename.lower().endswith(".xlsx"):
+                    raise ControlCheckApplicationError(
+                        "unsupported_template",
+                        "Only .xlsx workbooks are supported",
+                        415,
+                    )
+                data = bytearray()
+                while chunk := await file.read(1024 * 1024):
+                    data.extend(chunk)
+                    if len(data) > max_upload_bytes:
+                        raise ControlCheckApplicationError(
+                            "snapshot_ingestion_failed",
+                            f"Upload exceeds the {max_upload_bytes} byte limit",
+                            413,
+                        )
+                return bytes(data)
+
+            @application.post(
+                "/v1/projects/{project_id}/dataset-snapshots",
+                response_model=DatasetSnapshotResponse,
+            )
+            async def upload_dataset_snapshot(
+                project_id: UUID,
+                file: UploadFile,
+                force_new: bool = False,
+                tenant: TenantContext = Depends(require_tenant),
+            ):
+                data = await read_snapshot_upload(file)
+                duplicate = None
+                if not force_new:
+                    with session_factory() as session:
+                        if (
+                            ProjectRepository(session).get_scoped(
+                                tenant.organization_id, project_id
+                            )
+                            is not None
+                        ):
+                            duplicate = SnapshotRepository(
+                                session
+                            ).find_duplicate(
+                                tenant.organization_id,
+                                project_id,
+                                _dedupe_key(
+                                    tenant.organization_id,
+                                    project_id,
+                                    hashlib.sha256(data).hexdigest(),
+                                    mapping_profile_sha256(mapping_profile),
+                                ),
+                            )
+                try:
+                    snapshot = snapshot_ingestion.ingest(
+                        tenant.organization_id,
+                        project_id,
+                        file.filename or "dataset.xlsx",
+                        file.content_type or "application/octet-stream",
+                        data,
+                        force_new=force_new,
+                    )
+                except ControlCheckApplicationError:
+                    raise
+                except Exception as exc:
+                    raise ControlCheckApplicationError(
+                        "snapshot_ingestion_failed",
+                        "Dataset snapshot ingestion failed",
+                        422,
+                    ) from exc
+                with session_factory() as session:
+                    response = snapshot_response(session, snapshot)
+                return JSONResponse(
+                    status_code=(
+                        200
+                        if duplicate is not None and not force_new
+                        else 201
+                    ),
+                    content=response.model_dump(mode="json"),
+                )
+
+            @application.get(
+                "/v1/projects/{project_id}/dataset-snapshots",
+                response_model=DatasetSnapshotListResponse,
+            )
+            def list_dataset_snapshots(
+                project_id: UUID,
+                tenant: TenantContext = Depends(require_tenant),
+            ) -> DatasetSnapshotListResponse:
+                with session_factory() as session:
+                    if (
+                        ProjectRepository(session).get_scoped(
+                            tenant.organization_id, project_id
+                        )
+                        is None
+                    ):
+                        raise ControlCheckApplicationError(
+                            "project_not_found",
+                            "Project was not found for this organization",
+                            404,
+                        )
+                    snapshots = SnapshotRepository(session).list_scoped(
+                        tenant.organization_id, project_id
+                    )
+                    return DatasetSnapshotListResponse(
+                        items=[
+                            snapshot_response(session, snapshot)
+                            for snapshot in snapshots
+                        ]
+                    )
+
+            @application.get(
+                "/v1/projects/{project_id}/dataset-snapshots/{snapshot_id}",
+                response_model=DatasetSnapshotResponse,
+            )
+            def get_dataset_snapshot(
+                project_id: UUID,
+                snapshot_id: UUID,
+                tenant: TenantContext = Depends(require_tenant),
+            ) -> DatasetSnapshotResponse:
+                with session_factory() as session:
+                    snapshot = SnapshotRepository(session).get_scoped(
+                        tenant.organization_id, project_id, snapshot_id
+                    )
+                    if snapshot is None:
+                        raise ControlCheckApplicationError(
+                            "snapshot_not_found",
+                            "Dataset snapshot was not found for this project",
+                            404,
+                        )
+                    return snapshot_response(session, snapshot)
+
+            @application.post(
+                "/v1/projects/{project_id}/dataset-snapshots/{snapshot_id}/analysis-runs",
+                response_model=AnalysisRunResponse,
+                status_code=201,
+            )
+            def analyze_dataset_snapshot(
+                project_id: UUID,
+                snapshot_id: UUID,
+                tenant: TenantContext = Depends(require_tenant),
+            ) -> AnalysisRunResponse:
+                run = analysis_service.run_snapshot(
+                    tenant.organization_id, project_id, snapshot_id
+                )
+                return AnalysisRunResponse.model_validate(run)
 
             @application.post(
                 "/v1/projects/{project_id}/analysis-runs",

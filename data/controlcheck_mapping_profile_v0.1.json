@@ -1,0 +1,69 @@
+{
+  "version": "0.1",
+  "row_indexing": "one_based",
+  "domains": {
+    "wbs": {"sheet_name": "WBS", "header_row": 3, "columns": {
+      "wbs_code": {"source_header": "wbs_code", "target_field": "wbs_code", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "wbs_name": {"source_header": "wbs_name", "target_field": "wbs_name", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "parent_wbs": {"source_header": "parent_wbs", "target_field": "parent_wbs", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "discipline": {"source_header": "discipline", "target_field": "discipline", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "level": {"source_header": "level", "target_field": "level", "scalar_type": "integer", "required": true, "nullable": false, "normalization": "integer"}
+    }},
+    "budget": {"sheet_name": "Budget", "header_row": 3, "columns": {
+      "budget_id": {"source_header": "budget_id", "target_field": "budget_id", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "wbs_code": {"source_header": "wbs_code", "target_field": "wbs_code", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "cost_code": {"source_header": "cost_code", "target_field": "cost_code", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "description": {"source_header": "description", "target_field": "description", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "budget_amount": {"source_header": "budget_amount", "target_field": "budget_amount", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "decimal"},
+      "status": {"source_header": "status", "target_field": "status", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "effective_date": {"source_header": "effective_date", "target_field": "effective_date", "scalar_type": "date", "required": true, "nullable": false, "normalization": "excel_or_iso_date"}
+    }},
+    "actual_cost": {"sheet_name": "Actual_Cost", "header_row": 3, "columns": {
+      "transaction_id": {"source_header": "transaction_id", "target_field": "transaction_id", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "transaction_date": {"source_header": "transaction_date", "target_field": "transaction_date", "scalar_type": "date", "required": true, "nullable": false, "normalization": "excel_or_iso_date"},
+      "wbs_code": {"source_header": "wbs_code", "target_field": "wbs_code", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "cost_code": {"source_header": "cost_code", "target_field": "cost_code", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "vendor_id": {"source_header": "vendor_id", "target_field": "vendor_id", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "vendor_name": {"source_header": "vendor_name", "target_field": "vendor_name", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "po_number": {"source_header": "po_number", "target_field": "po_number", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "description": {"source_header": "description", "target_field": "description", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "actual_amount": {"source_header": "actual_amount", "target_field": "actual_amount", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "decimal"},
+      "status": {"source_header": "status", "target_field": "status", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"}
+    }},
+    "commitments": {"sheet_name": "Commitments", "header_row": 3, "columns": {
+      "commitment_id": {"source_header": "commitment_id", "target_field": "commitment_id", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "wbs_code": {"source_header": "wbs_code", "target_field": "wbs_code", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "po_number": {"source_header": "po_number", "target_field": "po_number", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "vendor_id": {"source_header": "vendor_id", "target_field": "vendor_id", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "vendor_name": {"source_header": "vendor_name", "target_field": "vendor_name", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "committed_amount": {"source_header": "committed_amount", "target_field": "committed_amount", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "decimal"},
+      "invoiced_amount": {"source_header": "invoiced_amount", "target_field": "invoiced_amount", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "decimal"},
+      "status": {"source_header": "status", "target_field": "status", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "commitment_date": {"source_header": "commitment_date", "target_field": "commitment_date", "scalar_type": "date", "required": true, "nullable": false, "normalization": "excel_or_iso_date"}
+    }},
+    "schedule": {"sheet_name": "Schedule", "header_row": 3, "columns": {
+      "activity_id": {"source_header": "activity_id", "target_field": "activity_id", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "wbs_code": {"source_header": "wbs_code", "target_field": "wbs_code", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "activity_name": {"source_header": "activity_name", "target_field": "activity_name", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "discipline": {"source_header": "discipline", "target_field": "discipline", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "baseline_start": {"source_header": "baseline_start", "target_field": "baseline_start", "scalar_type": "date", "required": true, "nullable": false, "normalization": "excel_or_iso_date"},
+      "baseline_finish": {"source_header": "baseline_finish", "target_field": "baseline_finish", "scalar_type": "date", "required": true, "nullable": false, "normalization": "excel_or_iso_date"},
+      "actual_start": {"source_header": "actual_start", "target_field": "actual_start", "scalar_type": "date", "required": false, "nullable": true, "normalization": "excel_or_iso_date"},
+      "actual_finish": {"source_header": "actual_finish", "target_field": "actual_finish", "scalar_type": "date", "required": false, "nullable": true, "normalization": "excel_or_iso_date"},
+      "planned_progress": {"source_header": "planned_progress", "target_field": "planned_progress", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "percentage_to_decimal"},
+      "actual_progress": {"source_header": "actual_progress", "target_field": "actual_progress", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "percentage_to_decimal"},
+      "total_float_days": {"source_header": "total_float_days", "target_field": "total_float_days", "scalar_type": "integer", "required": true, "nullable": false, "normalization": "integer"},
+      "critical": {"source_header": "critical", "target_field": "critical", "scalar_type": "boolean", "required": true, "nullable": false, "normalization": "boolean"},
+      "status": {"source_header": "status", "target_field": "status", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"}
+    }},
+    "progress": {"sheet_name": "Progress", "header_row": 3, "columns": {
+      "progress_id": {"source_header": "progress_id", "target_field": "progress_id", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"},
+      "period": {"source_header": "period", "target_field": "period", "scalar_type": "date", "required": true, "nullable": false, "normalization": "excel_or_iso_date"},
+      "wbs_code": {"source_header": "wbs_code", "target_field": "wbs_code", "scalar_type": "string", "required": false, "nullable": true, "normalization": "trim"},
+      "planned_progress": {"source_header": "planned_progress", "target_field": "planned_progress", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "percentage_to_decimal"},
+      "actual_progress": {"source_header": "actual_progress", "target_field": "actual_progress", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "percentage_to_decimal"},
+      "variance": {"source_header": "variance", "target_field": "variance", "scalar_type": "decimal", "required": true, "nullable": false, "normalization": "percentage_to_decimal"},
+      "status": {"source_header": "status", "target_field": "status", "scalar_type": "string", "required": true, "nullable": false, "normalization": "trim"}
+    }}
+  }
+}

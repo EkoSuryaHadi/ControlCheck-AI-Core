@@ -11,11 +11,17 @@ from uuid import UUID
 from sqlalchemy.orm import Session, sessionmaker
 
 from . import __version__
+from .config import ThresholdConfig, load_catalogue
+from .engine import ControlEngine, EngineExecution, RuleContext
 from .errors import ControlCheckApplicationError
+from .ingestion.profile import load_mapping_profile
+from .ingestion.service import SnapshotIngestionService
 from .loader import WorkbookSchemaError, load_workbook
 from .logging import get_logger, set_log_context
 from .models import AuditResult
+from .persistence.dataset_loader import DatabaseDatasetLoader
 from .persistence.repositories import AnalysisRepository, ProjectRepository
+from .rules import ALL_RULES
 from .service import run_audit
 from .storage import FileStorage
 from .versioning import VersionCompatibilityError
@@ -31,13 +37,22 @@ class AnalysisService:
         storage: FileStorage,
         catalogue_path: Path | str,
         audit_runner: Callable[..., AuditResult] | None = None,
+        engine: ControlEngine | None = None,
+        mapping_profile_path: Path | str | None = None,
     ):
         self.session_factory = session_factory
         self.storage = storage
         self.catalogue_path = Path(catalogue_path)
-        self.audit_runner = audit_runner or run_audit
+        self.audit_runner = audit_runner
+        self.engine = engine or ControlEngine(ALL_RULES)
+        self.mapping_profile_path = (
+            Path(mapping_profile_path)
+            if mapping_profile_path
+            else self.catalogue_path.parent
+            / "controlcheck_mapping_profile_v0.1.json"
+        )
 
-    def run(
+    def _run_legacy(
         self,
         organization_id: UUID,
         project_id: UUID,
@@ -177,6 +192,156 @@ class AnalysisService:
                 health_result.score_band,
             )
             return completed
+
+    def run_snapshot(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        snapshot_id: UUID,
+        *,
+        idempotency_key: str | None = None,
+        workbook_data: bytes | None = None,
+    ):
+        loaded = DatabaseDatasetLoader(self.session_factory).load(
+            organization_id, project_id, snapshot_id
+        )
+        catalogue_bytes = self.catalogue_path.read_bytes()
+        catalogue_definition = json.loads(catalogue_bytes.decode("utf-8"))
+        catalogue_sha = hashlib.sha256(catalogue_bytes).hexdigest()
+        catalogue_runtime = load_catalogue(self.catalogue_path)
+        with self.session_factory() as session:
+            repository = AnalysisRepository(session)
+            catalogue = repository.get_or_create_catalogue(
+                catalogue_definition["version"],
+                catalogue_sha,
+                catalogue_definition,
+            )
+            run = repository.start_snapshot_run(
+                organization_id,
+                project_id,
+                snapshot_id,
+                catalogue,
+                __version__,
+            )
+            session.commit()
+
+        started = perf_counter()
+        try:
+            if self.audit_runner is not None and workbook_data is not None:
+                audit = self.audit_runner(
+                    BytesIO(workbook_data), self.catalogue_path
+                )
+                execution = EngineExecution(
+                    audit=audit,
+                    executed_rule_ids=tuple(
+                        rule.rule_id for rule in self.engine.rules
+                    ),
+                    skipped_rules=(),
+                )
+            else:
+                execution = self.engine.run_gated(
+                    loaded.snapshot,
+                    RuleContext(
+                        catalogue=catalogue_runtime,
+                        thresholds=ThresholdConfig(),
+                    ),
+                    loaded.domain_statuses,
+                )
+            duration_ms = max(0, round((perf_counter() - started) * 1000))
+            skipped_rules = [
+                {
+                    "rule_id": item.rule_id,
+                    "reason_code": item.reason_code,
+                    "blocked_domains": list(item.blocked_domains),
+                }
+                for item in execution.skipped_rules
+            ]
+            with self.session_factory() as session:
+                repository = AnalysisRepository(session)
+                completed = repository.complete_run(
+                    run.id,
+                    execution.audit,
+                    duration_ms,
+                    executed_rule_ids=list(execution.executed_rule_ids),
+                    skipped_rules=skipped_rules,
+                    raw_row_index=loaded.raw_row_index,
+                )
+
+                from .health.scoring import compute_health_score
+                from .persistence.repositories import HealthRepository
+
+                health_result = compute_health_score(execution.audit.findings)
+                HealthRepository(session).create_snapshot(
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    analysis_run_id=completed.id,
+                    overall_score=health_result.overall_score,
+                    cost_score=health_result.category_scores["COST"].score,
+                    schedule_score=health_result.category_scores["SCHEDULE"].score,
+                    progress_score=health_result.category_scores["PROGRESS"].score,
+                    dq_score=health_result.category_scores["DATA_QUALITY"].score,
+                    score_band=health_result.score_band,
+                    component_breakdown=health_result.component_breakdown,
+                    key_drivers=[
+                        driver.__dict__ for driver in health_result.top_drivers
+                    ],
+                    score_version=health_result.score_version,
+                )
+                if idempotency_key:
+                    repository.record_idempotency(
+                        organization_id,
+                        project_id,
+                        completed.id,
+                        idempotency_key,
+                    )
+                session.commit()
+                return completed
+        except Exception as exc:
+            return self._persist_failure(
+                run.id,
+                "analysis_failed",
+                "Analysis could not be completed",
+                500,
+                started,
+                exc,
+            )
+
+    def run(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        filename: str,
+        content_type: str,
+        data: bytes,
+        idempotency_key: str | None = None,
+    ):
+        if idempotency_key:
+            with self.session_factory() as session:
+                existing_run = AnalysisRepository(
+                    session
+                ).get_run_by_idempotency_key(
+                    organization_id, project_id, idempotency_key
+                )
+                if existing_run is not None:
+                    return existing_run
+        snapshot = SnapshotIngestionService(
+            self.session_factory,
+            self.storage,
+            load_mapping_profile(self.mapping_profile_path),
+        ).ingest(
+            organization_id,
+            project_id,
+            filename,
+            content_type,
+            data,
+        )
+        return self.run_snapshot(
+            organization_id,
+            project_id,
+            snapshot.id,
+            idempotency_key=idempotency_key,
+            workbook_data=data if self.audit_runner is not None else None,
+        )
 
 
 
