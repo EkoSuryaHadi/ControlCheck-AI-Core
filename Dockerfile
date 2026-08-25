@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY pyproject.toml .
 RUN pip install --no-cache-dir --upgrade pip build \
-    && pip install --no-cache-dir ".[production]"
+    && pip install --no-cache-dir "."
 
 # Final runtime stage
 FROM python:3.11-slim AS runner

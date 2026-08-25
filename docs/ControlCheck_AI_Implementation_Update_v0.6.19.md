@@ -27,7 +27,7 @@ Establish one clean baseline for later public-beta work without losing the accep
 
 - Runtime modes are whitespace/case normalized and restricted to the closed development/test/production set. Invalid explicit modes fail startup, `CONTROLCHECK_ENV` takes precedence over legacy `ENV`, and production Vercel or serverless signals force the production validation contract.
 - Production configuration rejects an insecure JWT secret, a missing database URL, wildcard/empty CORS, and an unsupported storage backend.
-- Serverless production rejects ephemeral local workbook storage. The accepted S3-compatible adapter implements object existence and bucket-access readiness checks, with `boto3` declared in the production dependency extra. Private Vercel Blob remains deferred.
+- Serverless production rejects ephemeral local workbook storage. The accepted S3-compatible adapter implements object existence and bucket-access readiness checks, with `boto3` included in the base runtime dependency across package, requirements, lockfile, container, Render, and Vercel installation paths. Private Vercel Blob remains deferred.
 - A missing production catalogue fails startup before an application is served.
 - The package-safe ASGI module constructs the configured application once and installs Actions, Governance, and Reports routes once. Local/Docker and Vercel entrypoints share that application; the Vercel wrapper does not mutate `sys.path`.
 - The Vercel entrypoint no longer catches import/configuration failure and substitutes a healthy diagnostic application.

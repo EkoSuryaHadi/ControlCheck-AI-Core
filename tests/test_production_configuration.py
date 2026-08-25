@@ -1,6 +1,8 @@
+import subprocess
+import sys
+import tomllib
 from pathlib import Path
 from shutil import copyfile
-import tomllib
 
 import pytest
 
@@ -134,17 +136,43 @@ def test_invalid_vercel_environment_fails_closed(monkeypatch, value: str) -> Non
         ProductionSettings.from_env()
 
 
-def test_production_extra_declares_s3_runtime_dependency() -> None:
-    project = tomllib.loads(
-        (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
-            encoding="utf-8"
-        )
+def test_isolated_runtime_can_import_s3_sdk() -> None:
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", "import boto3; print(boto3.__name__)"],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
     )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "boto3"
+
+
+def test_base_runtime_manifests_include_s3_sdk() -> None:
+    root = Path(__file__).resolve().parents[1]
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    requirements = {
+        line.split(">=", 1)[0].lower()
+        for line in (root / "requirements.txt").read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#")
+    }
+    lock = tomllib.loads((root / "uv.lock").read_text(encoding="utf-8"))
+    locked_packages = {package["name"] for package in lock["package"]}
+    locked_project = next(
+        package for package in lock["package"] if package["name"] == "controlcheck-core"
+    )
+    locked_project_dependencies = {
+        dependency["name"] for dependency in locked_project["dependencies"]
+    }
 
     assert any(
         dependency.lower().startswith("boto3")
-        for dependency in project["project"]["optional-dependencies"]["production"]
+        for dependency in project["project"]["dependencies"]
     )
+    assert "boto3" in requirements
+    assert "boto3" in locked_packages
+    assert "boto3" in locked_project_dependencies
 
 
 def test_production_startup_rejects_missing_catalogue(monkeypatch, tmp_path) -> None:

@@ -163,7 +163,7 @@ Run the complete backend suite:
 python -m pytest -q -p no:cacheprovider
 ```
 
-CI additionally performs Python bytecode compilation, strict production-configuration tests, live PostgreSQL migration-drift verification, and frontend `npm ci`, typecheck/build, and lint gates. Runtime modes are trimmed, case-normalized, and restricted to the documented development/test/production set; production platform signals cannot be overridden by a weaker application mode. Production/serverless startup fails closed when required baseline configuration is absent, and no diagnostic endpoint exposes import traces, paths, or environment-variable names. Container production installs the optional S3 dependency, and readiness verifies actual local-directory or S3-bucket access before reporting storage ready.
+CI additionally performs Python bytecode compilation, strict production-configuration tests, live PostgreSQL migration-drift verification, and frontend `npm ci`, typecheck/build, and lint gates. Runtime modes are trimmed, case-normalized, and restricted to the documented development/test/production set; production platform signals cannot be overridden by a weaker application mode. Production/serverless startup fails closed when required baseline configuration is absent, and no diagnostic endpoint exposes import traces, paths, or environment-variable names. The accepted S3 SDK is a base runtime dependency across package, requirements, lockfile, container, Render, and Vercel installation paths; readiness verifies actual local-directory or S3-bucket access before reporting storage ready.
 
 ---
 
