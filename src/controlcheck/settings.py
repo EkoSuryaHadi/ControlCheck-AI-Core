@@ -128,7 +128,7 @@ class ProductionSettings:
                 raise ValueError(
                     "INSECURE CONFIGURATION: production CORS origins must be explicit."
                 )
-            if not trusted_hosts or "*" in trusted_hosts:
+            if not trusted_hosts or any("*" in host for host in trusted_hosts):
                 raise ValueError(
                     "INSECURE CONFIGURATION: production trusted hosts must be explicit."
                 )

@@ -111,7 +111,10 @@ def test_auth_runtime_has_no_known_fallback_jwt_secret(monkeypatch) -> None:
     assert "change-in-production" not in secret
 
 
-@pytest.mark.parametrize("value", [None, "*"])
+@pytest.mark.parametrize(
+    "value",
+    [None, "*", "*.vercel.app", "*.example.com", "controlcheck.example,*.vercel.app"],
+)
 def test_production_requires_explicit_trusted_hosts(monkeypatch, value) -> None:
     _set_valid_production_environment(monkeypatch)
     if value is None:
