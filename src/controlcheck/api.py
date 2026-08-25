@@ -5,12 +5,16 @@ from io import BytesIO
 from pathlib import Path
 from time import perf_counter
 from uuid import UUID, uuid4
+from zipfile import BadZipFile
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from openpyxl.utils.exceptions import InvalidFileException
+from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 
@@ -32,6 +36,7 @@ from .auth import (
     hash_password, verify_password,
 )
 from .errors import ControlCheckApplicationError
+from .config import load_catalogue
 from .ingestion.profile import load_mapping_profile
 from .ingestion.service import SnapshotIngestionService
 from .loader import WorkbookSchemaError
@@ -210,13 +215,12 @@ def create_app(
                     from sqlalchemy import text
                     session.execute(text("SELECT 1"))
                 checks["database"] = "connected"
-            except Exception as exc:
+            except Exception:
                 return JSONResponse(
                     status_code=503,
                     content={
                         "status": "not_ready",
                         "checks": {**checks, "database": "unreachable"},
-                        "error": str(exc),
                     },
                 )
         return {
@@ -288,7 +292,7 @@ def create_app(
             # Fallback to check if a specific matching catalogue version exists in data/
             try:
                 from .loader import load_workbook
-                from .config import load_catalogue, ThresholdConfig
+                from .config import ThresholdConfig
                 from .engine import ControlEngine, RuleContext
                 from .rules import ALL_RULES
                 dataset = load_workbook(BytesIO(data))
@@ -303,6 +307,14 @@ def create_app(
             raise HTTPException(422, {"code": "incompatible_artifact_versions", "message": "Incompatible workbook and catalogue versions"})
         except WorkbookSchemaError as exc:
             raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
+        except (BadZipFile, InvalidFileException, ValidationError) as exc:
+            raise HTTPException(
+                422,
+                {
+                    "code": "invalid_workbook",
+                    "message": "Workbook could not be parsed",
+                },
+            ) from exc
 
 
 
@@ -522,11 +534,23 @@ def create_app(
                     )
                 except ControlCheckApplicationError:
                     raise
+                except (BadZipFile, InvalidFileException, ValidationError) as exc:
+                    raise ControlCheckApplicationError(
+                        "invalid_workbook",
+                        "Workbook could not be parsed",
+                        422,
+                    ) from exc
+                except (SQLAlchemyError, OSError) as exc:
+                    raise ControlCheckApplicationError(
+                        "snapshot_service_unavailable",
+                        "Dataset snapshot service is temporarily unavailable",
+                        503,
+                    ) from exc
                 except Exception as exc:
                     raise ControlCheckApplicationError(
                         "snapshot_ingestion_failed",
                         "Dataset snapshot ingestion failed",
-                        422,
+                        500,
                     ) from exc
                 snapshot = ingestion.snapshot
                 with session_factory() as session:
@@ -864,6 +888,14 @@ def create_configured_app() -> FastAPI:
     except Exception as exc:
         logger.error("Configuration error on startup: %s", exc)
         raise
+
+    if prod_settings.env == "production" and not catalogue.is_file():
+        raise ValueError("Production rule catalogue is missing or unreadable")
+    if prod_settings.env == "production":
+        try:
+            load_catalogue(catalogue)
+        except Exception as exc:
+            raise ValueError("Production rule catalogue is invalid") from exc
 
     if not prod_settings.database_url:
         return create_app(catalogue)

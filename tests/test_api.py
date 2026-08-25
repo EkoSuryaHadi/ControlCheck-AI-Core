@@ -38,3 +38,25 @@ def test_audit_rejects_oversize_upload(sample_catalogue):
     )
     assert response.status_code == 413
     assert response.json()["detail"]["code"] == "file_too_large"
+
+
+def test_audit_rejects_malformed_xlsx_without_parser_details(sample_catalogue):
+    client = TestClient(create_app(sample_catalogue), raise_server_exceptions=False)
+
+    response = client.post(
+        "/v1/audits",
+        files={
+            "file": (
+                "invalid.xlsx",
+                b"not a zip archive",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {
+        "code": "invalid_workbook",
+        "message": "Workbook could not be parsed",
+    }
+    assert "zip" not in response.text.lower()

@@ -67,6 +67,26 @@ class ProductionSettings:
                     "INSECURE CONFIGURATION: CONTROLCHECK_JWT_SECRET must be at least 32 characters "
                     "and cannot use known default values when running in production."
                 )
+            if not database_url:
+                raise ValueError(
+                    "INSECURE CONFIGURATION: a production database URL is required."
+                )
+            if not cors_origins or "*" in cors_origins:
+                raise ValueError(
+                    "INSECURE CONFIGURATION: production CORS origins must be explicit."
+                )
+            if storage_backend not in {"local", "s3"}:
+                raise ValueError(
+                    "INSECURE CONFIGURATION: production storage backend must be local or s3."
+                )
+            is_serverless = bool(
+                os.environ.get("VERCEL")
+                or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+            )
+            if is_serverless and storage_backend == "local":
+                raise ValueError(
+                    "INSECURE CONFIGURATION: serverless production requires durable storage."
+                )
 
         return cls(
             env=env,

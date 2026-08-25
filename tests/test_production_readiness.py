@@ -38,6 +38,25 @@ def test_health_ready_probe_offline_mode():
     assert data["checks"]["catalogue"] == "loaded"
 
 
+def test_health_ready_does_not_expose_database_failure_details():
+    def unavailable_session():
+        raise RuntimeError("postgresql://operator:secret@internal/database")
+
+    app = create_app(
+        session_factory=unavailable_session,
+        storage=S3FileStorage(bucket="unused"),
+    )
+    client = TestClient(app)
+
+    response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "not_ready"
+    assert response.json()["checks"]["database"] == "unreachable"
+    assert "secret" not in response.text
+    assert "postgresql" not in response.text
+
+
 def test_security_headers_present():
     app = create_app()
     client = TestClient(app)
@@ -74,6 +93,12 @@ def test_production_settings_validation(monkeypatch):
 
     # Test acceptance of secure 32+ char secret in production mode
     monkeypatch.setenv("CONTROLCHECK_JWT_SECRET", "a" * 64)
+    monkeypatch.setenv(
+        "CONTROLCHECK_DATABASE_URL",
+        "postgresql+psycopg://controlcheck:controlcheck@database/controlcheck",
+    )
+    monkeypatch.setenv("CONTROLCHECK_CORS_ORIGINS", "https://controlcheck.example")
+    monkeypatch.setenv("CONTROLCHECK_STORAGE_BACKEND", "local")
     settings = ProductionSettings.from_env()
     assert settings.env == "production"
     assert len(settings.jwt_secret) == 64

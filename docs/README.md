@@ -19,3 +19,9 @@ Runtime catalogues and validation fixtures under `data/` remain the canonical ex
 - `002_controlcheck_persistence_schema_v0.2.sql` — readable PostgreSQL schema reference. Alembic migration `20260817_0001` is the executable schema authority.
 
 Rendered visual-QA previews are stored under `validation/previews/phase4a-docs/`.
+
+## Consolidated public-beta baseline
+
+`ControlCheck_AI_Implementation_Update_v0.6.19.md` records the verified PR 1 consolidation baseline: the accepted v0.6.x product behavior plus governed canonical ingestion, immutable snapshots, database-backed deterministic analysis, production failure hardening, and restored CI gates.
+
+The approved public-beta design is still implementation pending. Clerk, private Vercel Blob, quota, telemetry, feedback, billing, and public-beta UI implementation are deferred to later governed PRs and must not be inferred from the PR 1 baseline.

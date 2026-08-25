@@ -6,6 +6,14 @@ Guided by the foundational principle: **"Deterministic engine calculates, AI exp
 
 ---
 
+## Consolidated Baseline Status
+
+This repository currently represents the verified PR 1 consolidation baseline for the planned public beta. It preserves the accepted v0.6.x homepage, Actions, Governance, Finding Closure, reporting, deterministic engine, controlled validation fixtures, and existing custom JWT/RBAC behavior. It also adds governed, lossless workbook extraction; immutable PostgreSQL snapshots; database-backed deterministic analysis; domain-readiness gating; and tenant-scoped snapshot APIs.
+
+This baseline is **not the public-beta implementation and is not public-launch ready**. Clerk identity, private Vercel Blob storage, fair-use quota, product telemetry, user feedback, billing, and the public-beta UI are explicitly deferred to later governed PRs. The approved product direction remains an implementation-pending design in [`docs/superpowers/specs/2026-08-24-controlcheck-vercel-public-beta-ui-design.md`](docs/superpowers/specs/2026-08-24-controlcheck-vercel-public-beta-ui-design.md).
+
+---
+
 ## 🏛️ Platform Architecture
 
 ```
@@ -19,7 +27,7 @@ Guided by the foundational principle: **"Deterministic engine calculates, AI exp
 ├────────────────────────┼───────────────────────────┼───────────────────────────────────┤
 │  4. Persistence Layer  │  5. Auth & RBAC Layer     │  6. AI Intelligence & Safety      │
 │  - PostgreSQL 16       │  - JWT Access & Refresh   │  - Controlled Zero-Hallucination  │
-│  - 5 Alembic Revisions │  - Salted Bcrypt Hash     │  - Grounded Assistant & Tools     │
+│  - 10 Alembic revs     │  - Salted Bcrypt Hash     │  - Grounded Assistant & Tools     │
 │  - Cursor Pagination   │  - Org & Project Roles    │  - Conversation & Message Memory  │
 ├────────────────────────┴───────────────────────────┴───────────────────────────────────┤
 │  7. Executive React Web Application (Vite + React 19 + TypeScript + Tailwind CSS v4)   │
@@ -40,9 +48,11 @@ Guided by the foundational principle: **"Deterministic engine calculates, AI exp
 - Evaluates cost overruns (`CST`), schedule delays (`SCH`), progress discrepancies (`PRG`), and data quality anomalies (`DQ`).
 - Every finding includes stable IDs, entity grains, calculations, business impacts, recommendations, and traceable evidence.
 
-### 2. Ingestion & Raw-Row Lineage (Phase 4B)
-- Extracts verbatim rows from Excel workbooks (`raw_rows` table).
-- Maps raw records to canonical facts (`wbs_nodes`, `budget_records`, `cost_records`, `commitment_records`, `schedule_activities`, `progress_records`) with `raw_row_id` foreign keys for end-to-end auditability.
+### 2. Governed Ingestion & Raw-Row Lineage
+- Extracts every non-empty governed workbook row without lossy header collision or scalar coercion.
+- Persists immutable governed snapshots, raw rows, six canonical domains, mapping-profile provenance, source coordinates, and domain readiness in PostgreSQL.
+- Loads deterministic analysis datasets from persisted governed facts and records stable skip metadata when a rule's required domain is blocked.
+- Keeps earlier simplified snapshots readable as a compatibility contract; new snapshot writes use governed storage.
 
 ### 3. Project Health Scoring Engine (Phase 5C)
 - Standardized weighted formula:
@@ -106,16 +116,22 @@ npm run dev
 # http://127.0.0.1:5173/
 ```
 
-### 3. Production Single-Container Build
+### 3. Consolidated Baseline Verification
 ```powershell
-# Build frontend bundle
-cd frontend
-npm run build
-
-# Run all backend tests
-cd ..
+# Backend syntax, production configuration, and full suite
+python -m compileall -q api src tests tools alembic
+python -m pytest -q tests/test_production_configuration.py tests/test_serverless_entrypoint.py -p no:cacheprovider
 python -m pytest -q -p no:cacheprovider
+python -m pytest -q tests/persistence/test_migrations.py::test_alembic_metadata_has_no_drift -p no:cacheprovider
+
+# Frontend clean install, typecheck/build, and lint
+cd frontend
+npm ci
+npm run build
+npm run lint
 ```
+
+Persistence and migration gates require a PostgreSQL 16 admin URL in `CONTROLCHECK_TEST_POSTGRES_URL`. The test harness creates and drops only a disposable `controlcheck_test_<uuid>` database; it never migrates or drops the configured shared database.
 
 ---
 
@@ -142,10 +158,12 @@ python -m pytest -q -p no:cacheprovider
 
 ## 🧪 Testing & Verification
 
-Run the entire suite of 128 unit, schema, and API verification tests:
+Run the complete backend suite:
 ```powershell
 python -m pytest -q -p no:cacheprovider
 ```
+
+CI additionally performs Python bytecode compilation, strict production-configuration tests, live PostgreSQL migration-drift verification, and frontend `npm ci`, typecheck/build, and lint gates. Production/serverless startup fails closed when required baseline configuration is absent; no diagnostic endpoint exposes import traces, paths, or environment-variable names.
 
 ---
 
@@ -154,3 +172,4 @@ python -m pytest -q -p no:cacheprovider
 - **UI/UX Design Spec v0.1**: `docs/ControlCheck_AI_UI_UX_Design_Spec_v0.1.docx`
 - **ERD & Database Spec v0.3**: `docs/ControlCheck_AI_ERD_Database_Spec_v0.3.docx`
 - **SQL Canonical Schema**: `docs/003_controlcheck_canonical_schema_v0.3.sql`
+- **Latest implementation status**: `docs/ControlCheck_AI_Implementation_Update_v0.6.19.md`
