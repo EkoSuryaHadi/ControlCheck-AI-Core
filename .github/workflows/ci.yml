@@ -32,6 +32,22 @@ jobs:
   test-backend:
     name: Backend Pytest Suite
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: controlcheck
+          POSTGRES_PASSWORD: controlcheck
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U controlcheck -d postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      CONTROLCHECK_TEST_POSTGRES_URL: postgresql+psycopg://controlcheck:controlcheck@127.0.0.1:5432/postgres
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

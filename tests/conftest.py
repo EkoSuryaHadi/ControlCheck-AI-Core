@@ -1,29 +1,36 @@
 import os
-import socket
+import uuid
+from collections.abc import Iterator
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import pytest
+import psycopg
 from alembic.config import Config
+from psycopg import sql
 
 from controlcheck.config import load_catalogue
 from controlcheck.engine import RuleContext
 from controlcheck.loader import load_workbook
 
 
-import psycopg
+_TEST_DATABASE_PREFIX = "controlcheck_test_"
 
 
 def _get_target_database_url() -> str:
+    if "CONTROLCHECK_TEST_POSTGRES_URL" in os.environ:
+        return os.environ["CONTROLCHECK_TEST_POSTGRES_URL"]
     if "CONTROLCHECK_TEST_DATABASE_URL" in os.environ:
         return os.environ["CONTROLCHECK_TEST_DATABASE_URL"]
     for port in (54329, 54330):
         try:
-            conn = psycopg.connect(f"postgresql://controlcheck:controlcheck@localhost:{port}/controlcheck", connect_timeout=1.0)
+            admin_url = f"postgresql://controlcheck:controlcheck@localhost:{port}/postgres"
+            conn = psycopg.connect(admin_url, connect_timeout=1.0)
             conn.close()
-            return f"postgresql+psycopg://controlcheck:controlcheck@localhost:{port}/controlcheck"
+            return f"postgresql+psycopg://controlcheck:controlcheck@localhost:{port}/postgres"
         except Exception:
             pass
-    return "postgresql+psycopg://controlcheck:controlcheck@localhost:54329/controlcheck"
+    return "postgresql+psycopg://controlcheck:controlcheck@localhost:54329/postgres"
 
 
 def _is_postgres_available() -> bool:
@@ -37,11 +44,35 @@ def _is_postgres_available() -> bool:
         return False
 
 
+def _database_url(admin_url: str, database_name: str) -> str:
+    parsed = urlsplit(admin_url)
+    return urlunsplit(parsed._replace(path=f"/{database_name}"))
+
+
+def _run_database_admin_statement(admin_url: str, action: str, database_name: str) -> None:
+    if not database_name.startswith(_TEST_DATABASE_PREFIX):
+        raise RuntimeError(f"refusing to {action.lower()} unsafe test database")
+
+    connect_url = admin_url.replace("+psycopg", "")
+    statement = sql.SQL(f"{action} DATABASE {{}}").format(sql.Identifier(database_name))
+    if action == "DROP":
+        statement += sql.SQL(" WITH (FORCE)")
+    with psycopg.connect(connect_url, autocommit=True) as connection:
+        connection.execute(statement)
+
+
 @pytest.fixture(scope="session")
-def postgres_url() -> str:
+def postgres_url() -> Iterator[str]:
     if not _is_postgres_available():
         pytest.skip("PostgreSQL test database not available (start via podman/docker compose)")
-    return _get_target_database_url()
+
+    admin_url = _get_target_database_url()
+    database_name = f"{_TEST_DATABASE_PREFIX}{uuid.uuid4().hex}"
+    _run_database_admin_statement(admin_url, "CREATE", database_name)
+    try:
+        yield _database_url(admin_url, database_name)
+    finally:
+        _run_database_admin_statement(admin_url, "DROP", database_name)
 
 
 @pytest.fixture()
