@@ -798,21 +798,26 @@ class HealthSnapshotRecord(Base):
         CheckConstraint("schedule_score >= 0 AND schedule_score <= 100", name="ck_health_schedule_score"),
         CheckConstraint("progress_score >= 0 AND progress_score <= 100", name="ck_health_progress_score"),
         CheckConstraint("dq_score >= 0 AND dq_score <= 100", name="ck_health_dq_score"),
-        CheckConstraint("score_band IN ('Healthy', 'Needs Attention', 'At Risk', 'Critical')", name="ck_health_score_band"),
+        CheckConstraint("score_band IN ('Healthy', 'Needs Attention', 'At Risk', 'Critical', 'Partial', 'Not Computed')", name="ck_health_score_band"),
+        CheckConstraint("computation_status IN ('computed', 'partial', 'not_computed')", name="ck_health_computation_status"),
+        CheckConstraint("coverage_ratio >= 0 AND coverage_ratio <= 1", name="ck_health_coverage_ratio"),
     )
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     analysis_run_id: Mapped[UUID] = mapped_column(ForeignKey("analysis_runs.id", ondelete="CASCADE"), index=True)
-    overall_score: Mapped[float] = mapped_column()
-    cost_score: Mapped[float] = mapped_column()
-    schedule_score: Mapped[float] = mapped_column()
-    progress_score: Mapped[float] = mapped_column()
-    dq_score: Mapped[float] = mapped_column()
+    overall_score: Mapped[float | None] = mapped_column(nullable=True)
+    cost_score: Mapped[float | None] = mapped_column(nullable=True)
+    schedule_score: Mapped[float | None] = mapped_column(nullable=True)
+    progress_score: Mapped[float | None] = mapped_column(nullable=True)
+    dq_score: Mapped[float | None] = mapped_column(nullable=True)
     score_band: Mapped[str] = mapped_column(String(50))
     component_breakdown: Mapped[dict] = mapped_column(JSONB)
     key_drivers: Mapped[list] = mapped_column(JSONB)
     score_version: Mapped[str] = mapped_column(String(20), default="1.0")
+    computation_status: Mapped[str] = mapped_column(String(20), default="computed")
+    coverage_ratio: Mapped[float] = mapped_column(default=1.0)
+    unavailable_domains: Mapped[list] = mapped_column(JSONB, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

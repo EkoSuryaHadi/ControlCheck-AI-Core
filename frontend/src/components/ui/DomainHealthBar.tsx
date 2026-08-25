@@ -4,7 +4,7 @@ import { DollarSign, Calendar, TrendingUp, ShieldCheck, ArrowUpRight, ArrowDownR
 
 interface DomainHealthItemProps {
   title: string
-  score: number
+  score: number | null
   weight?: string
   icon: "cost" | "schedule" | "progress" | "quality"
   onClick?: () => void
@@ -27,10 +27,11 @@ export const DomainHealthBar: React.FC<DomainHealthItemProps> = ({
   const Icon = iconConfig.icon
 
   // Color progress bar
-  let barColor = "bg-red-500"
-  if (score >= 80) barColor = "bg-emerald-500"
-  else if (score >= 60) barColor = "bg-amber-500"
-  else if (score >= 40) barColor = "bg-yellow-500"
+  let barColor = "bg-slate-400"
+  if (score !== null && score >= 80) barColor = "bg-emerald-500"
+  else if (score !== null && score >= 60) barColor = "bg-amber-500"
+  else if (score !== null && score >= 40) barColor = "bg-yellow-500"
+  else if (score !== null) barColor = "bg-red-500"
 
   return (
     <div
@@ -51,8 +52,8 @@ export const DomainHealthBar: React.FC<DomainHealthItemProps> = ({
           </div>
         </div>
         <div className="text-right">
-          <span className="text-lg font-bold text-slate-900 tabular-nums">{score}</span>
-          <span className="text-xs text-slate-400 font-medium">/100</span>
+          <span className="text-lg font-bold text-slate-900 tabular-nums">{score ?? "—"}</span>
+          {score !== null && <span className="text-xs text-slate-400 font-medium">/100</span>}
         </div>
       </div>
 
@@ -60,7 +61,7 @@ export const DomainHealthBar: React.FC<DomainHealthItemProps> = ({
       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-700 ease-out", barColor)}
-          style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
+          style={{ width: `${score === null ? 0 : Math.max(0, Math.min(100, score))}%` }}
         />
       </div>
     </div>

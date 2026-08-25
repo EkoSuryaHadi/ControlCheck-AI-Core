@@ -11,13 +11,25 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.8
-      - key: ENVIRONMENT
+      - key: CONTROLCHECK_ENV
         value: production
       - key: DEBUG
         value: "false"
-      - key: SECRET_KEY
+      - key: CONTROLCHECK_JWT_SECRET
         generateValue: true
-      - key: DATABASE_URL
+      - key: CONTROLCHECK_DATABASE_URL
         sync: false
-      - key: CORS_ORIGINS
-        value: '["*"]'
+      - key: CONTROLCHECK_CORS_ORIGINS
+        value: https://app.controlcheck.ai
+      - key: CONTROLCHECK_TRUSTED_HOSTS
+        value: controlcheck-api.onrender.com
+      - key: CONTROLCHECK_STORAGE_BACKEND
+        value: s3
+      - key: CONTROLCHECK_S3_BUCKET
+        sync: false
+      - key: CONTROLCHECK_S3_REGION
+        value: ap-southeast-1
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false

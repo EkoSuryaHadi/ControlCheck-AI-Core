@@ -132,7 +132,7 @@ export const DashboardPage: React.FC = () => {
           {/* Health Gauge Box */}
           <div className="md:col-span-3">
             <HealthGauge
-              score={healthData?.overall_score ?? 68}
+              score={healthData ? healthData.overall_score : 68}
               label={healthData?.status_label ?? "MODERATE"}
               lastUpdated="Last update: 2 minutes ago"
               size={150}
@@ -162,7 +162,7 @@ export const DashboardPage: React.FC = () => {
             />
             <MetricCard
               title="DATA QUALITY"
-              value={`${healthData?.data_quality_score ?? 92}`}
+              value={healthData?.data_quality_score == null ? "—" : `${healthData.data_quality_score}`}
               delta={{ label: "vs last month", value: 3, isPositive: true }}
               variant="success"
             />
@@ -173,28 +173,28 @@ export const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <DomainHealthBar
             title="COST HEALTH"
-            score={healthData?.cost_score ?? 58}
+            score={healthData ? healthData.cost_score : 58}
             weight="30%"
             icon="cost"
             onClick={() => navigate("/cost")}
           />
           <DomainHealthBar
             title="SCHEDULE HEALTH"
-            score={healthData?.schedule_score ?? 71}
+            score={healthData ? healthData.schedule_score : 71}
             weight="30%"
             icon="schedule"
             onClick={() => navigate("/schedule")}
           />
           <DomainHealthBar
             title="PROGRESS HEALTH"
-            score={healthData?.progress_score ?? 67}
+            score={healthData ? healthData.progress_score : 67}
             weight="25%"
             icon="progress"
             onClick={() => navigate("/progress")}
           />
           <DomainHealthBar
             title="DATA QUALITY"
-            score={healthData?.data_quality_score ?? 92}
+            score={healthData ? healthData.data_quality_score : 92}
             weight="15%"
             icon="quality"
             onClick={() => navigate("/data")}

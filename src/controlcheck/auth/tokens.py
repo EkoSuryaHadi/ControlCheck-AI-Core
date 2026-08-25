@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from typing import Any
 
 import jwt
 
-DEFAULT_SECRET_KEY = os.environ.get("CONTROLCHECK_JWT_SECRET", "controlcheck-jwt-secret-key-change-in-production")
+DEFAULT_SECRET_KEY = os.environ.get("CONTROLCHECK_JWT_SECRET") or secrets.token_urlsafe(48)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 REFRESH_TOKEN_EXPIRE_DAYS = 30
+
+
+def _secret_key() -> str:
+    return os.environ.get("CONTROLCHECK_JWT_SECRET") or DEFAULT_SECRET_KEY
 
 
 def create_access_token(
@@ -33,7 +38,7 @@ def create_access_token(
         payload["org_id"] = str(organization_id)
     if role:
         payload["role"] = role
-    return jwt.encode(payload, DEFAULT_SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, _secret_key(), algorithm=ALGORITHM)
 
 
 def create_refresh_token(user_id: UUID) -> str:
@@ -45,9 +50,9 @@ def create_refresh_token(user_id: UUID) -> str:
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
-    return jwt.encode(payload, DEFAULT_SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, _secret_key(), algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> dict[str, Any]:
     """Decodes and validates a JWT token."""
-    return jwt.decode(token, DEFAULT_SECRET_KEY, algorithms=[ALGORITHM])
+    return jwt.decode(token, _secret_key(), algorithms=[ALGORITHM])

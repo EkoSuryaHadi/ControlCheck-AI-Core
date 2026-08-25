@@ -260,21 +260,44 @@ class AnalysisService:
                 from .persistence.repositories import HealthRepository
 
                 health_result = compute_health_score(execution.audit.findings)
+                computation_status, coverage_ratio, unavailable_domains = (
+                    classify_health_availability(
+                        list(execution.executed_rule_ids), skipped_rules
+                    )
+                )
+                score_is_available = computation_status == "computed"
+                component_breakdown = health_result.component_breakdown
+                if not score_is_available:
+                    component_breakdown = {
+                        category: {
+                            **component,
+                            "score": None,
+                            "weighted_score": None,
+                        }
+                        for category, component in component_breakdown.items()
+                    }
                 HealthRepository(session).create_snapshot(
                     organization_id=organization_id,
                     project_id=project_id,
                     analysis_run_id=completed.id,
-                    overall_score=health_result.overall_score,
-                    cost_score=health_result.category_scores["COST"].score,
-                    schedule_score=health_result.category_scores["SCHEDULE"].score,
-                    progress_score=health_result.category_scores["PROGRESS"].score,
-                    dq_score=health_result.category_scores["DATA_QUALITY"].score,
-                    score_band=health_result.score_band,
-                    component_breakdown=health_result.component_breakdown,
+                    overall_score=(health_result.overall_score if score_is_available else None),
+                    cost_score=(health_result.category_scores["COST"].score if score_is_available else None),
+                    schedule_score=(health_result.category_scores["SCHEDULE"].score if score_is_available else None),
+                    progress_score=(health_result.category_scores["PROGRESS"].score if score_is_available else None),
+                    dq_score=(health_result.category_scores["DATA_QUALITY"].score if score_is_available else None),
+                    score_band=(
+                        health_result.score_band
+                        if score_is_available
+                        else "Partial" if computation_status == "partial" else "Not Computed"
+                    ),
+                    component_breakdown=component_breakdown,
                     key_drivers=[
                         driver.__dict__ for driver in health_result.top_drivers
                     ],
                     score_version=health_result.score_version,
+                    computation_status=computation_status,
+                    coverage_ratio=coverage_ratio,
+                    unavailable_domains=unavailable_domains,
                 )
                 if idempotency_key:
                     repository.record_idempotency(
@@ -405,3 +428,22 @@ class AnalysisService:
         raise ControlCheckApplicationError(
             code, safe_message, status_code, analysis_run_id=run_id
         ) from cause
+
+
+def classify_health_availability(
+    executed_rule_ids: list[str], skipped_rules: list[dict]
+) -> tuple[str, float, list[str]]:
+    total_rules = len(executed_rule_ids) + len(skipped_rules)
+    coverage_ratio = len(executed_rule_ids) / total_rules if total_rules else 0.0
+    unavailable_domains = sorted(
+        {
+            domain
+            for skipped in skipped_rules
+            for domain in skipped.get("blocked_domains", [])
+        }
+    )
+    if not skipped_rules:
+        return "computed", 1.0, []
+    if not executed_rule_ids:
+        return "not_computed", 0.0, unavailable_domains
+    return "partial", coverage_ratio, unavailable_domains

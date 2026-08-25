@@ -48,6 +48,7 @@ This runbook provides complete operational procedures, configuration requirement
    - `POSTGRES_PASSWORD`: Strong random alphanumeric string (>16 characters).
 2. **CORS Domains Whitelisted**:
    - Set `CONTROLCHECK_CORS_ORIGINS` to exact production domain(s), e.g., `https://app.controlcheck.ai`. Wildcards (`*`) are disallowed with credentials.
+   - Set `CONTROLCHECK_TRUSTED_HOSTS` to exact API hostnames without schemes, e.g., `controlcheck-api.onrender.com`. Missing or wildcard production hosts fail startup.
 3. **Database Connectivity & Storage Backend**:
    - Ensure PostgreSQL 16 is provisioned with persistent storage.
    - If using AWS S3 / MinIO, verify bucket existence, IAM credentials, and network egress permissions.
@@ -82,6 +83,10 @@ curl -i http://localhost/health/ready
 - **Readiness Probe**: `GET http://<pod>:8000/health/ready` (initialDelaySeconds: 15, periodSeconds: 10)
 - **Prometheus Metrics**: `GET http://<pod>:8000/metrics` (scrape_interval: 15s)
 - **Pre-sync Hook**: Automatically executed via container `docker/entrypoint.sh` or explicit K8s Job.
+
+### Option C: Render Baseline Manifest
+
+`render.yaml` uses only canonical `CONTROLCHECK_*` application settings. Render generates `CONTROLCHECK_JWT_SECRET`; operators must provide `CONTROLCHECK_DATABASE_URL`, `CONTROLCHECK_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` as secret values before deployment. The committed exact CORS origin and trusted API host must be changed if the deployed public hostnames differ. Render is treated as a production runtime and cannot start with local storage, wildcard hosts/origins, or missing durable configuration.
 
 ---
 

@@ -2,6 +2,10 @@ import hashlib
 from pathlib import Path
 from uuid import UUID
 
+import pytest
+from botocore.exceptions import ClientError
+
+import controlcheck.errors as application_errors
 from controlcheck.storage import LocalFileStorage
 from controlcheck.storage_s3 import S3FileStorage
 
@@ -59,6 +63,24 @@ class _FakeS3Client:
         return {}
 
 
+class _FailingS3Client:
+    @staticmethod
+    def _failure(operation: str):
+        raise ClientError(
+            {
+                "Error": {"Code": "AccessDenied", "Message": "provider secret"},
+                "ResponseMetadata": {"HTTPStatusCode": 403},
+            },
+            operation,
+        )
+
+    def put_object(self, **kwargs):
+        self._failure("PutObject")
+
+    def head_object(self, **kwargs):
+        self._failure("HeadObject")
+
+
 def test_s3_storage_exists_uses_head_object_contract():
     client = _FakeS3Client()
     storage = S3FileStorage(bucket="workbooks")
@@ -84,3 +106,18 @@ def test_s3_storage_readiness_checks_bucket_access():
 
     assert storage.is_ready() is True
     assert client.head_bucket_calls == [{"Bucket": "workbooks"}]
+
+
+@pytest.mark.parametrize("operation", ["put", "head"])
+def test_s3_provider_failures_use_storage_unavailable_error(operation):
+    storage = S3FileStorage(bucket="workbooks")
+    storage._client = _FailingS3Client()
+    unavailable_error = application_errors.StorageUnavailableError
+
+    with pytest.raises(unavailable_error) as caught:
+        if operation == "put":
+            storage.put(ORG_ID, PROJECT_ID, "project.xlsx", b"xlsx")
+        else:
+            storage.exists("org/project/project.xlsx")
+
+    assert "provider secret" not in str(caught.value)

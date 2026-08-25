@@ -8,6 +8,14 @@ class InvalidWorkbookError(ValueError):
     safe_message = "Workbook could not be parsed"
 
 
+class StorageUnavailableError(RuntimeError):
+    code = "storage_unavailable"
+    safe_message = "Workbook storage is temporarily unavailable"
+
+    def __init__(self) -> None:
+        super().__init__(self.safe_message)
+
+
 class ControlCheckApplicationError(Exception):
     def __init__(
         self,

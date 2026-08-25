@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
@@ -33,7 +34,7 @@ from .auth import (
     create_access_token, create_refresh_token, decode_token,
     hash_password, verify_password,
 )
-from .errors import ControlCheckApplicationError, InvalidWorkbookError
+from .errors import ControlCheckApplicationError, InvalidWorkbookError, StorageUnavailableError
 from .config import load_catalogue
 from .ingestion.profile import load_mapping_profile
 from .ingestion.service import SnapshotIngestionService
@@ -83,6 +84,8 @@ def create_app(
     max_upload_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
     session_factory: sessionmaker[Session] | None = None,
     storage: FileStorage | None = None,
+    cors_origins: list[str] | None = None,
+    trusted_hosts: list[str] | None = None,
 ) -> FastAPI:
     configure_logging()
     catalogue = Path(catalogue_path) if catalogue_path else _default_catalogue()
@@ -90,13 +93,22 @@ def create_app(
 
     # Production CORS Middleware
     cors_origins_env = os.environ.get("CONTROLCHECK_CORS_ORIGINS", "*")
-    origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+    origins = cors_origins or [o.strip() for o in cors_origins_env.split(",") if o.strip()]
     application.add_middleware(
         CORSMiddleware,
         allow_origins=origins if origins else ["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    configured_hosts = trusted_hosts or [
+        host.strip()
+        for host in os.environ.get("CONTROLCHECK_TRUSTED_HOSTS", "*").split(",")
+        if host.strip()
+    ]
+    application.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=configured_hosts or ["*"],
     )
 
     @application.middleware("http")
@@ -150,6 +162,19 @@ def create_app(
         if exc.analysis_run_id is not None:
             error["analysis_run_id"] = str(exc.analysis_run_id)
         return JSONResponse(status_code=exc.status_code, content={"error": error})
+
+    @application.exception_handler(StorageUnavailableError)
+    async def handle_storage_unavailable(request: Request, exc: StorageUnavailableError):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.safe_message,
+                    "request_id": request.state.request_id,
+                }
+            },
+        )
 
 
     def require_tenant(
@@ -540,6 +565,8 @@ def create_app(
                     )
                 except ControlCheckApplicationError:
                     raise
+                except StorageUnavailableError:
+                    raise
                 except (InvalidWorkbookError, ValidationError) as exc:
                     raise ControlCheckApplicationError(
                         InvalidWorkbookError.code,
@@ -911,9 +938,9 @@ def create_configured_app() -> FastAPI:
     if prod_settings.storage_backend == "s3":
         from .storage_s3 import S3FileStorage
         storage = S3FileStorage(
-            bucket=os.environ.get("CONTROLCHECK_S3_BUCKET", "controlcheck-uploads"),
-            region=os.environ.get("CONTROLCHECK_S3_REGION", "ap-southeast-1"),
-            endpoint_url=os.environ.get("CONTROLCHECK_S3_ENDPOINT_URL"),
+            bucket=prod_settings.s3_bucket,
+            region=prod_settings.s3_region,
+            endpoint_url=prod_settings.s3_endpoint_url,
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
@@ -928,4 +955,6 @@ def create_configured_app() -> FastAPI:
         max_upload_bytes=prod_settings.max_upload_bytes,
         session_factory=create_session_factory(prod_settings.database_url),
         storage=storage,
+        cors_origins=prod_settings.cors_origins,
+        trusted_hosts=prod_settings.trusted_hosts,
     )

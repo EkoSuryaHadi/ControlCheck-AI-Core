@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 from uuid import UUID, uuid4
 
 from .storage import StoredObject
+from .errors import StorageUnavailableError
 
 
 class S3FileStorage:
@@ -37,24 +38,32 @@ class S3FileStorage:
                     aws_secret_access_key=self.aws_secret_access_key,
                 )
             except ImportError as exc:
-                raise RuntimeError("boto3 package is required for S3FileStorage backend") from exc
+                raise StorageUnavailableError() from exc
+            except Exception as exc:
+                raise StorageUnavailableError() from exc
         return self._client
 
     def put(self, organization_id: UUID, project_id: UUID, filename: str, data: bytes) -> StoredObject:
         safe_name = Path(filename.replace("\\", "/")).name or "upload.xlsx"
         key = PurePosixPath(str(organization_id), str(project_id), str(uuid4()), safe_name).as_posix()
         client = self._get_client()
-        client.put_object(
-            Bucket=self.bucket,
-            Key=key,
-            Body=data,
-            ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
+        try:
+            client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=data,
+                ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        except Exception as exc:
+            raise StorageUnavailableError() from exc
         return StoredObject(key=key, size_bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
 
     def delete(self, key: str) -> None:
         client = self._get_client()
-        client.delete_object(Bucket=self.bucket, Key=key)
+        try:
+            client.delete_object(Bucket=self.bucket, Key=key)
+        except Exception as exc:
+            raise StorageUnavailableError() from exc
 
     def exists(self, key: str) -> bool:
         client = self._get_client()
@@ -65,7 +74,7 @@ class S3FileStorage:
             metadata = response.get("ResponseMetadata", {})
             if metadata.get("HTTPStatusCode") == 404:
                 return False
-            raise
+            raise StorageUnavailableError() from exc
         return True
 
     def is_ready(self) -> bool:

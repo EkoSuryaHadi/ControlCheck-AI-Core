@@ -25,9 +25,10 @@ apiClient.interceptors.response.use(
 export interface User { id: string; email: string; name: string; role?: string }
 export interface Project { id: string; organization_id: string; code: string; name: string; client_name?: string; currency: string; status: string }
 export interface HealthSnapshot {
-  id?: string; overall_score: number; cost_score: number; schedule_score: number; progress_score: number; data_quality_score: number;
+  id?: string; overall_score: number | null; cost_score: number | null; schedule_score: number | null; progress_score: number | null; data_quality_score: number | null;
   status_label: string; critical_findings_count: number; warning_findings_count: number; observation_findings_count: number;
-  score_band?: string; component_breakdown?: Record<string, any>; key_drivers?: Array<Record<string, any>>; data_date?: string; created_at?: string
+  score_band?: string; computation_status?: "computed" | "partial" | "not_computed"; coverage_ratio?: number; unavailable_domains?: string[];
+  component_breakdown?: Record<string, any>; key_drivers?: Array<Record<string, any>>; data_date?: string; created_at?: string
 }
 export interface Finding {
   id: string; analysis_run_id?: string; rule_id: string; rule_name?: string; entity_type?: string; entity_id?: string; title: string;

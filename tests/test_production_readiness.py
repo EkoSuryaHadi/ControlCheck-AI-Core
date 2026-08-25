@@ -114,6 +114,7 @@ def test_production_settings_validation(monkeypatch):
         "postgresql+psycopg://controlcheck:controlcheck@database/controlcheck",
     )
     monkeypatch.setenv("CONTROLCHECK_CORS_ORIGINS", "https://controlcheck.example")
+    monkeypatch.setenv("CONTROLCHECK_TRUSTED_HOSTS", "controlcheck.example")
     monkeypatch.setenv("CONTROLCHECK_STORAGE_BACKEND", "local")
     settings = ProductionSettings.from_env()
     assert settings.env == "production"

@@ -25,15 +25,16 @@ Establish one clean baseline for later public-beta work without losing the accep
 
 ## Production failure behavior
 
-- Runtime modes are whitespace/case normalized and restricted to the closed development/test/production set. Invalid explicit modes fail startup, `CONTROLCHECK_ENV` takes precedence over legacy `ENV`, and production Vercel or serverless signals force the production validation contract.
-- Production configuration rejects an insecure JWT secret, a missing database URL, wildcard/empty CORS, and an unsupported storage backend.
+- Runtime modes are whitespace/case normalized and restricted to the closed development/test/production set. Invalid explicit modes fail startup, `CONTROLCHECK_ENV` takes precedence over legacy `ENV`, and Vercel, Lambda, or Render production signals force the production validation contract.
+- Production configuration rejects an insecure JWT secret, a missing database URL, wildcard/empty CORS, missing/wildcard trusted hosts, an unsupported storage backend, and incomplete S3 configuration. The authentication module has no committed, predictable fallback signing secret.
 - Serverless production rejects ephemeral local workbook storage. The accepted S3-compatible adapter implements object existence and bucket-access readiness checks, with `boto3` included in the base runtime dependency across package, requirements, lockfile, container, Render, and Vercel installation paths. Private Vercel Blob remains deferred.
 - A missing production catalogue fails startup before an application is served.
 - The package-safe ASGI module constructs the configured application once and installs Actions, Governance, and Reports routes once. Local/Docker and Vercel entrypoints share that application; the Vercel wrapper does not mutate `sys.path`.
 - The Vercel entrypoint no longer catches import/configuration failure and substitutes a healthy diagnostic application.
 - No diagnostic route publishes traceback text, Python paths, current directories, environment-variable names, or import internals.
 - Readiness returns `503 not_ready` for database or storage failure without returning connection, credential, or exception details.
-- Malformed workbook/parser failures return a safe `422`; database/storage failures return a safe `503`; unexpected ingestion failures return a safe `500`.
+- Malformed workbook/parser failures return a safe `422`; database/storage failures return a safe `503`; unexpected ingestion failures return a safe `500`. S3 provider details are translated at the adapter boundary and never returned to clients.
+- Governed health persists and exposes `computed`, `partial`, or `not_computed` state, executed-rule coverage, and unavailable domains. Partial and fully blocked runs expose nullable scores and are never serialized or rendered as Healthy; fully computed legacy behavior remains compatible.
 
 ## CI baseline gates
 
@@ -44,8 +45,9 @@ The CI workflow now requires:
 3. the full pytest suite against a live PostgreSQL 16 service and disposable database fixture;
 4. an explicit Alembic metadata-drift check;
 5. frontend dependency installation with `npm ci` from `package-lock.json`;
-6. TypeScript typecheck plus Vite production build; and
-7. frontend lint.
+6. frontend health-display behavior tests;
+7. TypeScript typecheck plus Vite production build; and
+8. frontend lint.
 
 ## Explicitly deferred
 

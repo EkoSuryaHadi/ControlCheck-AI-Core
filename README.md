@@ -148,7 +148,7 @@ Persistence and migration gates require a PostgreSQL 16 admin URL in `CONTROLCHE
 | | `GET` | `/v1/analysis-runs/{run_id}/findings` | List findings with severity/category filters |
 | **Findings** | `PATCH` | `/v1/findings/{finding_id}/status` | Update finding status (`open`, `in_review`, `resolved`) |
 | | `GET` | `/v1/findings/{finding_id}/evidence` | Retrieve verbatim raw-row evidence records |
-| **Health** | `GET` | `/v1/analysis-runs/{run_id}/health` | Retrieve health score breakdown & key drivers |
+| **Health** | `GET` | `/v1/analysis-runs/{run_id}/health` | Retrieve health score, computation status, rule coverage, unavailable domains, and key drivers |
 | | `GET` | `/v1/projects/{project_id}/health-trend` | Retrieve project historical health trend |
 | **AI Assistant**| `POST` | `/v1/projects/{project_id}/ai/ask` | Ask grounded AI questions about project performance |
 | | `GET` | `/v1/projects/{project_id}/ai/conversations` | List conversation threads |
@@ -163,7 +163,7 @@ Run the complete backend suite:
 python -m pytest -q -p no:cacheprovider
 ```
 
-CI additionally performs Python bytecode compilation, strict production-configuration tests, live PostgreSQL migration-drift verification, and frontend `npm ci`, typecheck/build, and lint gates. Runtime modes are trimmed, case-normalized, and restricted to the documented development/test/production set; production platform signals cannot be overridden by a weaker application mode. Production/serverless startup fails closed when required baseline configuration is absent, and no diagnostic endpoint exposes import traces, paths, or environment-variable names. The accepted S3 SDK is a base runtime dependency across package, requirements, lockfile, container, Render, and Vercel installation paths; readiness verifies actual local-directory or S3-bucket access before reporting storage ready.
+CI additionally performs Python bytecode compilation, strict production-configuration tests, live PostgreSQL migration-drift verification, and frontend `npm ci`, behavior-test, typecheck/build, and lint gates. Runtime modes are trimmed, case-normalized, and restricted to the documented development/test/production set; Vercel, Lambda, and Render production signals cannot be overridden by a weaker application mode. Production startup fails closed when its JWT secret, database URL, exact CORS origins, exact trusted hosts, durable storage configuration, or catalogue is absent, and no diagnostic endpoint exposes import traces, paths, or environment-variable names. The accepted S3 SDK is a base runtime dependency across package, requirements, lockfile, container, Render, and Vercel installation paths; readiness verifies actual local-directory or S3-bucket access before reporting storage ready, and provider failures return a safe `503` envelope. Governed health is reported as `Partial` or `Not Computed`, with nullable scores and explicit coverage/unavailable-domain metadata, whenever domain gates prevent complete analysis; unavailable data is never labeled Healthy.
 
 ---
 

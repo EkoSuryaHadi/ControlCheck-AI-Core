@@ -157,15 +157,18 @@ class HealthSnapshotResponse(BaseModel):
     organization_id: UUID
     project_id: UUID
     analysis_run_id: UUID
-    overall_score: float
-    cost_score: float
-    schedule_score: float
-    progress_score: float
-    dq_score: float
+    overall_score: float | None
+    cost_score: float | None
+    schedule_score: float | None
+    progress_score: float | None
+    dq_score: float | None
     score_band: str
     component_breakdown: dict
     key_drivers: list
     score_version: str
+    computation_status: Literal["computed", "partial", "not_computed"]
+    coverage_ratio: float
+    unavailable_domains: list[str]
     created_at: datetime
 
 

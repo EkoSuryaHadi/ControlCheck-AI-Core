@@ -544,15 +544,18 @@ class HealthRepository:
         organization_id: UUID,
         project_id: UUID,
         analysis_run_id: UUID,
-        overall_score: float,
-        cost_score: float,
-        schedule_score: float,
-        progress_score: float,
-        dq_score: float,
+        overall_score: float | None,
+        cost_score: float | None,
+        schedule_score: float | None,
+        progress_score: float | None,
+        dq_score: float | None,
         score_band: str,
         component_breakdown: dict,
         key_drivers: list,
         score_version: str = "1.0",
+        computation_status: str = "computed",
+        coverage_ratio: float = 1.0,
+        unavailable_domains: list[str] | None = None,
     ) -> HealthSnapshotRecord:
         record = HealthSnapshotRecord(
             organization_id=organization_id,
@@ -567,6 +570,9 @@ class HealthRepository:
             component_breakdown=component_breakdown,
             key_drivers=key_drivers,
             score_version=score_version,
+            computation_status=computation_status,
+            coverage_ratio=coverage_ratio,
+            unavailable_domains=unavailable_domains or [],
         )
         self.session.add(record)
         self.session.flush()

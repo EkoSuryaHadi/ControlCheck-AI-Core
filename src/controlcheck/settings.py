@@ -36,6 +36,8 @@ def _runtime_environment() -> str:
         return "production"
     if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         return "production"
+    if os.environ.get("RENDER"):
+        return "production"
     if os.environ.get("VERCEL") and vercel_env is None:
         return "production"
     if explicit is not None:
@@ -81,20 +83,29 @@ class ProductionSettings:
     jwt_secret: str
     database_url: str
     cors_origins: list[str]
+    trusted_hosts: list[str]
     max_upload_bytes: int
     storage_backend: str
+    s3_bucket: str
+    s3_region: str
+    s3_endpoint_url: str | None
 
     @classmethod
     def from_env(cls) -> "ProductionSettings":
         env = _runtime_environment()
-        jwt_secret = os.environ.get("CONTROLCHECK_JWT_SECRET", "dev-secret-key-change-in-production")
+        jwt_secret = os.environ.get("CONTROLCHECK_JWT_SECRET", "")
         database_url = _database_url_from_env()
         cors_raw = os.environ.get("CONTROLCHECK_CORS_ORIGINS", "*")
         cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
+        trusted_hosts_raw = os.environ.get("CONTROLCHECK_TRUSTED_HOSTS", "*")
+        trusted_hosts = [host.strip() for host in trusted_hosts_raw.split(",") if host.strip()]
         max_upload = int(os.environ.get("CONTROLCHECK_MAX_UPLOAD_BYTES", 25 * 1024 * 1024))
         storage_backend = os.environ.get(
             "CONTROLCHECK_STORAGE_BACKEND", "local"
         ).strip().lower()
+        s3_bucket = os.environ.get("CONTROLCHECK_S3_BUCKET", "").strip()
+        s3_region = os.environ.get("CONTROLCHECK_S3_REGION", "ap-southeast-1").strip()
+        s3_endpoint_url = os.environ.get("CONTROLCHECK_S3_ENDPOINT_URL") or None
 
         # In production mode, enforce security validations
         if env == "production":
@@ -117,6 +128,10 @@ class ProductionSettings:
                 raise ValueError(
                     "INSECURE CONFIGURATION: production CORS origins must be explicit."
                 )
+            if not trusted_hosts or "*" in trusted_hosts:
+                raise ValueError(
+                    "INSECURE CONFIGURATION: production trusted hosts must be explicit."
+                )
             if storage_backend not in {"local", "s3"}:
                 raise ValueError(
                     "INSECURE CONFIGURATION: production storage backend must be local or s3."
@@ -124,10 +139,15 @@ class ProductionSettings:
             is_serverless = bool(
                 os.environ.get("VERCEL")
                 or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+                or os.environ.get("RENDER")
             )
             if is_serverless and storage_backend == "local":
                 raise ValueError(
                     "INSECURE CONFIGURATION: serverless production requires durable storage."
+                )
+            if storage_backend == "s3" and not s3_bucket:
+                raise ValueError(
+                    "INSECURE CONFIGURATION: CONTROLCHECK_S3_BUCKET is required for S3 storage."
                 )
 
         return cls(
@@ -135,6 +155,10 @@ class ProductionSettings:
             jwt_secret=jwt_secret,
             database_url=database_url,
             cors_origins=cors_origins,
+            trusted_hosts=trusted_hosts,
             max_upload_bytes=max_upload,
             storage_backend=storage_backend,
+            s3_bucket=s3_bucket,
+            s3_region=s3_region,
+            s3_endpoint_url=s3_endpoint_url,
         )

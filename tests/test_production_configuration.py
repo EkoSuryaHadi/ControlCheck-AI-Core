@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import tomllib
@@ -5,6 +6,8 @@ from pathlib import Path
 from shutil import copyfile
 
 import pytest
+import yaml
+from fastapi.testclient import TestClient
 
 from controlcheck.api import create_configured_app
 from controlcheck.settings import ProductionSettings
@@ -19,6 +22,7 @@ def _set_valid_production_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "postgresql+psycopg://controlcheck:controlcheck@database/controlcheck",
     )
     monkeypatch.setenv("CONTROLCHECK_CORS_ORIGINS", "https://controlcheck.example")
+    monkeypatch.setenv("CONTROLCHECK_TRUSTED_HOSTS", "controlcheck.example")
     monkeypatch.setenv("CONTROLCHECK_STORAGE_BACKEND", "local")
     monkeypatch.setenv(
         "CONTROLCHECK_CATALOGUE",
@@ -27,7 +31,109 @@ def _set_valid_production_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("VERCEL", raising=False)
     monkeypatch.delenv("VERCEL_ENV", raising=False)
     monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME", raising=False)
+    monkeypatch.delenv("RENDER", raising=False)
     monkeypatch.delenv("ENV", raising=False)
+
+
+def test_render_manifest_uses_canonical_fail_closed_production_configuration(
+    monkeypatch,
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    manifest = yaml.safe_load((root / "render.yaml").read_text(encoding="utf-8"))
+    variables = manifest["services"][0]["envVars"]
+    by_name = {item["key"]: item for item in variables}
+
+    assert {
+        "CONTROLCHECK_ENV",
+        "CONTROLCHECK_JWT_SECRET",
+        "CONTROLCHECK_DATABASE_URL",
+        "CONTROLCHECK_CORS_ORIGINS",
+        "CONTROLCHECK_TRUSTED_HOSTS",
+        "CONTROLCHECK_STORAGE_BACKEND",
+        "CONTROLCHECK_S3_BUCKET",
+    }.issubset(by_name)
+    assert {"ENVIRONMENT", "SECRET_KEY", "CORS_ORIGINS"}.isdisjoint(by_name)
+    assert by_name["CONTROLCHECK_CORS_ORIGINS"]["value"] == "https://app.controlcheck.ai"
+    assert by_name["CONTROLCHECK_TRUSTED_HOSTS"]["value"] == "controlcheck-api.onrender.com"
+    assert by_name["CONTROLCHECK_STORAGE_BACKEND"]["value"] == "s3"
+
+    monkeypatch.setenv("RENDER", "true")
+    for name, declaration in by_name.items():
+        if name == "PYTHON_VERSION":
+            continue
+        if "value" in declaration:
+            monkeypatch.setenv(name, str(declaration["value"]))
+    monkeypatch.setenv("CONTROLCHECK_JWT_SECRET", "r" * 64)
+    monkeypatch.setenv(
+        "CONTROLCHECK_DATABASE_URL",
+        "postgresql+psycopg://controlcheck:controlcheck@database/controlcheck",
+    )
+    monkeypatch.setenv("CONTROLCHECK_S3_BUCKET", "controlcheck-render-uploads")
+
+    settings = ProductionSettings.from_env()
+
+    assert settings.env == "production"
+    assert settings.storage_backend == "s3"
+    assert settings.trusted_hosts == ["controlcheck-api.onrender.com"]
+
+
+def test_render_runtime_without_explicit_mode_fails_closed(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.delenv("CONTROLCHECK_ENV")
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.setenv("CONTROLCHECK_JWT_SECRET", "unsafe")
+
+    with pytest.raises(ValueError, match="INSECURE CONFIGURATION"):
+        ProductionSettings.from_env()
+
+
+def test_auth_runtime_has_no_known_fallback_jwt_secret(monkeypatch) -> None:
+    monkeypatch.delenv("CONTROLCHECK_JWT_SECRET", raising=False)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from controlcheck.auth.tokens import DEFAULT_SECRET_KEY; print(DEFAULT_SECRET_KEY)",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key != "CONTROLCHECK_JWT_SECRET"
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    secret = result.stdout.strip()
+    assert len(secret) >= 32
+    assert "change-in-production" not in secret
+
+
+@pytest.mark.parametrize("value", [None, "*"])
+def test_production_requires_explicit_trusted_hosts(monkeypatch, value) -> None:
+    _set_valid_production_environment(monkeypatch)
+    if value is None:
+        monkeypatch.delenv("CONTROLCHECK_TRUSTED_HOSTS")
+    else:
+        monkeypatch.setenv("CONTROLCHECK_TRUSTED_HOSTS", value)
+
+    with pytest.raises(ValueError, match="trusted host"):
+        ProductionSettings.from_env()
+
+
+def test_application_rejects_untrusted_host_header() -> None:
+    app = create_configured_app.__globals__["create_app"](
+        trusted_hosts=["controlcheck.example"]
+    )
+    client = TestClient(app, base_url="https://controlcheck.example")
+
+    assert client.get("/health").status_code == 200
+    response = client.get("/health", headers={"Host": "attacker.example"})
+
+    assert response.status_code == 400
+    assert "controlcheck" not in response.text.lower()
 
 
 def test_complete_production_configuration_is_accepted(monkeypatch) -> None:

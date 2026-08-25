@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { api, Project, AnalysisRun, HealthSnapshot, Finding } from "@/lib/api"
 import { useAuth } from "./AuthContext"
 import { trackEvent } from "@/lib/analytics"
+import { mapHealthSnapshot } from "@/lib/health"
 
 interface ProjectContextType {
   projects: Project[]
@@ -108,22 +109,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       try {
         const rawHealth = await api.runs.getHealth(successfulRun.id)
-        const mappedHealth: HealthSnapshot = {
-          id: rawHealth.id,
-          overall_score: Math.round(rawHealth.overall_score || 0),
-          cost_score: Math.round(rawHealth.cost_score || 0),
-          schedule_score: Math.round(rawHealth.schedule_score || 0),
-          progress_score: Math.round(rawHealth.progress_score || 0),
-          data_quality_score: Math.round(rawHealth.dq_score || rawHealth.data_quality_score || 0),
-          status_label: rawHealth.score_band?.toUpperCase() || (rawHealth.overall_score >= 80 ? "HEALTHY" : rawHealth.overall_score >= 60 ? "MODERATE" : "HIGH RISK"),
-          critical_findings_count: rawHealth.component_breakdown?.critical_count ?? 0,
-          warning_findings_count: rawHealth.component_breakdown?.warning_count ?? 0,
-          observation_findings_count: rawHealth.component_breakdown?.observation_count ?? 0,
-          score_band: rawHealth.score_band,
-          component_breakdown: rawHealth.component_breakdown,
-          key_drivers: rawHealth.key_drivers,
-          created_at: rawHealth.created_at,
-        }
+        const mappedHealth = mapHealthSnapshot(rawHealth)
         setHealthData(mappedHealth)
       } catch {
         // Preserve prior health rather than claiming synthetic server output.

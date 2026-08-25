@@ -6,8 +6,10 @@ from uuid import uuid4
 import openpyxl
 import pytest
 from alembic import command
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from controlcheck.api import create_app
 from controlcheck.application import AnalysisService
 from controlcheck.engine import ControlEngine
 from controlcheck.errors import ControlCheckApplicationError
@@ -19,6 +21,7 @@ from controlcheck.persistence.models import (
     GovernedDatasetDomainStatusRecord,
     FindingEvidenceRecord,
     FindingRecord,
+    HealthSnapshotRecord,
     OrganizationRecord,
     ProjectRecord,
     SourceFileRecord,
@@ -127,6 +130,26 @@ def test_snapshot_analysis_persists_progress_domain_skips(snapshot_harness):
     assert all(item["reason_code"] == "blocked_required_domain" for item in run.skipped_rules)
     assert "CST-001" in run.executed_rule_ids
     assert run.rule_count == 12
+    with session_factory() as session:
+        health = session.scalar(
+            select(HealthSnapshotRecord).where(
+                HealthSnapshotRecord.analysis_run_id == run.id
+            )
+        )
+    assert health.computation_status == "partial"
+    assert health.coverage_ratio == pytest.approx(12 / 20)
+    assert health.unavailable_domains == ["progress"]
+    assert health.overall_score is None
+    assert health.score_band == "Partial"
+
+    response = TestClient(create_app(session_factory=session_factory)).get(
+        f"/v1/analysis-runs/{run.id}/health",
+        headers={"X-Organization-ID": str(organization_id)},
+    )
+    assert response.status_code == 200
+    assert response.json()["overall_score"] is None
+    assert response.json()["computation_status"] == "partial"
+    assert response.json()["score_band"] == "Partial"
 
 
 def test_snapshot_analysis_failure_has_no_partial_findings(snapshot_harness, project_root):
@@ -234,6 +257,39 @@ def test_snapshot_analysis_treats_absent_domain_states_as_blocked(snapshot_harne
         and item["blocked_domains"]
         for item in run.skipped_rules
     )
+    with session_factory() as session:
+        health = session.scalar(
+            select(HealthSnapshotRecord).where(
+                HealthSnapshotRecord.analysis_run_id == run.id
+            )
+        )
+    assert health.computation_status == "not_computed"
+    assert health.coverage_ratio == 0
+    assert health.unavailable_domains == [
+        "actual_cost",
+        "budget",
+        "commitments",
+        "progress",
+        "schedule",
+        "wbs",
+    ]
+    assert health.overall_score is None
+    assert health.cost_score is None
+    assert health.schedule_score is None
+    assert health.progress_score is None
+    assert health.dq_score is None
+    assert health.score_band == "Not Computed"
+
+    response = TestClient(create_app(session_factory=session_factory)).get(
+        f"/v1/analysis-runs/{run.id}/health",
+        headers={"X-Organization-ID": str(organization_id)},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["overall_score"] is None
+    assert body["cost_score"] is None
+    assert body["computation_status"] == "not_computed"
+    assert body["score_band"] == "Not Computed"
 
 
 def test_snapshot_analysis_treats_missing_partial_domain_states_as_blocked(
