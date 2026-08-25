@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime
 from hashlib import sha256
 import json
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -11,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..errors import ControlCheckApplicationError
 from ..persistence.ingestion_repositories import SnapshotRepository
-from ..persistence.models import GovernedDatasetSnapshotRecord
+from ..persistence.models import GovernedDatasetSnapshotRecord, SourceFileRecord
 from ..persistence.repositories import ProjectRepository
 from ..storage import FileStorage
 from .extractor import extract_workbook
@@ -20,6 +21,16 @@ from .profile import MappingProfileV1, mapping_profile_sha256
 
 
 DEDUPE_INDEX_NAME = "ux_governed_snapshots_dedupe_key_not_null"
+
+
+@dataclass(frozen=True)
+class SnapshotIngestionResult:
+    snapshot: GovernedDatasetSnapshotRecord
+    outcome: Literal["created", "deduplicated"]
+
+    def __getattr__(self, name: str):
+        """Preserve the pre-result snapshot attribute interface for callers."""
+        return getattr(self.snapshot, name)
 
 
 def _dedupe_key(
@@ -92,6 +103,47 @@ class SnapshotIngestionService:
             session.expunge(snapshot)
         return snapshot
 
+    def _reconcile_commit_outcome(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        snapshot_id: UUID | None,
+        storage_key: str,
+    ) -> GovernedDatasetSnapshotRecord | None:
+        if snapshot_id is None:
+            return None
+        try:
+            with self.session_factory() as session:
+                snapshot = SnapshotRepository(session)._get_governed_scoped(
+                    organization_id,
+                    project_id,
+                    snapshot_id,
+                )
+                if snapshot is None:
+                    return None
+                source = session.get(SourceFileRecord, snapshot.source_file_id)
+                if (
+                    snapshot.status in {"validated", "validated_with_errors"}
+                    and source is not None
+                    and source.organization_id == organization_id
+                    and source.project_id == project_id
+                    and source.storage_key == storage_key
+                ):
+                    return self._detached(session, snapshot)
+        except ControlCheckApplicationError:
+            raise
+        except Exception as exc:
+            raise ControlCheckApplicationError(
+                "snapshot_commit_outcome_unknown",
+                "Dataset snapshot commit outcome could not be reconciled",
+                503,
+            ) from exc
+        raise ControlCheckApplicationError(
+            "snapshot_commit_outcome_unknown",
+            "Dataset snapshot commit outcome could not be reconciled",
+            503,
+        )
+
     def ingest(
         self,
         organization_id: UUID,
@@ -100,7 +152,7 @@ class SnapshotIngestionService:
         content_type: str,
         data: bytes,
         force_new: bool = False,
-    ) -> GovernedDatasetSnapshotRecord:
+    ) -> SnapshotIngestionResult:
         with self.session_factory() as session:
             project = ProjectRepository(session).get_scoped(
                 organization_id, project_id
@@ -161,7 +213,10 @@ class SnapshotIngestionService:
             session.commit()
             profile_record_id = profile_record.id
             if duplicate is not None:
-                return self._detached(session, duplicate)
+                return SnapshotIngestionResult(
+                    snapshot=self._detached(session, duplicate),
+                    outcome="deduplicated",
+                )
 
         mapped = map_extracted_workbook(extracted, self.mapping_profile)
         data_date = _data_date(extracted.project_values)
@@ -173,6 +228,7 @@ class SnapshotIngestionService:
             organization_id, project_id, filename, data
         )
         dedupe_key = None if force_new else normal_dedupe_key
+        snapshot_id: UUID | None = None
         try:
             with self.session_factory() as session:
                 repository = SnapshotRepository(session)
@@ -189,6 +245,7 @@ class SnapshotIngestionService:
                     source_project_name=source_project_name,
                     dedupe_key=dedupe_key,
                 )
+                snapshot_id = snapshot.id
                 raw_rows = repository.persist_raw_rows(
                     organization_id,
                     project_id,
@@ -218,6 +275,17 @@ class SnapshotIngestionService:
                 )
                 session.commit()
         except IntegrityError as exc:
+            reconciled = self._reconcile_commit_outcome(
+                organization_id,
+                project_id,
+                snapshot_id,
+                stored.key,
+            )
+            if reconciled is not None:
+                return SnapshotIngestionResult(
+                    snapshot=reconciled,
+                    outcome="created",
+                )
             self.storage.delete(stored.key)
             if dedupe_key is not None and _is_dedupe_conflict(exc):
                 with self.session_factory() as session:
@@ -225,12 +293,29 @@ class SnapshotIngestionService:
                         organization_id, project_id, dedupe_key
                     )
                     if winner is not None:
-                        return self._detached(session, winner)
+                        return SnapshotIngestionResult(
+                            snapshot=self._detached(session, winner),
+                            outcome="deduplicated",
+                        )
             raise
         except Exception:
+            reconciled = self._reconcile_commit_outcome(
+                organization_id,
+                project_id,
+                snapshot_id,
+                stored.key,
+            )
+            if reconciled is not None:
+                return SnapshotIngestionResult(
+                    snapshot=reconciled,
+                    outcome="created",
+                )
             self.storage.delete(stored.key)
             raise
-        return self._detached(session, completed)
+        return SnapshotIngestionResult(
+            snapshot=self._detached(session, completed),
+            outcome="created",
+        )
 
 
-__all__ = ["SnapshotIngestionService"]
+__all__ = ["SnapshotIngestionResult", "SnapshotIngestionService"]

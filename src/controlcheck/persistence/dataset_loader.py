@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..errors import ControlCheckApplicationError
 from ..ingestion.mapper import DomainStatus
+from ..ingestion.types import GOVERNED_DOMAINS
 from ..models import (
     ActualCostRecord,
     BudgetRecord,
@@ -266,20 +267,27 @@ class DatabaseDatasetLoader:
                     snapshot_id,
                 )
             ]
-            domain_statuses = {
-                row.domain: DomainStatus(row.status)
-                for row in session.scalars(
-                    select(GovernedDatasetDomainStatusRecord)
-                    .where(
-                        GovernedDatasetDomainStatusRecord.organization_id
-                        == organization_id,
-                        GovernedDatasetDomainStatusRecord.project_id
-                        == project_id,
-                        GovernedDatasetDomainStatusRecord.dataset_snapshot_id
-                        == snapshot_id,
-                    )
-                    .order_by(GovernedDatasetDomainStatusRecord.domain)
+            persisted_domain_statuses: dict[str, DomainStatus] = {}
+            for row in session.scalars(
+                select(GovernedDatasetDomainStatusRecord)
+                .where(
+                    GovernedDatasetDomainStatusRecord.organization_id
+                    == organization_id,
+                    GovernedDatasetDomainStatusRecord.project_id == project_id,
+                    GovernedDatasetDomainStatusRecord.dataset_snapshot_id
+                    == snapshot_id,
                 )
+                .order_by(GovernedDatasetDomainStatusRecord.domain)
+            ):
+                if row.domain not in GOVERNED_DOMAINS:
+                    continue
+                try:
+                    persisted_domain_statuses[row.domain] = DomainStatus(row.status)
+                except ValueError:
+                    persisted_domain_statuses[row.domain] = DomainStatus.blocked
+            domain_statuses = {
+                domain: persisted_domain_statuses.get(domain, DomainStatus.blocked)
+                for domain in GOVERNED_DOMAINS
             }
             raw_row_index = {
                 (row.source_sheet, row.source_row_number): row.id

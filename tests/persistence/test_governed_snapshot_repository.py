@@ -9,6 +9,7 @@ from alembic import command
 from controlcheck.persistence.database import create_session_factory
 from controlcheck.persistence.models import (
     DatasetSnapshotRecord,
+    GovernedDatasetDomainStatusRecord,
     GovernedRawRowRecord,
     OrganizationRecord,
     ProjectRecord,
@@ -120,6 +121,28 @@ def test_repository_writes_governed_snapshots_and_reads_simplified_compatibly(
             validation_errors=[],
         )
         session.add(raw_row)
+        for domain in (
+            "actual_cost",
+            "budget",
+            "commitments",
+            "progress",
+            "schedule",
+            "wbs",
+        ):
+            session.add(
+                GovernedDatasetDomainStatusRecord(
+                    organization_id=ORG_ID,
+                    project_id=PROJECT_ID,
+                    dataset_snapshot_id=governed.id,
+                    domain=domain,
+                    status="valid",
+                    row_count_raw=1 if domain == "budget" else 0,
+                    row_count_canonical=1 if domain == "budget" else 0,
+                    error_count=0,
+                    warning_count=0,
+                    validation_summary={},
+                )
+            )
         session.flush()
         repository.complete(
             ORG_ID,

@@ -4,6 +4,16 @@ from dataclasses import dataclass
 from typing import Any
 
 
+GOVERNED_DOMAINS = (
+    "actual_cost",
+    "budget",
+    "commitments",
+    "progress",
+    "schedule",
+    "wbs",
+)
+
+
 @dataclass(frozen=True)
 class TemplateIssue:
     code: str

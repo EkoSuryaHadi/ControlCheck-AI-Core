@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from io import BytesIO
 from uuid import uuid4
 
+import openpyxl
 import pytest
 from alembic import command
 from sqlalchemy import select
@@ -152,3 +154,148 @@ def test_snapshot_analysis_failure_has_no_partial_findings(snapshot_harness, pro
         ).all()
     assert run.status == "failed"
     assert findings == []
+
+
+def test_governed_run_cannot_bypass_blocked_domains_through_audit_runner(
+    snapshot_harness,
+    project_root,
+):
+    session_factory, storage, _, organization_id, project_id, _ = snapshot_harness
+    data = (
+        project_root / "data" / "ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx"
+    ).read_bytes()
+    book = openpyxl.load_workbook(BytesIO(data))
+    book.remove(book["Progress"])
+    changed = BytesIO()
+    book.save(changed)
+    book.close()
+
+    def forbidden_raw_workbook_runner(*args, **kwargs):
+        raise AssertionError("governed analysis invoked the raw workbook runner")
+
+    service = AnalysisService(
+        session_factory=session_factory,
+        storage=storage,
+        catalogue_path=project_root / "data" / "controlcheck_rule_catalogue_v0.3.json",
+        audit_runner=forbidden_raw_workbook_runner,
+    )
+
+    run = service.run(
+        organization_id,
+        project_id,
+        "missing-progress.xlsx",
+        XLSX_MIME,
+        changed.getvalue(),
+    )
+
+    expected_skips = {
+        "CST-006",
+        "DQ-001",
+        "DQ-003",
+        "DQ-004",
+        "PRG-001",
+        "PRG-002",
+        "PRG-003",
+        "XDOM-001",
+    }
+    assert run.status == "succeeded"
+    assert run.rule_count == 12
+    assert {item["rule_id"] for item in run.skipped_rules} == expected_skips
+    assert all(
+        item["reason_code"] == "blocked_required_domain"
+        and item["blocked_domains"] == ["progress"]
+        for item in run.skipped_rules
+    )
+    with session_factory() as session:
+        persisted = session.get(AnalysisRunRecord, run.id)
+    assert persisted.executed_rule_ids == run.executed_rule_ids
+    assert persisted.skipped_rules == run.skipped_rules
+
+
+def test_snapshot_analysis_treats_absent_domain_states_as_blocked(snapshot_harness):
+    session_factory, _, service, organization_id, project_id, snapshot = snapshot_harness
+    with session_factory() as session:
+        for state in session.scalars(
+            select(GovernedDatasetDomainStatusRecord).where(
+                GovernedDatasetDomainStatusRecord.dataset_snapshot_id == snapshot.id
+            )
+        ):
+            session.delete(state)
+        session.commit()
+
+    run = service.run_snapshot(organization_id, project_id, snapshot.id)
+
+    assert run.status == "succeeded"
+    assert run.rule_count == 0
+    assert run.executed_rule_ids == []
+    assert len(run.skipped_rules) == 20
+    assert all(
+        item["reason_code"] == "blocked_required_domain"
+        and item["blocked_domains"]
+        for item in run.skipped_rules
+    )
+
+
+def test_snapshot_analysis_treats_missing_partial_domain_states_as_blocked(
+    snapshot_harness,
+):
+    session_factory, _, service, organization_id, project_id, snapshot = snapshot_harness
+    with session_factory() as session:
+        for state in session.scalars(
+            select(GovernedDatasetDomainStatusRecord).where(
+                GovernedDatasetDomainStatusRecord.dataset_snapshot_id == snapshot.id,
+                GovernedDatasetDomainStatusRecord.domain != "actual_cost",
+            )
+        ):
+            session.delete(state)
+        session.commit()
+
+    run = service.run_snapshot(organization_id, project_id, snapshot.id)
+
+    assert run.executed_rule_ids == ["CST-004", "DQ-002", "DQ-005"]
+    assert run.rule_count == 3
+    assert len(run.skipped_rules) == 17
+    assert all(
+        item["reason_code"] == "blocked_required_domain"
+        and set(item["blocked_domains"]).issubset(
+            {"budget", "commitments", "progress", "schedule", "wbs"}
+        )
+        for item in run.skipped_rules
+    )
+
+
+def test_post_server_commit_exception_reconciles_succeeded_analysis(
+    snapshot_harness,
+    monkeypatch,
+):
+    session_factory, _, service, organization_id, project_id, snapshot = snapshot_harness
+    session_class = session_factory.class_
+    original_commit = session_class.commit
+    injected = False
+
+    def commit_then_raise(session):
+        nonlocal injected
+        completed_run = any(
+            isinstance(item, AnalysisRunRecord) and item.status == "succeeded"
+            for item in session.identity_map.values()
+        )
+        original_commit(session)
+        if completed_run and not injected:
+            injected = True
+            raise RuntimeError("injected post-server-commit transport failure")
+
+    monkeypatch.setattr(session_class, "commit", commit_then_raise)
+
+    run = service.run_snapshot(organization_id, project_id, snapshot.id)
+
+    assert injected
+    assert run.status == "succeeded"
+    assert run.finding_count == 59
+    with session_factory() as session:
+        persisted = session.get(AnalysisRunRecord, run.id)
+        findings = session.scalars(
+            select(FindingRecord).where(FindingRecord.analysis_run_id == run.id)
+        ).all()
+    assert persisted.status == "succeeded"
+    assert persisted.safe_error_code is None
+    assert len(findings) == 59

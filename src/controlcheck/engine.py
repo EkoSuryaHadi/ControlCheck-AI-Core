@@ -110,7 +110,7 @@ class ControlEngine:
                         "value",
                         domain_statuses.get(domain),
                     )
-                    == "blocked"
+                    not in {"valid", "warning"}
                 )
             )
             if blocked_domains:

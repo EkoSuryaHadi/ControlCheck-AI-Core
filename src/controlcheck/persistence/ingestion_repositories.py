@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..ingestion.mapper import IssueSeverity, MappedSnapshot, RowIssue
 from ..ingestion.profile import MappingProfileV1
-from ..ingestion.types import ExtractedWorkbook, TemplateIssue
+from ..ingestion.types import ExtractedWorkbook, GOVERNED_DOMAINS, TemplateIssue
 from ..models import WBSNode
 from ..storage import StoredObject
 from .models import (
@@ -35,6 +35,7 @@ COMPLETED_SNAPSHOT_STATUSES = ("validated", "validated_with_errors")
 WBS_DEPENDENT_DOMAINS = frozenset(
     {"budget", "actual_cost", "commitments", "schedule", "progress"}
 )
+GOVERNED_DOMAIN_SET = frozenset(GOVERNED_DOMAINS)
 
 
 class SnapshotImmutableError(RuntimeError):
@@ -429,6 +430,21 @@ class SnapshotRepository:
             organization_id, project_id, snapshot_id
         )
         batch = self._get_batch_scoped(organization_id, project_id, snapshot)
+        persisted_domains = frozenset(
+            self.session.scalars(
+                select(GovernedDatasetDomainStatusRecord.domain).where(
+                    GovernedDatasetDomainStatusRecord.organization_id
+                    == organization_id,
+                    GovernedDatasetDomainStatusRecord.project_id == project_id,
+                    GovernedDatasetDomainStatusRecord.dataset_snapshot_id
+                    == snapshot.id,
+                )
+            )
+        )
+        if persisted_domains != GOVERNED_DOMAIN_SET:
+            raise ValueError(
+                "Snapshot completion requires all six governed domain states"
+            )
 
         batch.status = "completed"
         batch.rows_read = row_count_raw
@@ -449,6 +465,14 @@ class SnapshotRepository:
         extracted: ExtractedWorkbook,
         mapped: MappedSnapshot,
     ) -> GovernedDatasetSnapshotRecord:
+        if (
+            frozenset(extracted.rows_by_domain) != GOVERNED_DOMAIN_SET
+            or frozenset(mapped.rows_by_domain) != GOVERNED_DOMAIN_SET
+            or frozenset(mapped.domain_statuses) != GOVERNED_DOMAIN_SET
+        ):
+            raise ValueError(
+                "Snapshot completion requires all six governed domain states"
+            )
         snapshot = self._get_ingesting_scoped(
             organization_id, project_id, snapshot_id
         )

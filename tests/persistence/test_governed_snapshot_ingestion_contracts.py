@@ -220,7 +220,9 @@ def test_duplicate_upload_returns_existing_snapshot(
         golden_bytes,
     )
 
-    assert second.id == first.id
+    assert first.outcome == "created"
+    assert second.outcome == "deduplicated"
+    assert second.snapshot.id == first.snapshot.id
     assert len(stored_files(storage)) == 1
 
 
@@ -241,8 +243,10 @@ def test_force_new_creates_distinct_snapshot(snapshot_service, golden_bytes, gol
         force_new=True,
     )
 
-    assert forced.id != first.id
-    assert forced.dedupe_key is None
+    assert first.outcome == "created"
+    assert forced.outcome == "created"
+    assert forced.snapshot.id != first.snapshot.id
+    assert forced.snapshot.dedupe_key is None
 
 
 def test_golden_rows_keep_exact_lineage_and_rule_detectable_anomalies(
@@ -575,6 +579,49 @@ def test_post_commit_detach_failure_keeps_committed_snapshot_source(
         )
     )
     assert snapshot.status == "validated"
+    assert storage.exists(source.storage_key)
+
+
+def test_post_server_commit_exception_reconciles_snapshot_and_preserves_source(
+    snapshot_service,
+    session_factory,
+    golden_bytes,
+    golden_project,
+    storage,
+    monkeypatch,
+):
+    session_class = session_factory.class_
+    original_commit = session_class.commit
+    injected = False
+
+    def commit_then_raise(session):
+        nonlocal injected
+        completed_snapshot = any(
+            isinstance(item, GovernedDatasetSnapshotRecord)
+            and item.status in {"validated", "validated_with_errors"}
+            for item in session.identity_map.values()
+        )
+        original_commit(session)
+        if completed_snapshot and not injected:
+            injected = True
+            raise RuntimeError("injected post-server-commit transport failure")
+
+    monkeypatch.setattr(session_class, "commit", commit_then_raise)
+
+    snapshot = snapshot_service.ingest(
+        golden_project.organization_id,
+        golden_project.id,
+        "golden.xlsx",
+        XLSX_MIME,
+        golden_bytes,
+    )
+
+    assert injected
+    assert snapshot.status == "validated"
+    with session_factory() as session:
+        persisted = session.get(GovernedDatasetSnapshotRecord, snapshot.id)
+        source = session.get(SourceFileRecord, persisted.source_file_id)
+    assert persisted.status == "validated"
     assert storage.exists(source.storage_key)
 
 
@@ -996,6 +1043,34 @@ def test_fail_atomically_removes_partial_rows_facts_and_domain_statuses(
     assert storage.exists(stored.key)
 
 
+def test_repository_refuses_completion_without_all_six_domain_states(
+    session_factory,
+    storage,
+    mapping_profile,
+    golden_bytes,
+    golden_project,
+):
+    with session_factory() as session:
+        repository, snapshot, _, _, _ = begin_ingesting_snapshot(
+            session,
+            storage,
+            mapping_profile,
+            golden_bytes,
+            golden_project,
+            golden_project.organization_id.hex + golden_project.id.hex,
+        )
+
+        with pytest.raises(ValueError, match="all six governed domain states"):
+            repository.complete(
+                golden_project.organization_id,
+                golden_project.id,
+                snapshot.id,
+                status="validated",
+                row_count_raw=0,
+                row_count_canonical=0,
+            )
+
+
 def test_duplicate_race_returns_winner_and_deletes_losing_file(
     snapshot_service,
     golden_bytes,
@@ -1031,6 +1106,8 @@ def test_duplicate_race_returns_winner_and_deletes_losing_file(
         golden_bytes,
     )
 
-    assert raced.id == winner.id
+    assert winner.outcome == "created"
+    assert raced.outcome == "deduplicated"
+    assert raced.snapshot.id == winner.snapshot.id
     assert stored_files(storage) == before
     assert calls == 2

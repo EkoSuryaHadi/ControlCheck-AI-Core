@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import os
 from io import BytesIO
 from pathlib import Path
@@ -33,8 +32,8 @@ from .auth import (
     hash_password, verify_password,
 )
 from .errors import ControlCheckApplicationError
-from .ingestion.profile import load_mapping_profile, mapping_profile_sha256
-from .ingestion.service import SnapshotIngestionService, _dedupe_key
+from .ingestion.profile import load_mapping_profile
+from .ingestion.service import SnapshotIngestionService
 from .loader import WorkbookSchemaError
 from .logging import clear_log_context, configure_logging, get_logger, set_log_context
 from .metrics import metrics_collector
@@ -512,29 +511,8 @@ def create_app(
                 tenant: TenantContext = Depends(require_tenant),
             ):
                 data = await read_snapshot_upload(file)
-                duplicate = None
-                if not force_new:
-                    with session_factory() as session:
-                        if (
-                            ProjectRepository(session).get_scoped(
-                                tenant.organization_id, project_id
-                            )
-                            is not None
-                        ):
-                            duplicate = SnapshotRepository(
-                                session
-                            ).find_duplicate(
-                                tenant.organization_id,
-                                project_id,
-                                _dedupe_key(
-                                    tenant.organization_id,
-                                    project_id,
-                                    hashlib.sha256(data).hexdigest(),
-                                    mapping_profile_sha256(mapping_profile),
-                                ),
-                            )
                 try:
-                    snapshot = snapshot_ingestion.ingest(
+                    ingestion = snapshot_ingestion.ingest(
                         tenant.organization_id,
                         project_id,
                         file.filename or "dataset.xlsx",
@@ -550,14 +528,11 @@ def create_app(
                         "Dataset snapshot ingestion failed",
                         422,
                     ) from exc
+                snapshot = ingestion.snapshot
                 with session_factory() as session:
                     response = snapshot_response(session, snapshot)
                 return JSONResponse(
-                    status_code=(
-                        200
-                        if duplicate is not None and not force_new
-                        else 201
-                    ),
+                    status_code=200 if ingestion.outcome == "deduplicated" else 201,
                     content=response.model_dump(mode="json"),
                 )
 

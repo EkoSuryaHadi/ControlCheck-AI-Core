@@ -8,11 +8,12 @@ from time import perf_counter
 from typing import Callable
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from . import __version__
 from .config import ThresholdConfig, load_catalogue
-from .engine import ControlEngine, EngineExecution, RuleContext
+from .engine import ControlEngine, RuleContext
 from .errors import ControlCheckApplicationError
 from .ingestion.profile import load_mapping_profile
 from .ingestion.service import SnapshotIngestionService
@@ -20,6 +21,7 @@ from .loader import WorkbookSchemaError, load_workbook
 from .logging import get_logger, set_log_context
 from .models import AuditResult
 from .persistence.dataset_loader import DatabaseDatasetLoader
+from .persistence.models import AnalysisRunRecord
 from .persistence.repositories import AnalysisRepository, ProjectRepository
 from .rules import ALL_RULES
 from .service import run_audit
@@ -200,7 +202,6 @@ class AnalysisService:
         snapshot_id: UUID,
         *,
         idempotency_key: str | None = None,
-        workbook_data: bytes | None = None,
     ):
         loaded = DatabaseDatasetLoader(self.session_factory).load(
             organization_id, project_id, snapshot_id
@@ -227,26 +228,14 @@ class AnalysisService:
 
         started = perf_counter()
         try:
-            if self.audit_runner is not None and workbook_data is not None:
-                audit = self.audit_runner(
-                    BytesIO(workbook_data), self.catalogue_path
-                )
-                execution = EngineExecution(
-                    audit=audit,
-                    executed_rule_ids=tuple(
-                        rule.rule_id for rule in self.engine.rules
-                    ),
-                    skipped_rules=(),
-                )
-            else:
-                execution = self.engine.run_gated(
-                    loaded.snapshot,
-                    RuleContext(
-                        catalogue=catalogue_runtime,
-                        thresholds=ThresholdConfig(),
-                    ),
-                    loaded.domain_statuses,
-                )
+            execution = self.engine.run_gated(
+                loaded.snapshot,
+                RuleContext(
+                    catalogue=catalogue_runtime,
+                    thresholds=ThresholdConfig(),
+                ),
+                loaded.domain_statuses,
+            )
             duration_ms = max(0, round((perf_counter() - started) * 1000))
             skipped_rules = [
                 {
@@ -297,6 +286,14 @@ class AnalysisService:
                 session.commit()
                 return completed
         except Exception as exc:
+            reconciled = self._reconcile_analysis_commit(
+                organization_id,
+                project_id,
+                snapshot_id,
+                run.id,
+            )
+            if reconciled is not None:
+                return reconciled
             return self._persist_failure(
                 run.id,
                 "analysis_failed",
@@ -305,6 +302,52 @@ class AnalysisService:
                 started,
                 exc,
             )
+
+    def _reconcile_analysis_commit(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        snapshot_id: UUID,
+        run_id: UUID,
+    ):
+        try:
+            with self.session_factory() as session:
+                run = session.scalar(
+                    select(AnalysisRunRecord).where(
+                        AnalysisRunRecord.id == run_id,
+                        AnalysisRunRecord.organization_id == organization_id,
+                        AnalysisRunRecord.project_id == project_id,
+                        AnalysisRunRecord.governed_dataset_snapshot_id
+                        == snapshot_id,
+                    )
+                )
+                if run is None:
+                    raise ControlCheckApplicationError(
+                        "analysis_commit_outcome_unknown",
+                        "Analysis commit outcome could not be reconciled",
+                        503,
+                        analysis_run_id=run_id,
+                    )
+                if run.status == "running":
+                    return None
+                if run.status == "succeeded":
+                    session.expunge(run)
+                    return run
+        except ControlCheckApplicationError:
+            raise
+        except Exception as exc:
+            raise ControlCheckApplicationError(
+                "analysis_commit_outcome_unknown",
+                "Analysis commit outcome could not be reconciled",
+                503,
+                analysis_run_id=run_id,
+            ) from exc
+        raise ControlCheckApplicationError(
+            "analysis_commit_outcome_unknown",
+            "Analysis commit outcome could not be reconciled",
+            503,
+            analysis_run_id=run_id,
+        )
 
     def run(
         self,
@@ -324,7 +367,7 @@ class AnalysisService:
                 )
                 if existing_run is not None:
                     return existing_run
-        snapshot = SnapshotIngestionService(
+        ingestion = SnapshotIngestionService(
             self.session_factory,
             self.storage,
             load_mapping_profile(self.mapping_profile_path),
@@ -335,12 +378,12 @@ class AnalysisService:
             content_type,
             data,
         )
+        snapshot = ingestion.snapshot
         return self.run_snapshot(
             organization_id,
             project_id,
             snapshot.id,
             idempotency_key=idempotency_key,
-            workbook_data=data if self.audit_runner is not None else None,
         )
 
 

@@ -72,9 +72,72 @@ def downgrade() -> None:
         "analysis_runs",
         type_="check",
     )
-    # The pre-governed analysis schema requires a simplified snapshot FK.
-    # Materialize metadata-only compatibility rows before removing the governed
-    # FK so completed analysis history remains representable after rollback.
+    # The pre-governed analysis schema requires a simplified snapshot FK. Build
+    # a deterministic fresh-ID map so an unrelated simplified snapshot that
+    # happens to share a governed UUID can never capture analysis lineage.
+    op.execute(
+        sa.text(
+            """
+            CREATE TEMPORARY TABLE controlcheck_governed_compat_map (
+                governed_snapshot_id UUID PRIMARY KEY,
+                compatibility_snapshot_id UUID NOT NULL UNIQUE
+            ) ON COMMIT DROP
+            """
+        )
+    )
+    op.execute(
+        sa.text(
+            """
+            WITH RECURSIVE candidates AS (
+                SELECT DISTINCT
+                    snapshot.id AS governed_snapshot_id,
+                    0 AS salt,
+                    md5(
+                        'controlcheck-governed-compat:'
+                        || snapshot.id::text
+                        || chr(58)
+                        || '0'
+                    )::uuid AS compatibility_snapshot_id
+                FROM governed_dataset_snapshots AS snapshot
+                JOIN analysis_runs AS run
+                  ON run.governed_dataset_snapshot_id = snapshot.id
+                WHERE run.dataset_snapshot_id IS NULL
+
+                UNION ALL
+
+                SELECT
+                    candidate.governed_snapshot_id,
+                    candidate.salt + 1,
+                    md5(
+                        'controlcheck-governed-compat:'
+                        || candidate.governed_snapshot_id::text
+                        || chr(58)
+                        || (candidate.salt + 1)::text
+                    )::uuid
+                FROM candidates AS candidate
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM dataset_snapshots AS existing
+                    WHERE existing.id = candidate.compatibility_snapshot_id
+                )
+            )
+            INSERT INTO controlcheck_governed_compat_map (
+                governed_snapshot_id,
+                compatibility_snapshot_id
+            )
+            SELECT DISTINCT ON (candidate.governed_snapshot_id)
+                candidate.governed_snapshot_id,
+                candidate.compatibility_snapshot_id
+            FROM candidates AS candidate
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dataset_snapshots AS existing
+                WHERE existing.id = candidate.compatibility_snapshot_id
+            )
+            ORDER BY candidate.governed_snapshot_id, candidate.salt
+            """
+        )
+    )
     op.execute(
         sa.text(
             """
@@ -89,8 +152,8 @@ def downgrade() -> None:
                 status,
                 created_at
             )
-            SELECT DISTINCT
-                snapshot.id,
+            SELECT
+                mapping.compatibility_snapshot_id,
                 snapshot.organization_id,
                 snapshot.project_id,
                 snapshot.source_file_id,
@@ -104,20 +167,19 @@ def downgrade() -> None:
                 END,
                 snapshot.created_at
             FROM governed_dataset_snapshots AS snapshot
-            JOIN analysis_runs AS run
-              ON run.governed_dataset_snapshot_id = snapshot.id
-            WHERE run.dataset_snapshot_id IS NULL
-            ON CONFLICT (id) DO NOTHING
+            JOIN controlcheck_governed_compat_map AS mapping
+              ON mapping.governed_snapshot_id = snapshot.id
             """
         )
     )
     op.execute(
         sa.text(
             """
-            UPDATE analysis_runs
-            SET dataset_snapshot_id = governed_dataset_snapshot_id
-            WHERE dataset_snapshot_id IS NULL
-              AND governed_dataset_snapshot_id IS NOT NULL
+            UPDATE analysis_runs AS run
+            SET dataset_snapshot_id = mapping.compatibility_snapshot_id
+            FROM controlcheck_governed_compat_map AS mapping
+            WHERE run.dataset_snapshot_id IS NULL
+              AND run.governed_dataset_snapshot_id = mapping.governed_snapshot_id
             """
         )
     )

@@ -54,7 +54,12 @@ def test_domain_gating_records_deterministic_skip_provenance() -> None:
     execution = engine.run_gated(
         _dataset(),
         context,
-        {"progress": "blocked", "schedule": "blocked", "budget": "valid"},
+        {
+            "actual_cost": "valid",
+            "budget": "valid",
+            "progress": "blocked",
+            "schedule": "blocked",
+        },
     )
 
     assert execution.executed_rule_ids == ("RULE-A", "RULE-Z")
@@ -71,7 +76,11 @@ def test_healthy_domain_gating_matches_legacy_engine_execution() -> None:
     )
 
     legacy = engine.run(_dataset(), context)
-    gated = engine.run_gated(_dataset(), context, {})
+    gated = engine.run_gated(
+        _dataset(),
+        context,
+        {"budget": "valid", "schedule": "valid"},
+    )
 
     assert gated.audit == legacy
     assert gated.executed_rule_ids == ("RULE-A", "RULE-B")
