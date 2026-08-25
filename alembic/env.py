@@ -7,7 +7,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from controlcheck.persistence.database import Base
-from controlcheck.persistence import models  # noqa: F401
+from controlcheck.persistence import action_models, governance_models, models  # noqa: F401
 
 
 config = context.config

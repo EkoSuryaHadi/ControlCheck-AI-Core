@@ -83,13 +83,20 @@ def test_evidence_and_status_update_are_persisted_and_audited(query_context):
     assert evidence.status_code == 200
     assert evidence.json()["items"]
 
-    updated = client.patch(
+    direct_resolution = client.patch(
         f"/v1/findings/{finding_id}/status",
         headers=headers(),
         json={"status": "resolved"},
     )
+    assert direct_resolution.status_code == 422
+
+    updated = client.patch(
+        f"/v1/findings/{finding_id}/status",
+        headers=headers(),
+        json={"status": "dismissed"},
+    )
     assert updated.status_code == 200
-    assert updated.json()["status"] == "resolved"
+    assert updated.json()["status"] == "dismissed"
     with session_factory() as session:
         assert session.get(FindingRecord, finding_id).resolved_at is not None
         assert session.scalar(select(AuditLogRecord).where(AuditLogRecord.entity_id == str(finding_id))) is not None
