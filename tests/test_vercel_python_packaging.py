@@ -1,11 +1,27 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_vercel_python_function_excludes_non_runtime_assets() -> None:
+    config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+    excluded = config["functions"]["api/index.py"]["excludeFiles"]
+
+    for pattern in (
+        "frontend/**",
+        "public/**",
+        "src/controlcheck/web/**",
+        "data/*.xlsx",
+        "data/*.inspect.ndjson",
+        "data/*expected_findings*.json",
+    ):
+        assert pattern in excluded
 
 
 def test_vercel_bundle_keeps_python_project_metadata(tmp_path: Path) -> None:

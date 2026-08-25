@@ -1,4 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.py": {
+      "excludeFiles": "{frontend/**,public/**,src/controlcheck/web/**,data/*.xlsx,data/*.inspect.ndjson,data/*expected_findings*.json}"
+    }
+  },
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "handle": "filesystem" },
