@@ -11,6 +11,7 @@ from typing import Any
 
 import openpyxl
 
+from ..workbook import open_xlsx
 from .profile import DomainProfile, MappingProfileV1
 from .types import ExtractedRow, ExtractedWorkbook, TemplateIssue
 
@@ -139,7 +140,7 @@ def _header_issues(
 
 def extract_workbook(data: bytes, profile: MappingProfileV1) -> ExtractedWorkbook:
     """Extract governed workbook rows without validating or coercing values."""
-    book = openpyxl.load_workbook(BytesIO(data), data_only=True)
+    book = open_xlsx(BytesIO(data), data_only=True)
     try:
         rows_by_domain: dict[str, list[ExtractedRow]] = {}
         template_errors: list[TemplateIssue] = []

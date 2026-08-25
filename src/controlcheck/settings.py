@@ -5,6 +5,46 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+_APPLICATION_ENVIRONMENTS = {"development", "test", "production"}
+_VERCEL_ENVIRONMENTS = {"development", "preview", "production"}
+
+
+def _normalized_environment(name: str, allowed: set[str]) -> str | None:
+    if name not in os.environ:
+        return None
+    value = os.environ[name].strip().lower()
+    if not value or value not in allowed:
+        raise ValueError(f"Invalid {name} environment mode")
+    return value
+
+
+def _runtime_environment() -> str:
+    """Resolve application mode with production platform signals failing closed.
+
+    CONTROLCHECK_ENV takes precedence over legacy ENV. A production Vercel signal,
+    or a serverless runtime without an explicit platform mode, always forces the
+    stricter production contract.
+    """
+    explicit = _normalized_environment(
+        "CONTROLCHECK_ENV", _APPLICATION_ENVIRONMENTS
+    )
+    if explicit is None:
+        explicit = _normalized_environment("ENV", _APPLICATION_ENVIRONMENTS)
+    vercel_env = _normalized_environment("VERCEL_ENV", _VERCEL_ENVIRONMENTS)
+
+    if vercel_env == "production":
+        return "production"
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return "production"
+    if os.environ.get("VERCEL") and vercel_env is None:
+        return "production"
+    if explicit is not None:
+        return explicit
+    if vercel_env in {"development", "preview"}:
+        return "development"
+    return "development"
+
+
 def _database_url_from_env() -> str:
     """Resolve the durable database URL consistently across local and hosted runtimes.
 
@@ -46,13 +86,15 @@ class ProductionSettings:
 
     @classmethod
     def from_env(cls) -> "ProductionSettings":
-        env = os.environ.get("CONTROLCHECK_ENV", os.environ.get("ENV", "development")).lower()
+        env = _runtime_environment()
         jwt_secret = os.environ.get("CONTROLCHECK_JWT_SECRET", "dev-secret-key-change-in-production")
         database_url = _database_url_from_env()
         cors_raw = os.environ.get("CONTROLCHECK_CORS_ORIGINS", "*")
         cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
         max_upload = int(os.environ.get("CONTROLCHECK_MAX_UPLOAD_BYTES", 25 * 1024 * 1024))
-        storage_backend = os.environ.get("CONTROLCHECK_STORAGE_BACKEND", "local")
+        storage_backend = os.environ.get(
+            "CONTROLCHECK_STORAGE_BACKEND", "local"
+        ).strip().lower()
 
         # In production mode, enforce security validations
         if env == "production":

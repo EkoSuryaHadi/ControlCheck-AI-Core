@@ -3,6 +3,11 @@ from __future__ import annotations
 from uuid import UUID
 
 
+class InvalidWorkbookError(ValueError):
+    code = "invalid_workbook"
+    safe_message = "Workbook could not be parsed"
+
+
 class ControlCheckApplicationError(Exception):
     def __init__(
         self,

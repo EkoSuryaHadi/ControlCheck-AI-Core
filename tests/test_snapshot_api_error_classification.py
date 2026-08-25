@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from zipfile import BadZipFile
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from controlcheck.api import create_app
+from controlcheck.errors import InvalidWorkbookError
 from controlcheck.ingestion.service import SnapshotIngestionService
 from controlcheck.storage import LocalFileStorage
 
@@ -15,7 +14,7 @@ from controlcheck.storage import LocalFileStorage
 @pytest.mark.parametrize(
     ("failure", "expected_status", "expected_code"),
     [
-        (BadZipFile("unsafe workbook parser detail"), 422, "invalid_workbook"),
+        (InvalidWorkbookError("unsafe workbook parser detail"), 422, "invalid_workbook"),
         (
             OperationalError("SELECT secret", {}, RuntimeError("database password")),
             503,

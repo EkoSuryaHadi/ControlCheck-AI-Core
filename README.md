@@ -98,7 +98,7 @@ alembic upgrade head
 # Launch FastAPI Backend
 $env:CONTROLCHECK_CATALOGUE = "data\controlcheck_rule_catalogue_v0.2.json"
 $env:CONTROLCHECK_UPLOAD_ROOT = "var\uploads"
-uvicorn controlcheck.api:app --app-dir src --host 127.0.0.1 --port 8000
+uvicorn controlcheck.asgi:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
 ### 2. Frontend React Web Application Setup
@@ -163,7 +163,7 @@ Run the complete backend suite:
 python -m pytest -q -p no:cacheprovider
 ```
 
-CI additionally performs Python bytecode compilation, strict production-configuration tests, live PostgreSQL migration-drift verification, and frontend `npm ci`, typecheck/build, and lint gates. Production/serverless startup fails closed when required baseline configuration is absent; no diagnostic endpoint exposes import traces, paths, or environment-variable names.
+CI additionally performs Python bytecode compilation, strict production-configuration tests, live PostgreSQL migration-drift verification, and frontend `npm ci`, typecheck/build, and lint gates. Runtime modes are trimmed, case-normalized, and restricted to the documented development/test/production set; production platform signals cannot be overridden by a weaker application mode. Production/serverless startup fails closed when required baseline configuration is absent, and no diagnostic endpoint exposes import traces, paths, or environment-variable names. Container production installs the optional S3 dependency, and readiness verifies actual local-directory or S3-bucket access before reporting storage ready.
 
 ---
 

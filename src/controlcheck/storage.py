@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Protocol
@@ -18,6 +19,7 @@ class FileStorage(Protocol):
     def put(self, organization_id: UUID, project_id: UUID, filename: str, data: bytes) -> StoredObject: ...
     def delete(self, key: str) -> None: ...
     def exists(self, key: str) -> bool: ...
+    def is_ready(self) -> bool: ...
 
 
 class LocalFileStorage:
@@ -46,3 +48,10 @@ class LocalFileStorage:
 
     def exists(self, key: str) -> bool:
         return self._resolve_key(key).is_file()
+
+    def is_ready(self) -> bool:
+        try:
+            self.root.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return False
+        return self.root.is_dir() and os.access(self.root, os.W_OK)

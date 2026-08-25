@@ -20,6 +20,7 @@ from .models import (
     SourceRef,
     WBSNode,
 )
+from .workbook import open_xlsx
 
 logger = get_logger("loader")
 
@@ -103,7 +104,7 @@ def load_workbook(path: Path | str | BinaryIO, strict: bool = False) -> ProjectD
     
     # Try Standard Canonical Loading First
     try:
-        book = openpyxl.load_workbook(source, data_only=True, read_only=False)
+        book = open_xlsx(source, data_only=True, read_only=False)
         missing_sheets = set(REQUIRED_COLUMNS) - set(book.sheetnames)
         if missing_sheets:
             if strict:

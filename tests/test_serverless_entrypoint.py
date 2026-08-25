@@ -1,19 +1,59 @@
 from __future__ import annotations
 
 import runpy
+import sys
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+import controlcheck
 import controlcheck.api
+from controlcheck.settings import ProductionSettings
 
 
 ENTRYPOINT = Path(__file__).resolve().parents[1] / "api" / "index.py"
 
 
 def _load_entrypoint() -> dict[str, object]:
+    sys.modules.pop("controlcheck.asgi", None)
+    controlcheck.__dict__.pop("asgi", None)
     return runpy.run_path(str(ENTRYPOINT), run_name="controlcheck_serverless_test")
+
+
+def test_serverless_entrypoint_does_not_mutate_sys_path(monkeypatch) -> None:
+    source_root = str(ENTRYPOINT.parents[1] / "src")
+    isolated_path = [entry for entry in sys.path if entry != source_root]
+    monkeypatch.setattr(sys, "path", isolated_path.copy())
+    before = sys.path.copy()
+
+    _load_entrypoint()
+
+    assert sys.path == before
+
+
+def test_serverless_entrypoint_creates_one_configured_application(monkeypatch) -> None:
+    calls = 0
+    original_from_env = ProductionSettings.from_env
+    previous_api = sys.modules.pop("controlcheck.api")
+
+    def counted_from_env():
+        nonlocal calls
+        calls += 1
+        return original_from_env()
+
+    monkeypatch.setattr(
+        ProductionSettings,
+        "from_env",
+        staticmethod(counted_from_env),
+    )
+    try:
+        _load_entrypoint()
+        assert calls == 1
+    finally:
+        sys.modules["controlcheck.api"] = previous_api
+        controlcheck.api = previous_api
+        sys.modules.pop("controlcheck.asgi", None)
 
 
 def test_serverless_entrypoint_does_not_publish_diagnostics(monkeypatch) -> None:

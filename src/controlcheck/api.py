@@ -5,13 +5,11 @@ from io import BytesIO
 from pathlib import Path
 from time import perf_counter
 from uuid import UUID, uuid4
-from zipfile import BadZipFile
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from openpyxl.utils.exceptions import InvalidFileException
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -35,7 +33,7 @@ from .auth import (
     create_access_token, create_refresh_token, decode_token,
     hash_password, verify_password,
 )
-from .errors import ControlCheckApplicationError
+from .errors import ControlCheckApplicationError, InvalidWorkbookError
 from .config import load_catalogue
 from .ingestion.profile import load_mapping_profile
 from .ingestion.service import SnapshotIngestionService
@@ -206,9 +204,17 @@ def create_app(
     def health_ready():
         checks = {
             "database": "offline_mode",
-            "storage": "unconfigured" if storage is None else "ready",
+            "storage": "unconfigured",
             "catalogue": "loaded" if catalogue.exists() else "missing",
         }
+        not_ready = False
+        if storage is not None:
+            try:
+                storage_ready = storage.is_ready()
+            except Exception:
+                storage_ready = False
+            checks["storage"] = "ready" if storage_ready else "unavailable"
+            not_ready = not_ready or not storage_ready
         if session_factory is not None:
             try:
                 with session_factory() as session:
@@ -216,13 +222,13 @@ def create_app(
                     session.execute(text("SELECT 1"))
                 checks["database"] = "connected"
             except Exception:
-                return JSONResponse(
-                    status_code=503,
-                    content={
-                        "status": "not_ready",
-                        "checks": {**checks, "database": "unreachable"},
-                    },
-                )
+                checks["database"] = "unreachable"
+                not_ready = True
+        if not_ready:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "not_ready", "checks": checks},
+            )
         return {
             "status": "ready",
             "checks": checks,
@@ -307,12 +313,12 @@ def create_app(
             raise HTTPException(422, {"code": "incompatible_artifact_versions", "message": "Incompatible workbook and catalogue versions"})
         except WorkbookSchemaError as exc:
             raise HTTPException(422, {"code": exc.code, "message": str(exc)}) from exc
-        except (BadZipFile, InvalidFileException, ValidationError) as exc:
+        except (InvalidWorkbookError, ValidationError) as exc:
             raise HTTPException(
                 422,
                 {
-                    "code": "invalid_workbook",
-                    "message": "Workbook could not be parsed",
+                    "code": InvalidWorkbookError.code,
+                    "message": InvalidWorkbookError.safe_message,
                 },
             ) from exc
 
@@ -534,10 +540,10 @@ def create_app(
                     )
                 except ControlCheckApplicationError:
                     raise
-                except (BadZipFile, InvalidFileException, ValidationError) as exc:
+                except (InvalidWorkbookError, ValidationError) as exc:
                     raise ControlCheckApplicationError(
-                        "invalid_workbook",
-                        "Workbook could not be parsed",
+                        InvalidWorkbookError.code,
+                        InvalidWorkbookError.safe_message,
                         422,
                     ) from exc
                 except (SQLAlchemyError, OSError) as exc:
@@ -923,6 +929,3 @@ def create_configured_app() -> FastAPI:
         session_factory=create_session_factory(prod_settings.database_url),
         storage=storage,
     )
-
-
-app = create_configured_app()

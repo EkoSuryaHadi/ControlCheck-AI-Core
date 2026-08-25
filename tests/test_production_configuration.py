@@ -1,5 +1,6 @@
 from pathlib import Path
 from shutil import copyfile
+import tomllib
 
 import pytest
 
@@ -22,7 +23,9 @@ def _set_valid_production_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         str(root / "data" / "controlcheck_rule_catalogue_v0.2.json"),
     )
     monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("VERCEL_ENV", raising=False)
     monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME", raising=False)
+    monkeypatch.delenv("ENV", raising=False)
 
 
 def test_complete_production_configuration_is_accepted(monkeypatch) -> None:
@@ -63,6 +66,85 @@ def test_serverless_production_rejects_ephemeral_local_storage(monkeypatch) -> N
 
     with pytest.raises(ValueError, match="durable storage"):
         ProductionSettings.from_env()
+
+
+def test_production_environment_is_trimmed_and_case_normalized(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv("CONTROLCHECK_ENV", "  ProDucTion  ")
+
+    assert ProductionSettings.from_env().env == "production"
+
+
+@pytest.mark.parametrize("value", ["prodution", " "])
+def test_invalid_explicit_environment_fails_closed(monkeypatch, value: str) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv("CONTROLCHECK_ENV", value)
+
+    with pytest.raises(ValueError, match="environment"):
+        ProductionSettings.from_env()
+
+
+def test_controlcheck_environment_takes_precedence_over_legacy_env(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv("CONTROLCHECK_ENV", "test")
+    monkeypatch.setenv("ENV", "production")
+
+    assert ProductionSettings.from_env().env == "test"
+
+
+def test_vercel_production_signal_cannot_be_overridden_by_development(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv("CONTROLCHECK_ENV", "development")
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    monkeypatch.setenv("CONTROLCHECK_JWT_SECRET", "unsafe")
+
+    with pytest.raises(ValueError, match="INSECURE CONFIGURATION"):
+        ProductionSettings.from_env()
+
+
+@pytest.mark.parametrize("indicator", ["VERCEL", "AWS_LAMBDA_FUNCTION_NAME"])
+def test_serverless_without_mode_fails_closed_as_production(
+    monkeypatch, indicator: str
+) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.delenv("CONTROLCHECK_ENV")
+    monkeypatch.setenv(indicator, "present")
+    monkeypatch.setenv("CONTROLCHECK_JWT_SECRET", "unsafe")
+
+    with pytest.raises(ValueError, match="INSECURE CONFIGURATION"):
+        ProductionSettings.from_env()
+
+
+def test_vercel_preview_without_explicit_mode_remains_development(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.delenv("CONTROLCHECK_ENV")
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("VERCEL_ENV", "preview")
+
+    assert ProductionSettings.from_env().env == "development"
+
+
+@pytest.mark.parametrize("value", ["stagin", " "])
+def test_invalid_vercel_environment_fails_closed(monkeypatch, value: str) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.delenv("CONTROLCHECK_ENV")
+    monkeypatch.setenv("VERCEL_ENV", value)
+
+    with pytest.raises(ValueError, match="environment"):
+        ProductionSettings.from_env()
+
+
+def test_production_extra_declares_s3_runtime_dependency() -> None:
+    project = tomllib.loads(
+        (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert any(
+        dependency.lower().startswith("boto3")
+        for dependency in project["project"]["optional-dependencies"]["production"]
+    )
 
 
 def test_production_startup_rejects_missing_catalogue(monkeypatch, tmp_path) -> None:

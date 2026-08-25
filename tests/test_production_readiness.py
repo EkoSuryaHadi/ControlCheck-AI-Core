@@ -5,6 +5,7 @@ from docx import Document
 from fastapi.testclient import TestClient
 
 from controlcheck.api import create_app
+from controlcheck.storage import LocalFileStorage
 from controlcheck.storage_s3 import S3FileStorage
 
 
@@ -38,13 +39,13 @@ def test_health_ready_probe_offline_mode():
     assert data["checks"]["catalogue"] == "loaded"
 
 
-def test_health_ready_does_not_expose_database_failure_details():
+def test_health_ready_does_not_expose_database_failure_details(tmp_path):
     def unavailable_session():
         raise RuntimeError("postgresql://operator:secret@internal/database")
 
     app = create_app(
         session_factory=unavailable_session,
-        storage=S3FileStorage(bucket="unused"),
+        storage=LocalFileStorage(tmp_path),
     )
     client = TestClient(app)
 
@@ -55,6 +56,21 @@ def test_health_ready_does_not_expose_database_failure_details():
     assert response.json()["checks"]["database"] == "unreachable"
     assert "secret" not in response.text
     assert "postgresql" not in response.text
+
+
+def test_health_ready_returns_503_when_storage_adapter_is_unavailable():
+    class UnavailableStorage:
+        def is_ready(self) -> bool:
+            return False
+
+    app = create_app(storage=UnavailableStorage())
+    client = TestClient(app)
+
+    response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "not_ready"
+    assert response.json()["checks"]["storage"] == "unavailable"
 
 
 def test_security_headers_present():

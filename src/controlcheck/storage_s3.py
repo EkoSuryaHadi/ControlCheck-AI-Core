@@ -55,3 +55,22 @@ class S3FileStorage:
     def delete(self, key: str) -> None:
         client = self._get_client()
         client.delete_object(Bucket=self.bucket, Key=key)
+
+    def exists(self, key: str) -> bool:
+        client = self._get_client()
+        try:
+            client.head_object(Bucket=self.bucket, Key=key)
+        except Exception as exc:
+            response = getattr(exc, "response", {})
+            metadata = response.get("ResponseMetadata", {})
+            if metadata.get("HTTPStatusCode") == 404:
+                return False
+            raise
+        return True
+
+    def is_ready(self) -> bool:
+        try:
+            self._get_client().head_bucket(Bucket=self.bucket)
+        except Exception:
+            return False
+        return True
