@@ -8,7 +8,6 @@ docker/
 .github/
 .pytest_cache/
 .venv/
-api/
 alembic/
 *.md
 Dockerfile
@@ -17,6 +16,5 @@ docker-compose.prod.yml
 render.yaml
 alembic.ini
 uv.lock
-pyproject.toml
 .env.example
 .env.production.example

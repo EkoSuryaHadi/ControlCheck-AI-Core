@@ -1,0 +1,51 @@
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _git_check_ignore(tmp_path: Path, paths: list[str]) -> set[str]:
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / ".gitignore").write_text(
+        (ROOT / ".vercelignore").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init", "--quiet"], cwd=bundle, check=True)
+    result = subprocess.run(
+        ["git", "check-ignore", "--stdin"],
+        cwd=bundle,
+        input="\n".join(paths),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return set(result.stdout.splitlines())
+
+
+def test_vercel_routes_api_before_spa_fallback() -> None:
+    config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+
+    assert config["routes"] == [
+        {"src": "/api/(.*)", "dest": "/api/index.py"},
+        {"handle": "filesystem"},
+        {"src": "/(.*)", "dest": "/index.html"},
+    ]
+    assert "api/index.py" in config["functions"]
+
+
+def test_vercel_keeps_python_entrypoint_and_project_metadata(tmp_path: Path) -> None:
+    ignored = _git_check_ignore(
+        tmp_path,
+        [
+            "api/index.py",
+            "pyproject.toml",
+            "data/controlcheck_rule_catalogue_v0.2.json",
+        ],
+    )
+
+    assert ignored == set()

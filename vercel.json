@@ -1,5 +1,13 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 240,
+      "excludeFiles": "{frontend/**,tests/**,docs/**,results/**,validation/**,tools/**,docker/**,build/**,.venv/**,alembic/**,data/*.xlsx,data/*.inspect.ndjson,data/*expected_findings*.json}"
+    }
+  },
   "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
