@@ -199,6 +199,15 @@ def test_complete_production_configuration_is_accepted(monkeypatch) -> None:
     assert settings.cors_origins == ["https://controlcheck.example"]
 
 
+def test_production_defaults_to_four_mib_upload_limit(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.delenv("CONTROLCHECK_MAX_UPLOAD_BYTES", raising=False)
+
+    settings = ProductionSettings.from_env()
+
+    assert settings.max_upload_bytes == 4 * 1024 * 1024
+
+
 @pytest.mark.parametrize(
     ("variable", "value", "message"),
     [

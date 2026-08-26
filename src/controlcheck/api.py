@@ -39,6 +39,7 @@ from .config import load_catalogue
 from .ingestion.profile import load_mapping_profile
 from .ingestion.service import SnapshotIngestionService
 from .loader import WorkbookSchemaError
+from .limits import PUBLIC_BETA_MAX_UPLOAD_BYTES
 from .logging import clear_log_context, configure_logging, get_logger, set_log_context
 from .metrics import metrics_collector
 from .models import AuditResult
@@ -64,7 +65,7 @@ from .versioning import VersionCompatibilityError
 logger = get_logger("api")
 
 
-DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+DEFAULT_MAX_UPLOAD_BYTES = PUBLIC_BETA_MAX_UPLOAD_BYTES
 
 
 def _default_catalogue() -> Path:

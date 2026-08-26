@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .limits import PUBLIC_BETA_MAX_UPLOAD_BYTES
+
 
 _APPLICATION_ENVIRONMENTS = {"development", "test", "production"}
 _VERCEL_ENVIRONMENTS = {"development", "preview", "production"}
@@ -99,7 +101,12 @@ class ProductionSettings:
         cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
         trusted_hosts_raw = os.environ.get("CONTROLCHECK_TRUSTED_HOSTS", "*")
         trusted_hosts = [host.strip() for host in trusted_hosts_raw.split(",") if host.strip()]
-        max_upload = int(os.environ.get("CONTROLCHECK_MAX_UPLOAD_BYTES", 25 * 1024 * 1024))
+        max_upload = int(
+            os.environ.get(
+                "CONTROLCHECK_MAX_UPLOAD_BYTES",
+                PUBLIC_BETA_MAX_UPLOAD_BYTES,
+            )
+        )
         storage_backend = os.environ.get(
             "CONTROLCHECK_STORAGE_BACKEND", "local"
         ).strip().lower()

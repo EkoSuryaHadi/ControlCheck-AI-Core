@@ -40,6 +40,28 @@ def test_audit_rejects_oversize_upload(sample_catalogue):
     assert response.json()["detail"]["code"] == "file_too_large"
 
 
+def test_default_audit_limit_rejects_file_above_four_mib(sample_catalogue):
+    limit = 4 * 1024 * 1024
+    client = TestClient(create_app(sample_catalogue))
+
+    response = client.post(
+        "/v1/audits",
+        files={
+            "file": (
+                "large.xlsx",
+                b"x" * (limit + 1),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == {
+        "code": "file_too_large",
+        "max_bytes": limit,
+    }
+
+
 def test_audit_rejects_malformed_xlsx_without_parser_details(sample_catalogue):
     client = TestClient(create_app(sample_catalogue), raise_server_exceptions=False)
 
