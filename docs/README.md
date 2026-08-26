@@ -24,4 +24,6 @@ Rendered visual-QA previews are stored under `validation/previews/phase4a-docs/`
 
 `ControlCheck_AI_Implementation_Update_v0.6.19.md` records the verified PR 1 consolidation baseline: the accepted v0.6.x product behavior plus governed canonical ingestion, immutable snapshots, database-backed deterministic analysis, production failure hardening, and restored CI gates.
 
-The approved public-beta design is still implementation pending. Clerk, private Vercel Blob, quota, telemetry, feedback, billing, and public-beta UI implementation are deferred to later governed PRs and must not be inferred from the PR 1 baseline.
+The active public-beta release candidate uses **Vercel React + FastAPI** with the topology **browser → Vercel React frontend → Vercel FastAPI Function → Supabase PostgreSQL + private Cloudflare R2**. The initial workbook boundary is **4 MiB**, database migration is an **explicit release step**, and the hosted acceptance flow is **register/login → create project → upload workbook** through findings persistence. Full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred.
+
+`ControlCheck_AI_PRD_v1.2.docx` is the current product requirement authority for this deployment. Earlier versioned PRDs remain immutable historical references.

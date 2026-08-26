@@ -48,7 +48,7 @@ This runbook provides complete operational procedures, configuration requirement
    - `POSTGRES_PASSWORD`: Strong random alphanumeric string (>16 characters).
 2. **CORS Domains Whitelisted**:
    - Set `CONTROLCHECK_CORS_ORIGINS` to exact production domain(s), e.g., `https://app.controlcheck.ai`. Wildcards (`*`) are disallowed with credentials.
-   - Set `CONTROLCHECK_TRUSTED_HOSTS` to exact API hostnames without schemes, e.g., `controlcheck-api.onrender.com`. Missing or wildcard production hosts fail startup.
+   - Set `CONTROLCHECK_TRUSTED_HOSTS` to the exact Vercel hostname without a scheme, e.g., `control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app`. Missing or wildcard production hosts fail startup.
 3. **Database Connectivity & Storage Backend**:
    - Ensure PostgreSQL 16 is provisioned with persistent storage.
    - If using AWS S3 / MinIO, verify bucket existence, IAM credentials, and network egress permissions.
@@ -56,33 +56,33 @@ This runbook provides complete operational procedures, configuration requirement
    - Multi-stage build executed (`Dockerfile`).
    - Verified non-root UID `10001:10001` execution.
 
-## Public Beta Cloud Deployment (Vercel, Render, Supabase, and R2)
+## Public Beta Cloud Deployment (Vercel, Supabase, and R2)
 
-The public-beta architecture is **browser → Vercel frontend → Render Free FastAPI → Supabase Free PostgreSQL plus private Cloudflare R2 Standard object storage**. This hosted path supersedes the self-hosted topology for the beta; retain the Docker instructions below for local and enterprise deployment only.
+The public-beta architecture is **browser → Vercel React frontend → Vercel FastAPI Function → Supabase PostgreSQL + private Cloudflare R2**. This **Vercel React + FastAPI** path supersedes the self-hosted topology for the beta; retain the Docker instructions below for local and enterprise deployment only.
 
 ### Provider responsibilities
 
 | Provider | Responsibility | Locked beta detail |
 |---|---|---|
-| Vercel | Frontend-only React build and static delivery | Exact origin: `https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app`; set `VITE_API_BASE_URL` to Render. |
-| Render | Free FastAPI runtime, migrations, and readiness | Service `controlcheck-api`, Singapore, health path `/health/ready`, trusted host `controlcheck-api.onrender.com`. |
+| Vercel | React delivery and FastAPI Function behind same-origin `/api` | Exact origin: `https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app`; 240-second target duration; Python bundle below 500 MB. |
 | Supabase | Free PostgreSQL persistence | Set `CONTROLCHECK_DATABASE_URL` to the Session Pooler port 5432 connection string. |
 | Cloudflare R2 | Private workbook object storage | Bucket `controlcheck-beta-workbooks`, Standard/private, region `auto`; endpoint and scoped access credentials are dashboard-only secrets. |
 
 ### Provisioning order and secret handling
 
-1. Create the Supabase Free project and obtain the Session Pooler port 5432 database URL.
-2. Create the private R2 Standard bucket `controlcheck-beta-workbooks` in region `auto` and a bucket-scoped read/write credential.
-3. Deploy the Render `controlcheck-api` Blueprint in Singapore; enter `CONTROLCHECK_DATABASE_URL`, R2 endpoint, and R2 credentials only in the Render dashboard, then verify `/health/ready` after migrations.
-4. Set Vercel `VITE_API_BASE_URL` to the Render public URL and redeploy the frontend at the exact beta origin.
+1. Apply Supabase migrations explicitly. This is an **explicit release step** and must finish before deployment.
+2. Create private R2 bucket and scoped credentials for `controlcheck-beta-workbooks` in region `auto`.
+3. Configure Vercel production/preview secrets, including `CONTROLCHECK_DATABASE_URL`, R2 endpoint and credentials, JWT secret, exact CORS origin, and exact trusted host.
+4. Deploy the hybrid Vercel project. Do not set `VITE_API_BASE_URL`; the frontend uses same-origin `/api`.
+5. Verify readiness and register-to-findings persistence.
 
 no secrets appear in source/logs/docs. Do not commit connection strings, R2 endpoints, access keys, secret keys, or generated JWT values. Keep provider-specific values in the corresponding provider dashboard or secret configuration only.
 
 ### Hosted verification, cold start, and recovery
 
-The hosted register-to-findings flow passes only when **register/login → create project → upload workbook → persist workbook in R2 → canonical ingestion and deterministic analysis on Render → persist run/findings/evidence in Supabase → display results in Vercel** completes from the exact beta origin. Confirm uploaded files and results persist across Render restart/cold start and confirm registrations, active users, projects, workbook uploads, and completed analysis runs are measurable from persisted records.
+The hosted register-to-findings flow passes only when **register/login → create project → upload workbook → persist workbook in R2 → canonical ingestion and deterministic analysis in the Vercel FastAPI Function → persist run/findings/evidence in Supabase → display results in Vercel** completes from the exact beta origin. Confirm uploaded files and results persist across Function invocations and deployments, and confirm Registrations, active users, projects, workbook uploads, and completed analysis runs are measurable from persisted records.
 
-Render cold start after idle is expected. If `/health/ready` is temporarily unavailable, wait for the Free service to wake, retry readiness, then log in and verify a previously uploaded workbook and its findings. Supabase Free may pause after low activity and has limited capacity/no managed downloadable backups; when it wakes, repeat readiness and the persistence check. R2 Standard free allowance is used and the bucket remains private. Upgrade when cold starts materially affect user experience, the Supabase database approaches 400 MB, R2 approaches 8 GB, or usage is routine enough to justify an always-on backend. Deferred scope: full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred.
+The initial public beta accepts workbooks up to **4 MiB** because the Vercel request payload limit is 4.5 MB. Production must fail closed if durable database, private R2 storage, catalogue, JWT, CORS, or trusted-host settings are invalid. Supabase Free may pause after low activity and has limited capacity/no managed downloadable backups; when it wakes, repeat readiness and the persistence check. R2 Standard free allowance is used and the bucket remains private. Upgrade when serverless limits materially affect user experience, the Supabase database approaches 400 MB, R2 approaches 8 GB, or usage is routine enough to justify an always-on backend. A future direct-to-R2 upload path can remove the request-body constraint. Deferred scope: Full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred.
 
 ---
 
@@ -112,9 +112,9 @@ curl -i http://localhost/health/ready
 - **Prometheus Metrics**: `GET http://<pod>:8000/metrics` (scrape_interval: 15s)
 - **Pre-sync Hook**: Automatically executed via container `docker/entrypoint.sh` or explicit K8s Job.
 
-### Option C: Render Baseline Manifest
+### Option C: Hybrid Vercel Public Beta
 
-`render.yaml` defines the Render Free `controlcheck-api` web service in Singapore, runs migrations before Uvicorn starts, and probes `/health/ready`. It uses only canonical `CONTROLCHECK_*` application settings. Render generates `CONTROLCHECK_JWT_SECRET`; operators must provide the Supabase Session Pooler URL on port 5432 as `CONTROLCHECK_DATABASE_URL`, the account-specific Cloudflare R2 S3 endpoint as `CONTROLCHECK_S3_ENDPOINT_URL`, and scoped `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` values as secrets. The committed R2 bucket is `controlcheck-beta-workbooks` with region `auto`; the committed exact CORS origin and trusted API host must be changed if the deployed public hostnames differ. Render is treated as a production runtime and cannot start with local storage, wildcard hosts/origins, or missing durable configuration.
+The repository-level `vercel.json` routes `/api/*` to the FastAPI Function before the React SPA fallback. Apply migrations separately, configure durable Supabase and R2 secrets in Vercel, deploy, then verify `/api/health/ready`. Serverless startup never performs schema migration.
 
 ---
 
@@ -162,7 +162,7 @@ Backups are created automatically using `tools/db_backup.sh` and compressed with
 | `/health/ready` returns HTTP 503 (`database: unreachable`) | PostgreSQL container crashed, connection pool exhausted, or invalid DB credentials | 1. Check `docker logs controlcheck-postgres`<br/>2. Verify DB connection string in `.env`<br/>3. Inspect active connections: `SELECT count(*) FROM pg_stat_activity;` |
 | HTTP 429 `Too Many Requests` | Client exceeded Nginx rate limiting thresholds (Auth: 10r/m, API: 50r/s) | Verify if legitimate spike or brute-force attempt. Adjust `limit_req_zone` in `docker/nginx.conf` if needed. |
 | HTTP 401 `invalid_token` on all clients | `CONTROLCHECK_JWT_SECRET` was modified or differs across instances | Ensure consistent JWT secret across all API replica containers. |
-| HTTP 413 `file_too_large` | Excel workbook exceeds 25 MB max limit | Verify client file size or increase `CONTROLCHECK_MAX_UPLOAD_BYTES` and Nginx `client_max_body_size`. |
+| HTTP 413 `file_too_large` | Excel workbook exceeds the 4 MiB public-beta limit | Use a smaller workbook. A future direct-to-R2 upload path will support larger files without passing the workbook body through the Function request. |
 | High CPU during analysis runs | Complex workbook parsing with many WBS nodes | Scale backend worker replicas (`WEB_CONCURRENCY=4`) or configure asynchronous background Celery/RQ workers. |
 
 ---

@@ -19,89 +19,90 @@ def _docx_text(path: Path) -> str:
     return "\n".join(blocks)
 
 
-def test_prd_v11_records_public_beta_cloud_deployment_and_usage_validation() -> None:
-    text = _docx_text(DOCS / "ControlCheck_AI_PRD_v1.1.docx")
+def test_prd_v12_records_vercel_hybrid_public_beta_contract() -> None:
+    text = _docx_text(DOCS / "ControlCheck_AI_PRD_v1.2.docx")
 
     for expected in (
-        "Product Requirements Document v1.1",
-        "Version 1.1 | Public Beta Cloud Deployment & Usage Validation | 26 August 2026",
-        "Phase 10 Public Beta Cloud Deployment & Usage Validation Alignment",
-        "browser → Vercel frontend → Render Free FastAPI → Supabase Free PostgreSQL plus private Cloudflare R2 Standard object storage",
-        "register/login → create project → upload workbook → persist workbook in R2 → canonical ingestion and deterministic analysis on Render → persist run/findings/evidence in Supabase → display results in Vercel",
+        "Product Requirements Document v1.2",
+        "Version 1.2 | Vercel Hybrid Public Beta Deployment | 26 August 2026",
+        "Phase 10 Vercel Hybrid Public Beta Deployment Alignment",
+        "Vercel React + FastAPI",
+        "browser → Vercel React frontend → Vercel FastAPI Function → Supabase PostgreSQL + private Cloudflare R2",
+        "register/login → create project → upload workbook",
+        "4 MiB",
+        "240-second",
+        "500 MB",
+        "explicit release step",
+        "fail closed",
+        "direct-to-R2",
         "hosted register-to-findings flow passes",
-        "uploaded files and results persist across Render restart/cold start",
         "no secrets appear in source/logs/docs",
         "registrations, active users, projects, workbook uploads, and completed analysis runs are measurable from persisted records",
-        "Render cold start after idle",
         "Supabase Free may pause after low activity and has limited capacity/no managed downloadable backups",
         "R2 Standard free allowance is used and the bucket remains private",
         "Supabase database approaches 400 MB",
         "R2 approaches 8 GB",
         "full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred",
-        "Change Log v1.1",
+        "Change Log v1.2",
         "26 Aug 2026",
-        "public-beta cloud architecture and usage validation",
+        "Vercel hybrid public-beta architecture",
     ):
         assert expected in text
+
+    for forbidden in (
+        "Vercel frontend → Render",
+        "Deploy the Render",
+        "persist across Render restart",
+    ):
+        assert forbidden not in text
 
 
 def test_public_beta_operations_docs_record_exact_architecture_and_recovery_contract() -> None:
     runbook = (DOCS / "PRODUCTION_RUNBOOK.md").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    architecture = "browser → Vercel frontend → Render Free FastAPI → Supabase Free PostgreSQL plus private Cloudflare R2 Standard object storage"
+    docs_readme = (DOCS / "README.md").read_text(encoding="utf-8")
+    architecture = "browser → Vercel React frontend → Vercel FastAPI Function → Supabase PostgreSQL + private Cloudflare R2"
 
-    for expected in (
+    required = (
         architecture,
-        "controlcheck-api",
-        "Singapore",
-        "/health/ready",
-        "CONTROLCHECK_DATABASE_URL",
-        "Session Pooler port 5432",
-        "controlcheck-beta-workbooks",
-        "Standard/private",
-        "https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app",
-        "controlcheck-api.onrender.com",
-        "VITE_API_BASE_URL",
-        "Render cold start after idle",
-        "Supabase Free may pause after low activity",
-        "no managed downloadable backups",
-        "private",
-        "no secrets appear in source/logs/docs",
-        "hosted register-to-findings flow passes",
-        "uploaded files and results persist across Render restart/cold start",
-        "Create the Supabase Free project",
-        "Create the private R2 Standard bucket",
-        "Deploy the Render `controlcheck-api` Blueprint",
-        "Set Vercel `VITE_API_BASE_URL`",
-        "registrations, active users, projects, workbook uploads, and completed analysis runs",
-        "region `auto`",
-        "Supabase database approaches 400 MB",
-        "R2 approaches 8 GB",
-        "full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred",
-    ):
-        assert expected in runbook
-
-    for expected in (
-        architecture,
-        "Vercel is frontend-only",
-        "Render Free FastAPI",
-        "Supabase Free PostgreSQL",
-        "Cloudflare R2 Standard",
-        "VITE_API_BASE_URL",
-        "CONTROLCHECK_DATABASE_URL",
-        "controlcheck-beta-workbooks",
-        "Render cold start after idle",
-        "Supabase Free may pause after low activity",
-        "no secrets appear in source/logs/docs",
+        "Vercel React + FastAPI",
+        "Supabase",
+        "Cloudflare R2",
+        "4 MiB",
+        "explicit release step",
         "register/login → create project → upload workbook",
-        "Provision in that order: Supabase database, private R2 bucket and scoped credentials, Render service plus secrets, then Vercel `VITE_API_BASE_URL`",
+        "Apply Supabase migrations explicitly",
+        "Create private R2 bucket and scoped credentials",
+        "Configure Vercel production/preview secrets",
+        "Deploy the hybrid Vercel project",
+        "Verify readiness and register-to-findings persistence",
+        "CONTROLCHECK_DATABASE_URL",
+        "controlcheck-beta-workbooks",
+        "no secrets appear in source/logs/docs",
         "Registrations, active users, projects, workbook uploads, and completed analysis runs",
         "region `auto`",
         "Supabase database approaches 400 MB",
         "R2 approaches 8 GB",
         "Full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred",
-    ):
+    )
+    for document in (runbook, readme, docs_readme):
+        for expected in required[:6]:
+            assert expected in document
+
+    for expected in required[6:]:
+        assert expected in runbook
+    for expected in required[1:6] + required[12:]:
         assert expected in readme
+
+    for forbidden in (
+        "Vercel frontend → Render",
+        "Deploy the Render",
+        "persist across Render restart",
+    ):
+        assert forbidden not in runbook
+        assert forbidden not in readme
+
+    assert not (ROOT / "render.yaml").exists()
 
 
 def test_public_beta_document_generator_and_plan_are_versioned() -> None:
@@ -111,7 +112,7 @@ def test_public_beta_document_generator_and_plan_are_versioned() -> None:
 
 def test_public_beta_prd_generator_is_archive_byte_deterministic() -> None:
     generator = ROOT / "tools" / "update_public_beta_documents.py"
-    target = DOCS / "ControlCheck_AI_PRD_v1.1.docx"
+    target = DOCS / "ControlCheck_AI_PRD_v1.2.docx"
 
     subprocess.run([sys.executable, str(generator)], cwd=ROOT, check=True)
     first = target.read_bytes()
@@ -119,3 +120,4 @@ def test_public_beta_prd_generator_is_archive_byte_deterministic() -> None:
     subprocess.run([sys.executable, str(generator)], cwd=ROOT, check=True)
 
     assert target.read_bytes() == first
+    assert target.name == "ControlCheck_AI_PRD_v1.2.docx"
