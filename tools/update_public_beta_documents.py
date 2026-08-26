@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import os
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from docx import Document
 from docx.document import Document as DocumentObject
@@ -14,6 +16,7 @@ from docx.shared import Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 FIXED_MODIFIED = datetime(2026, 8, 26, tzinfo=timezone.utc)
+FIXED_ZIP_TIMESTAMP = (2026, 8, 26, 0, 0, 0)
 
 
 def _replace(document: DocumentObject, old: str, new: str) -> None:
@@ -73,6 +76,34 @@ def _table(document: DocumentObject, headers: tuple[str, ...], rows: list[tuple[
     document.add_paragraph()
 
 
+def _normalize_docx_archive(path: Path) -> None:
+    """Rewrite the DOCX archive with a fixed member order and metadata."""
+    normalized_path = path.with_name(f"{path.stem}.normalized{path.suffix}")
+    with ZipFile(path, "r") as source, ZipFile(
+        normalized_path,
+        "w",
+        compression=ZIP_DEFLATED,
+        compresslevel=9,
+    ) as target:
+        target.comment = b""
+        for source_info in sorted(source.infolist(), key=lambda item: item.filename):
+            target_info = ZipInfo(source_info.filename, date_time=FIXED_ZIP_TIMESTAMP)
+            target_info.compress_type = ZIP_DEFLATED
+            target_info.create_system = 0
+            target_info.create_version = 20
+            target_info.extract_version = 20
+            target_info.flag_bits = 0
+            target_info.internal_attr = 0
+            target_info.external_attr = 0
+            target.writestr(
+                target_info,
+                source.read(source_info.filename),
+                compress_type=ZIP_DEFLATED,
+                compresslevel=9,
+            )
+    os.replace(normalized_path, path)
+
+
 def build_prd() -> Path:
     target = DOCS / "ControlCheck_AI_PRD_v1.1.docx"
     document = Document(DOCS / "ControlCheck_AI_PRD_v1.0.docx")
@@ -126,6 +157,7 @@ def build_prd() -> Path:
         [("1.1", "26 Aug 2026", "public-beta cloud architecture and usage validation.")],
     )
     document.save(target)
+    _normalize_docx_archive(target)
     return target
 
 

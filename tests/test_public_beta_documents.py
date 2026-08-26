@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
+import sys
+import time
 
 from docx import Document
 
@@ -66,6 +69,15 @@ def test_public_beta_operations_docs_record_exact_architecture_and_recovery_cont
         "no secrets appear in source/logs/docs",
         "hosted register-to-findings flow passes",
         "uploaded files and results persist across Render restart/cold start",
+        "Create the Supabase Free project",
+        "Create the private R2 Standard bucket",
+        "Deploy the Render `controlcheck-api` Blueprint",
+        "Set Vercel `VITE_API_BASE_URL`",
+        "registrations, active users, projects, workbook uploads, and completed analysis runs",
+        "region `auto`",
+        "Supabase database approaches 400 MB",
+        "R2 approaches 8 GB",
+        "full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred",
     ):
         assert expected in runbook
 
@@ -82,6 +94,12 @@ def test_public_beta_operations_docs_record_exact_architecture_and_recovery_cont
         "Supabase Free may pause after low activity",
         "no secrets appear in source/logs/docs",
         "register/login → create project → upload workbook",
+        "Provision in that order: Supabase database, private R2 bucket and scoped credentials, Render service plus secrets, then Vercel `VITE_API_BASE_URL`",
+        "Registrations, active users, projects, workbook uploads, and completed analysis runs",
+        "region `auto`",
+        "Supabase database approaches 400 MB",
+        "R2 approaches 8 GB",
+        "Full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred",
     ):
         assert expected in readme
 
@@ -89,3 +107,15 @@ def test_public_beta_operations_docs_record_exact_architecture_and_recovery_cont
 def test_public_beta_document_generator_and_plan_are_versioned() -> None:
     assert (ROOT / "tools" / "update_public_beta_documents.py").is_file()
     assert (DOCS / "superpowers" / "plans" / "2026-08-26-public-beta-cloud-deployment.md").is_file()
+
+
+def test_public_beta_prd_generator_is_archive_byte_deterministic() -> None:
+    generator = ROOT / "tools" / "update_public_beta_documents.py"
+    target = DOCS / "ControlCheck_AI_PRD_v1.1.docx"
+
+    subprocess.run([sys.executable, str(generator)], cwd=ROOT, check=True)
+    first = target.read_bytes()
+    time.sleep(2.1)
+    subprocess.run([sys.executable, str(generator)], cwd=ROOT, check=True)
+
+    assert target.read_bytes() == first
