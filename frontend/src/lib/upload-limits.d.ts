@@ -4,4 +4,3 @@ export function validatePublicBetaUpload(file: {
   name: string
   size: number
 }): string | null
-

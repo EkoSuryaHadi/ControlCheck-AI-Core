@@ -57,4 +57,3 @@ def test_controlcheck_package_installs_into_isolated_target(tmp_path: Path) -> N
 
     assert result.returncode == 0, result.stderr
     assert (target / "controlcheck" / "asgi.py").is_file()
-

@@ -6,4 +6,3 @@ export function validatePublicBetaUpload(file) {
   }
   return null
 }
-
