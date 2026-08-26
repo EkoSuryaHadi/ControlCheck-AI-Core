@@ -56,6 +56,34 @@ This runbook provides complete operational procedures, configuration requirement
    - Multi-stage build executed (`Dockerfile`).
    - Verified non-root UID `10001:10001` execution.
 
+## Public Beta Cloud Deployment (Vercel, Render, Supabase, and R2)
+
+The public-beta architecture is **browser → Vercel frontend → Render Free FastAPI → Supabase Free PostgreSQL plus private Cloudflare R2 Standard object storage**. This hosted path supersedes the self-hosted topology for the beta; retain the Docker instructions below for local and enterprise deployment only.
+
+### Provider responsibilities
+
+| Provider | Responsibility | Locked beta detail |
+|---|---|---|
+| Vercel | Frontend-only React build and static delivery | Exact origin: `https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app`; set `VITE_API_BASE_URL` to Render. |
+| Render | Free FastAPI runtime, migrations, and readiness | Service `controlcheck-api`, Singapore, health path `/health/ready`, trusted host `controlcheck-api.onrender.com`. |
+| Supabase | Free PostgreSQL persistence | Set `CONTROLCHECK_DATABASE_URL` to the Session Pooler port 5432 connection string. |
+| Cloudflare R2 | Private workbook object storage | Bucket `controlcheck-beta-workbooks`, Standard/private, region `auto`; endpoint and scoped access credentials are dashboard-only secrets. |
+
+### Provisioning order and secret handling
+
+1. Create the Supabase Free project and obtain the Session Pooler port 5432 database URL.
+2. Create the private R2 Standard bucket `controlcheck-beta-workbooks` in region `auto` and a bucket-scoped read/write credential.
+3. Deploy the Render `controlcheck-api` Blueprint in Singapore; enter `CONTROLCHECK_DATABASE_URL`, R2 endpoint, and R2 credentials only in the Render dashboard, then verify `/health/ready` after migrations.
+4. Set Vercel `VITE_API_BASE_URL` to the Render public URL and redeploy the frontend at the exact beta origin.
+
+no secrets appear in source/logs/docs. Do not commit connection strings, R2 endpoints, access keys, secret keys, or generated JWT values. Keep provider-specific values in the corresponding provider dashboard or secret configuration only.
+
+### Hosted verification, cold start, and recovery
+
+The hosted register-to-findings flow passes only when **register/login → create project → upload workbook → persist workbook in R2 → canonical ingestion and deterministic analysis on Render → persist run/findings/evidence in Supabase → display results in Vercel** completes from the exact beta origin. Confirm uploaded files and results persist across Render restart/cold start and confirm registrations, active users, projects, workbook uploads, and completed analysis runs are measurable from persisted records.
+
+Render cold start after idle is expected. If `/health/ready` is temporarily unavailable, wait for the Free service to wake, retry readiness, then log in and verify a previously uploaded workbook and its findings. Supabase Free may pause after low activity and has limited capacity/no managed downloadable backups; when it wakes, repeat readiness and the persistence check. R2 Standard free allowance is used and the bucket remains private. Upgrade when cold starts materially affect user experience, the Supabase database approaches 400 MB, R2 approaches 8 GB, or usage is routine enough to justify an always-on backend. Full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred.
+
 ---
 
 ## 3. Deployment Procedures

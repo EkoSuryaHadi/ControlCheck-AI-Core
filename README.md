@@ -14,6 +14,23 @@ This baseline is **not the public-beta implementation and is not public-launch r
 
 ---
 
+## Public Beta Cloud Deployment Contract
+
+The public-beta architecture is **browser → Vercel frontend → Render Free FastAPI → Supabase Free PostgreSQL plus private Cloudflare R2 Standard object storage**. Vercel is frontend-only and receives the Render API base URL through `VITE_API_BASE_URL`; it does not host the FastAPI service.
+
+Provider responsibilities are deliberately narrow:
+
+- **Vercel:** builds and serves the React frontend using the exact beta origin `https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app`.
+- **Render Free FastAPI:** runs the Singapore `controlcheck-api` service, performs migrations before startup, and exposes `/health/ready` at the trusted host `controlcheck-api.onrender.com`.
+- **Supabase Free PostgreSQL:** stores accounts, projects, analysis runs, findings, evidence, and measurement records through the `CONTROLCHECK_DATABASE_URL` Session Pooler connection on port 5432.
+- **Cloudflare R2 Standard:** retains uploaded workbooks in the private `controlcheck-beta-workbooks` bucket (region `auto`) using dashboard-only endpoint and scoped credential secrets.
+
+Hosted data flow is **register/login → create project → upload workbook → persist workbook in R2 → canonical ingestion and deterministic analysis on Render → persist run/findings/evidence in Supabase → display results in Vercel**. Provision in that order: Supabase database, private R2 bucket and scoped credentials, Render service plus secrets, then Vercel `VITE_API_BASE_URL` and redeploy. Keep all connection strings, keys, and endpoints that identify an account in provider dashboards or deployment secrets only: no secrets appear in source/logs/docs.
+
+The beta must demonstrate that the hosted register-to-findings flow passes and that uploaded files and results persist across Render restart/cold start. Render cold start after idle and Supabase Free may pause after low activity; a readiness failure should be retried after the service wakes, then verified by logging in, opening a project, and loading prior findings. Supabase Free has limited capacity/no managed downloadable backups. Upgrade if cold starts materially affect user experience, the Supabase database approaches 400 MB, R2 approaches 8 GB, or routine usage warrants an always-on backend. Full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred.
+
+---
+
 ## 🏛️ Platform Architecture
 
 ```
