@@ -86,7 +86,7 @@ curl -i http://localhost/health/ready
 
 ### Option C: Render Baseline Manifest
 
-`render.yaml` uses only canonical `CONTROLCHECK_*` application settings. Render generates `CONTROLCHECK_JWT_SECRET`; operators must provide `CONTROLCHECK_DATABASE_URL`, `CONTROLCHECK_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` as secret values before deployment. The committed exact CORS origin and trusted API host must be changed if the deployed public hostnames differ. Render is treated as a production runtime and cannot start with local storage, wildcard hosts/origins, or missing durable configuration.
+`render.yaml` defines the Render Free `controlcheck-api` web service in Singapore, runs migrations before Uvicorn starts, and probes `/health/ready`. It uses only canonical `CONTROLCHECK_*` application settings. Render generates `CONTROLCHECK_JWT_SECRET`; operators must provide the Supabase Session Pooler URL on port 5432 as `CONTROLCHECK_DATABASE_URL`, the account-specific Cloudflare R2 S3 endpoint as `CONTROLCHECK_S3_ENDPOINT_URL`, and scoped `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` values as secrets. The committed R2 bucket is `controlcheck-beta-workbooks` with region `auto`; the committed exact CORS origin and trusted API host must be changed if the deployed public hostnames differ. Render is treated as a production runtime and cannot start with local storage, wildcard hosts/origins, or missing durable configuration.
 
 ---
 

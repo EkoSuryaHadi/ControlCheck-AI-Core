@@ -6,7 +6,7 @@ services:
     plan: free
     buildCommand: "pip install --upgrade pip && pip install -e ."
     startCommand: "alembic upgrade head && uvicorn controlcheck.asgi:app --host 0.0.0.0 --port $PORT"
-    healthCheckPath: /health
+    healthCheckPath: /health/ready
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
@@ -20,15 +20,17 @@ services:
       - key: CONTROLCHECK_DATABASE_URL
         sync: false
       - key: CONTROLCHECK_CORS_ORIGINS
-        value: https://app.controlcheck.ai
+        value: https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app
       - key: CONTROLCHECK_TRUSTED_HOSTS
         value: controlcheck-api.onrender.com
       - key: CONTROLCHECK_STORAGE_BACKEND
         value: s3
       - key: CONTROLCHECK_S3_BUCKET
-        sync: false
+        value: controlcheck-beta-workbooks
       - key: CONTROLCHECK_S3_REGION
-        value: ap-southeast-1
+        value: auto
+      - key: CONTROLCHECK_S3_ENDPOINT_URL
+        sync: false
       - key: AWS_ACCESS_KEY_ID
         sync: false
       - key: AWS_SECRET_ACCESS_KEY

@@ -53,7 +53,9 @@ def test_render_manifest_uses_canonical_fail_closed_production_configuration(
         "CONTROLCHECK_S3_BUCKET",
     }.issubset(by_name)
     assert {"ENVIRONMENT", "SECRET_KEY", "CORS_ORIGINS"}.isdisjoint(by_name)
-    assert by_name["CONTROLCHECK_CORS_ORIGINS"]["value"] == "https://app.controlcheck.ai"
+    assert by_name["CONTROLCHECK_CORS_ORIGINS"]["value"] == (
+        "https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app"
+    )
     assert by_name["CONTROLCHECK_TRUSTED_HOSTS"]["value"] == "controlcheck-api.onrender.com"
     assert by_name["CONTROLCHECK_STORAGE_BACKEND"]["value"] == "s3"
 
@@ -68,13 +70,61 @@ def test_render_manifest_uses_canonical_fail_closed_production_configuration(
         "CONTROLCHECK_DATABASE_URL",
         "postgresql+psycopg://controlcheck:controlcheck@database/controlcheck",
     )
-    monkeypatch.setenv("CONTROLCHECK_S3_BUCKET", "controlcheck-render-uploads")
+    monkeypatch.setenv("CONTROLCHECK_S3_BUCKET", "controlcheck-beta-workbooks")
 
     settings = ProductionSettings.from_env()
 
     assert settings.env == "production"
     assert settings.storage_backend == "s3"
     assert settings.trusted_hosts == ["controlcheck-api.onrender.com"]
+
+
+def test_render_manifest_matches_the_public_beta_runtime_contract() -> None:
+    root = Path(__file__).resolve().parents[1]
+    manifest = yaml.safe_load((root / "render.yaml").read_text(encoding="utf-8"))
+    service = manifest["services"][0]
+    by_name = {item["key"]: item for item in service["envVars"]}
+
+    assert {
+        "type": "web",
+        "name": "controlcheck-api",
+        "region": "singapore",
+        "plan": "free",
+        "buildCommand": "pip install --upgrade pip && pip install -e .",
+        "startCommand": "alembic upgrade head && uvicorn controlcheck.asgi:app --host 0.0.0.0 --port $PORT",
+        "healthCheckPath": "/health/ready",
+    }.items() <= service.items()
+    assert by_name["CONTROLCHECK_CORS_ORIGINS"]["value"] == (
+        "https://control-check-ai-git-codex-public-8a91d7-ekosuryahadis-projects.vercel.app"
+    )
+    assert by_name["CONTROLCHECK_TRUSTED_HOSTS"]["value"] == (
+        "controlcheck-api.onrender.com"
+    )
+    assert by_name["CONTROLCHECK_STORAGE_BACKEND"]["value"] == "s3"
+    assert by_name["CONTROLCHECK_S3_BUCKET"]["value"] == "controlcheck-beta-workbooks"
+    assert by_name["CONTROLCHECK_S3_REGION"]["value"] == "auto"
+    assert by_name["CONTROLCHECK_S3_ENDPOINT_URL"] == {
+        "key": "CONTROLCHECK_S3_ENDPOINT_URL",
+        "sync": False,
+    }
+    assert by_name["CONTROLCHECK_DATABASE_URL"] == {
+        "key": "CONTROLCHECK_DATABASE_URL",
+        "sync": False,
+    }
+    assert by_name["AWS_ACCESS_KEY_ID"] == {
+        "key": "AWS_ACCESS_KEY_ID",
+        "sync": False,
+    }
+    assert by_name["AWS_SECRET_ACCESS_KEY"] == {
+        "key": "AWS_SECRET_ACCESS_KEY",
+        "sync": False,
+    }
+    assert by_name["CONTROLCHECK_JWT_SECRET"] == {
+        "key": "CONTROLCHECK_JWT_SECRET",
+        "generateValue": True,
+    }
+    assert "*" not in by_name["CONTROLCHECK_CORS_ORIGINS"]["value"]
+    assert "*" not in by_name["CONTROLCHECK_TRUSTED_HOSTS"]["value"]
 
 
 def test_render_runtime_without_explicit_mode_fails_closed(monkeypatch) -> None:
@@ -168,6 +218,14 @@ def test_incomplete_production_configuration_fails_closed(
         monkeypatch.setenv(variable, value)
 
     with pytest.raises(ValueError, match=message):
+        ProductionSettings.from_env()
+
+
+def test_production_settings_rejects_wildcard_cors_patterns(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv("CONTROLCHECK_CORS_ORIGINS", "https://*.vercel.app")
+
+    with pytest.raises(ValueError, match="CORS"):
         ProductionSettings.from_env()
 
 

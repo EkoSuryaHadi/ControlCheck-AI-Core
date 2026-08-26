@@ -124,7 +124,7 @@ class ProductionSettings:
                 raise ValueError(
                     "INSECURE CONFIGURATION: a production database URL is required."
                 )
-            if not cors_origins or "*" in cors_origins:
+            if not cors_origins or any("*" in origin for origin in cors_origins):
                 raise ValueError(
                     "INSECURE CONFIGURATION: production CORS origins must be explicit."
                 )
