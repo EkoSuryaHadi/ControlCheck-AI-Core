@@ -684,14 +684,21 @@ def create_app(
                             f"Upload exceeds the {max_upload_bytes} byte limit",
                             413,
                         )
-                run = analysis_service.run(
-                    tenant.organization_id,
-                    project_id,
-                    file.filename,
-                    file.content_type or "application/octet-stream",
-                    bytes(data),
-                    idempotency_key=x_idempotency_key,
-                )
+                try:
+                    run = analysis_service.run(
+                        tenant.organization_id,
+                        project_id,
+                        file.filename,
+                        file.content_type or "application/octet-stream",
+                        bytes(data),
+                        idempotency_key=x_idempotency_key,
+                    )
+                except (InvalidWorkbookError, ValidationError) as exc:
+                    raise ControlCheckApplicationError(
+                        InvalidWorkbookError.code,
+                        InvalidWorkbookError.safe_message,
+                        422,
+                    ) from exc
                 return AnalysisRunResponse.model_validate(run)
 
         @application.get(

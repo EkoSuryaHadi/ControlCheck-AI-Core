@@ -66,3 +66,24 @@ def test_analysis_upload_returns_project_mismatch_error(analysis_client, project
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "workbook_project_mismatch"
+
+
+def test_analysis_upload_rejects_invalid_workbook_safely(analysis_client):
+    client, golden_id, _ = analysis_client
+
+    response = client.post(
+        f"/v1/projects/{golden_id}/analysis-runs",
+        headers={"X-Organization-ID": str(ORG_ID)},
+        files={
+            "file": (
+                "invalid.xlsx",
+                b"this is not an xlsx zip archive",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_workbook"
+    assert response.json()["error"]["message"] == "Workbook could not be parsed"
+    assert "zip" not in response.text.lower()
