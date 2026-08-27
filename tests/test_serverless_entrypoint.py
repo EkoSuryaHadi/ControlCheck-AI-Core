@@ -21,15 +21,16 @@ def _load_entrypoint() -> dict[str, object]:
     return runpy.run_path(str(ENTRYPOINT), run_name="controlcheck_serverless_test")
 
 
-def test_serverless_entrypoint_does_not_mutate_sys_path(monkeypatch) -> None:
+def test_serverless_entrypoint_bootstraps_source_package_once(monkeypatch) -> None:
     source_root = str(ENTRYPOINT.parents[1] / "src")
     isolated_path = [entry for entry in sys.path if entry != source_root]
     monkeypatch.setattr(sys, "path", isolated_path.copy())
-    before = sys.path.copy()
 
     _load_entrypoint()
+    _load_entrypoint()
 
-    assert sys.path == before
+    assert sys.path[0] == source_root
+    assert sys.path.count(source_root) == 1
 
 
 def test_serverless_entrypoint_creates_one_configured_application(monkeypatch) -> None:
