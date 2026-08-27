@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useProject } from "@/context/ProjectContext"
 import { api, ClosureReadiness } from "@/lib/api"
-import { INITIAL_FINDINGS } from "./FindingsPage"
+import { resolveServerFinding } from "@/lib/finding-source.js"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
 import { trackEvent } from "@/lib/analytics"
 import { createAction, getActionsForFinding, FindingAction, ActionPriority } from "@/lib/actionStore"
@@ -45,9 +45,7 @@ export const FindingDetailV2Page: React.FC = () => {
   const [notes, setNotes] = useState("")
 
   const finding: any = useMemo(
-    () => liveFindings.find((f: any) => f.id === findingId || f.rule_id === findingId)
-      || (!isUuid(findingId || "") ? INITIAL_FINDINGS.find((f: any) => f.id === findingId) : undefined)
-      || {
+    () => resolveServerFinding(liveFindings, findingId) || {
         id: findingId || "unknown",
         title: "Finding details",
         severity: "observation",

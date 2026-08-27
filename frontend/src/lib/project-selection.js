@@ -4,3 +4,7 @@ export function projectIdToPersist(projectId) {
   if (!projectId || projectId === DEMO_PROJECT_ID) return null
   return projectId
 }
+
+export function initialProjectWorkspace() {
+  return { projects: [], currentProject: null, healthData: null }
+}

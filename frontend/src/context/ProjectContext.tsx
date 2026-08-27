@@ -3,7 +3,7 @@ import { api, Project, AnalysisRun, HealthSnapshot, Finding } from "@/lib/api"
 import { useAuth } from "./AuthContext"
 import { trackEvent } from "@/lib/analytics"
 import { mapHealthSnapshot } from "@/lib/health"
-import { projectIdToPersist } from "@/lib/project-selection.js"
+import { initialProjectWorkspace, projectIdToPersist } from "@/lib/project-selection.js"
 
 interface ProjectContextType {
   projects: Project[]
@@ -17,30 +17,6 @@ interface ProjectContextType {
   refreshProjects: () => Promise<void>
   refreshHealthAndFindings: () => Promise<void>
   uploadWorkbook: (file: File) => Promise<AnalysisRun | null>
-}
-
-export const DEMO_PROJECT: Project = {
-  id: "demo-prj-001",
-  organization_id: "demo-org-001",
-  code: "GCF-EXP-01",
-  name: "Gas Compression Facility Expansion",
-  client_name: "PT Energi Nusantara",
-  currency: "IDR",
-  status: "active",
-}
-
-export const DEMO_HEALTH: HealthSnapshot = {
-  overall_score: 68,
-  cost_score: 58,
-  schedule_score: 71,
-  progress_score: 67,
-  data_quality_score: 92,
-  status_label: "MODERATE",
-  critical_findings_count: 17,
-  warning_findings_count: 23,
-  observation_findings_count: 12,
-  score_band: "Needs Attention",
-  data_date: "2024-10-28",
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
@@ -61,10 +37,11 @@ const latestSuccessfulRun = (runs: AnalysisRun[]): AnalysisRun | null => {
 
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { orgId, isAuthenticated } = useAuth()
-  const [projects, setProjects] = useState<Project[]>([DEMO_PROJECT])
-  const [currentProject, setCurrentProject] = useState<Project | null>(DEMO_PROJECT)
+  const initialWorkspace = initialProjectWorkspace()
+  const [projects, setProjects] = useState<Project[]>(initialWorkspace.projects)
+  const [currentProject, setCurrentProject] = useState<Project | null>(initialWorkspace.currentProject)
   const [currentRun, setCurrentRun] = useState<AnalysisRun | null>(null)
-  const [healthData, setHealthData] = useState<HealthSnapshot | null>(DEMO_HEALTH)
+  const [healthData, setHealthData] = useState<HealthSnapshot | null>(initialWorkspace.healthData)
   const [liveFindings, setLiveFindings] = useState<Finding[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)

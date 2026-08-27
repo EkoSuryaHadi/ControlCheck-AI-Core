@@ -83,7 +83,7 @@ export const OnboardingPage: React.FC = () => {
           </div>
 
           <div className="mt-7 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <button type="button" onClick={() => navigate("/dashboard")} className="text-sm font-semibold text-slate-500 hover:text-slate-900">Skip and explore demo workspace</button>
+            <button type="button" onClick={() => navigate("/demo")} className="text-sm font-semibold text-slate-500 hover:text-slate-900">Skip and explore public demo</button>
             <button disabled={isSaving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">
               {isSaving ? "Creating project..." : "Create Project & Upload Data"} <ArrowRight className="h-4 w-4" />
             </button>

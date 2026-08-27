@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
 import { useProject } from "@/context/ProjectContext"
+import { serverFindings } from "@/lib/finding-source.js"
 import { Search, ArrowRight, ShieldCheck, FileCheck2, CheckCircle2 } from "lucide-react"
 
 export const INITIAL_FINDINGS = [
@@ -37,7 +38,7 @@ export const INITIAL_FINDINGS = [
 
 export const FindingsPage: React.FC = () => {
   const navigate = useNavigate()
-  const { currentProject, liveFindings, refreshHealthAndFindings } = useProject()
+  const { liveFindings, refreshHealthAndFindings } = useProject()
   const [searchTerm, setSearchTerm] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -47,7 +48,7 @@ export const FindingsPage: React.FC = () => {
     void refreshHealthAndFindings()
   }, [refreshHealthAndFindings])
 
-  const sourceFindings = currentProject?.id === "demo-prj-001" ? INITIAL_FINDINGS : liveFindings
+  const sourceFindings = serverFindings(liveFindings)
 
   const filteredFindings = useMemo(() => sourceFindings.filter((f: any) => {
     const title = String(f.title || "")
