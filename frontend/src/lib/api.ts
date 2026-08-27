@@ -1,5 +1,6 @@
 import axios from "axios"
 import { resolveApiBaseUrl } from "./api-base-url.js"
+import { collectFindingPages } from "./findings-pagination.js"
 
 const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL as string | undefined)
 
@@ -115,7 +116,10 @@ export const api = {
       return (await apiClient.post(`/v1/projects/${projectId}/analysis-runs`, formData, { headers })).data
     },
     getHealth: async (runId: string) => (await apiClient.get(`/v1/analysis-runs/${runId}/health`)).data,
-    getFindings: async (runId: string, params?: { severity?: string; category?: string; status?: string }) => (await apiClient.get(`/v1/analysis-runs/${runId}/findings`, { params })).data,
+    getFindings: async (runId: string, params?: { severity?: string; category?: string; status?: string }) => collectFindingPages<Finding>(
+      async (pageParams: Record<string, unknown>) => (await apiClient.get(`/v1/analysis-runs/${runId}/findings`, { params: pageParams })).data,
+      params,
+    ),
   },
   findings: {
     updateStatus: async (findingId: string, status: string) => (await apiClient.patch(`/v1/findings/${findingId}/status`, { status })).data,

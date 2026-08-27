@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
 import { useProject } from "@/context/ProjectContext"
-import { Search, ChevronLeft, ChevronRight, ArrowRight, ShieldCheck, FileCheck2, CheckCircle2 } from "lucide-react"
+import { Search, ArrowRight, ShieldCheck, FileCheck2, CheckCircle2 } from "lucide-react"
 
 export const INITIAL_FINDINGS = [
   {
@@ -37,7 +37,7 @@ export const INITIAL_FINDINGS = [
 
 export const FindingsPage: React.FC = () => {
   const navigate = useNavigate()
-  const { liveFindings, refreshHealthAndFindings } = useProject()
+  const { currentProject, liveFindings, refreshHealthAndFindings } = useProject()
   const [searchTerm, setSearchTerm] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -47,7 +47,7 @@ export const FindingsPage: React.FC = () => {
     void refreshHealthAndFindings()
   }, [refreshHealthAndFindings])
 
-  const sourceFindings = liveFindings.length > 0 ? liveFindings : INITIAL_FINDINGS
+  const sourceFindings = currentProject?.id === "demo-prj-001" ? INITIAL_FINDINGS : liveFindings
 
   const filteredFindings = useMemo(() => sourceFindings.filter((f: any) => {
     const title = String(f.title || "")
@@ -141,11 +141,7 @@ export const FindingsPage: React.FC = () => {
 
       <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
         <span>Showing <strong className="text-slate-900">{filteredFindings.length}</strong> findings</span>
-        <div className="flex items-center gap-1">
-          <button className="rounded p-1 hover:bg-slate-200"><ChevronLeft className="h-4 w-4" /></button>
-          <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-600 font-bold text-white">1</span>
-          <button className="rounded p-1 hover:bg-slate-200"><ChevronRight className="h-4 w-4" /></button>
-        </div>
+        <span>All matching findings loaded</span>
       </div>
     </div>
   )

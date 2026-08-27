@@ -46,8 +46,14 @@ export const FindingDetailV2Page: React.FC = () => {
 
   const finding: any = useMemo(
     () => liveFindings.find((f: any) => f.id === findingId || f.rule_id === findingId)
-      || INITIAL_FINDINGS.find((f: any) => f.id === findingId)
-      || INITIAL_FINDINGS[0],
+      || (!isUuid(findingId || "") ? INITIAL_FINDINGS.find((f: any) => f.id === findingId) : undefined)
+      || {
+        id: findingId || "unknown",
+        title: "Finding details",
+        severity: "observation",
+        status: "open",
+        description: "Loading the server-backed finding details.",
+      },
     [findingId, liveFindings],
   )
 

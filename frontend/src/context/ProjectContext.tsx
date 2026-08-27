@@ -3,6 +3,7 @@ import { api, Project, AnalysisRun, HealthSnapshot, Finding } from "@/lib/api"
 import { useAuth } from "./AuthContext"
 import { trackEvent } from "@/lib/analytics"
 import { mapHealthSnapshot } from "@/lib/health"
+import { projectIdToPersist } from "@/lib/project-selection.js"
 
 interface ProjectContextType {
   projects: Project[]
@@ -165,7 +166,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     if (currentProject) {
-      localStorage.setItem("controlcheck_current_project_id", currentProject.id)
+      const projectId = projectIdToPersist(currentProject.id)
+      if (projectId) localStorage.setItem("controlcheck_current_project_id", projectId)
       refreshHealthAndFindings()
     }
   }, [currentProject, refreshHealthAndFindings])
