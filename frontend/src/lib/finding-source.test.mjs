@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { resolveServerFinding, serverFindings } from "./finding-source.js"
+import { resolveFindingEvidence, resolveServerFinding, serverFindings } from "./finding-source.js"
 
 test("protected findings use only records returned by the server", () => {
   const live = [{ id: "server-1", title: "Server finding" }]
@@ -17,4 +17,9 @@ test("resolves a real finding by persistent ID or rule ID", () => {
   const finding = { id: "uuid-1", rule_id: "CST-001" }
   assert.equal(resolveServerFinding([finding], "uuid-1"), finding)
   assert.equal(resolveServerFinding([finding], "CST-001"), finding)
+})
+
+test("unknown protected findings never receive fabricated evidence", () => {
+  assert.deepEqual(resolveFindingEvidence(null, [], false), [])
+  assert.deepEqual(resolveFindingEvidence({ id: "unknown" }, undefined, false), [])
 })

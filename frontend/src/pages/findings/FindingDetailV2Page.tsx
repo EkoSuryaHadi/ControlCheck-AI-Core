@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useProject } from "@/context/ProjectContext"
 import { api, ClosureReadiness } from "@/lib/api"
-import { resolveServerFinding } from "@/lib/finding-source.js"
+import { resolveFindingEvidence, resolveServerFinding } from "@/lib/finding-source.js"
 import { SeverityBadge, StatusBadge } from "@/components/ui/Badges"
 import { trackEvent } from "@/lib/analytics"
 import { createAction, getActionsForFinding, FindingAction, ActionPriority } from "@/lib/actionStore"
@@ -98,14 +98,7 @@ export const FindingDetailV2Page: React.FC = () => {
     return () => window.removeEventListener("controlcheck-actions-updated", syncLocal)
   }, [finding, canonicalFindingId, serverBacked, refreshClosure])
 
-  const fallbackEvidence = [
-    { source_sheet: "Actual_Cost", source_rows: [142], fields: { WBS: finding.wbs || "03.02", Amount: finding.actual || "Rp 958,400,000", Source: "Actual Cost Register" } },
-    { source_sheet: "Budget", source_rows: [12], fields: { WBS: finding.wbs || "03.02", BAC: finding.budget || "Rp 771,000,000", Source: "Approved Baseline" } },
-    { source_sheet: "Commitment", source_rows: [37], fields: { WBS: finding.wbs || "03.02", PO: "PO-23017", Source: "PO Register" } },
-  ]
-  const evidenceItems = serverBacked
-    ? evidence
-    : (finding.evidence_records?.length ? finding.evidence_records : fallbackEvidence)
+  const evidenceItems = resolveFindingEvidence(finding, evidence, serverBacked)
   const why = finding.ai_summary || finding.description || "This finding crossed the configured project-control threshold and requires review against its supporting records."
   const impact = finding.potential_impact || finding.business_impact || finding.impact || "Potential project impact requires review."
   const action = finding.recommendation || "Validate the source evidence, confirm the project impact, assign an owner, and agree the corrective action."

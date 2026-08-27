@@ -7,3 +7,8 @@ export function resolveServerFinding(liveFindings, findingId) {
     (finding) => finding.id === findingId || finding.rule_id === findingId,
   ) || null
 }
+
+export function resolveFindingEvidence(finding, loadedEvidence, serverBacked) {
+  if (serverBacked) return Array.isArray(loadedEvidence) ? loadedEvidence : []
+  return Array.isArray(finding?.evidence_records) ? finding.evidence_records : []
+}
