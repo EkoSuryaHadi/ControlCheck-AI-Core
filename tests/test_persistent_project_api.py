@@ -73,3 +73,31 @@ def test_project_create_and_list_are_tenant_scoped(persistent_client):
     )
     assert listed.status_code == 200
     assert [item["id"] for item in listed.json()["items"]] == [payload["id"]]
+
+
+def test_project_delete_is_tenant_scoped_and_removes_project(persistent_client):
+    created = persistent_client.post(
+        f"/v1/organizations/{ORG_ID}/projects",
+        headers=tenant_headers(),
+        json={"code": "PRJ-CCAI-DELETE", "name": "Delete Me", "currency": "IDR"},
+    )
+    project_id = created.json()["id"]
+
+    deleted = persistent_client.delete(f"/v1/projects/{project_id}", headers=tenant_headers())
+
+    assert deleted.status_code == 204
+    listed = persistent_client.get(f"/v1/organizations/{ORG_ID}/projects", headers=tenant_headers())
+    assert listed.json()["items"] == []
+
+
+def test_project_delete_rejects_other_tenant(persistent_client):
+    created = persistent_client.post(
+        f"/v1/organizations/{ORG_ID}/projects",
+        headers=tenant_headers(),
+        json={"code": "PRJ-CCAI-DELETE-2", "name": "Keep Me", "currency": "IDR"},
+    )
+    project_id = created.json()["id"]
+
+    response = persistent_client.delete(f"/v1/projects/{project_id}", headers=tenant_headers(OTHER_ORG_ID))
+
+    assert response.status_code == 404

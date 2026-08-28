@@ -112,6 +112,7 @@ export const api = {
   projects: {
     list: async (orgId: string) => (await apiClient.get(`/v1/organizations/${orgId}/projects`)).data,
     create: async (orgId: string, data: { code: string; name: string; currency?: string }) => (await apiClient.post(`/v1/organizations/${orgId}/projects`, data)).data,
+    remove: async (projectId: string) => (await apiClient.delete(`/v1/projects/${projectId}`)).data,
   },
   runs: {
     list: async (projectId: string) => (await apiClient.get(`/v1/projects/${projectId}/analysis-runs`)).data,

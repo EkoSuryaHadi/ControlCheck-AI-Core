@@ -580,6 +580,16 @@ def create_app(
                     has_more=(offset + len(projects) < total),
                 )
 
+        @application.delete("/v1/projects/{project_id}", status_code=204)
+        def delete_project(
+            project_id: UUID,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> None:
+            with session_factory() as session:
+                if not ProjectRepository(session).delete_scoped(tenant.organization_id, project_id):
+                    raise ControlCheckApplicationError("project_not_found", "Project was not found", 404)
+                session.commit()
+
         if storage is not None:
             analysis_service = AnalysisService(session_factory, storage, catalogue)
             mapping_profile = load_mapping_profile(

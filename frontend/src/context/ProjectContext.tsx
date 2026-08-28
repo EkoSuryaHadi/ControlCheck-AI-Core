@@ -14,6 +14,7 @@ interface ProjectContextType {
   isLoading: boolean
   isUploading: boolean
   setCurrentProject: (project: Project) => void
+  removeProject: (projectId: string) => void
   refreshProjects: () => Promise<void>
   refreshHealthAndFindings: () => Promise<void>
   uploadWorkbook: (file: File) => Promise<AnalysisRun | null>
@@ -137,6 +138,15 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }
 
+  const removeProject = (projectId: string) => {
+    setProjects((current) => {
+      const remaining = current.filter((project) => project.id !== projectId)
+      setCurrentProject((selected) => selected?.id === projectId ? (remaining[0] || null) : selected)
+      if (remaining.length === 0) localStorage.removeItem("controlcheck_current_project_id")
+      return remaining
+    })
+  }
+
   useEffect(() => {
     if (isAuthenticated && orgId) refreshProjects()
   }, [isAuthenticated, orgId, refreshProjects])
@@ -150,7 +160,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [currentProject, refreshHealthAndFindings])
 
   return (
-    <ProjectContext.Provider value={{ projects, currentProject, currentRun, healthData, liveFindings, isLoading, isUploading, setCurrentProject, refreshProjects, refreshHealthAndFindings, uploadWorkbook }}>
+    <ProjectContext.Provider value={{ projects, currentProject, currentRun, healthData, liveFindings, isLoading, isUploading, setCurrentProject, removeProject, refreshProjects, refreshHealthAndFindings, uploadWorkbook }}>
       {children}
     </ProjectContext.Provider>
   )

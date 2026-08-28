@@ -100,6 +100,14 @@ class ProjectRepository:
             )
         )
 
+    def delete_scoped(self, organization_id: UUID, project_id: UUID) -> bool:
+        project = self.get_scoped(organization_id, project_id)
+        if project is None:
+            return False
+        self.session.delete(project)
+        self.session.flush()
+        return True
+
 
 class AnalysisRepository:
     def __init__(self, session: Session):

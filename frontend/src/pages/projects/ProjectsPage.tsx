@@ -1,11 +1,22 @@
 import React from "react"
 import { useNavigate } from "react-router-dom"
 import { useProject } from "@/context/ProjectContext"
-import { FolderKanban, Plus, ExternalLink, ShieldCheck } from "lucide-react"
+import { FolderKanban, Plus, ExternalLink, Trash2 } from "lucide-react"
+import { api } from "@/lib/api"
 
 export const ProjectsPage: React.FC = () => {
-  const { projects, setCurrentProject } = useProject()
+  const { projects, setCurrentProject, removeProject } = useProject()
   const navigate = useNavigate()
+
+  const handleDelete = async (projectId: string, projectName: string) => {
+    if (!window.confirm(`Hapus project "${projectName}"? Semua data analisa terkait akan ikut terhapus.`)) return
+    try {
+      await api.projects.remove(projectId)
+      removeProject(projectId)
+    } catch {
+      window.alert("Project gagal dihapus. Pastikan project tidak sedang diproses.")
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -37,9 +48,7 @@ export const ProjectsPage: React.FC = () => {
                 <span className="font-mono text-xs font-bold text-blue-600 px-2 py-0.5 bg-blue-50 rounded">
                   {p.code}
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                  {p.status}
-                </span>
+                <div className="flex items-center gap-2"><span className="text-xs font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">{p.status}</span><button type="button" title="Delete project" aria-label={`Delete ${p.name}`} onClick={(event) => { event.stopPropagation(); void handleDelete(p.id, p.name) }} className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></div>
               </div>
               <h2 className="text-sm font-bold text-slate-900 mt-1">{p.name}</h2>
               <div className="text-xs text-slate-500 mt-1">{p.client_name || "Enterprise Client"}</div>
