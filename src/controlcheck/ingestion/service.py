@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from hashlib import sha256
 import json
@@ -16,7 +16,7 @@ from ..persistence.models import GovernedDatasetSnapshotRecord, SourceFileRecord
 from ..persistence.repositories import ProjectRepository
 from ..storage import FileStorage
 from .extractor import extract_workbook
-from .mapper import map_extracted_workbook
+from .mapper import IssueSeverity, RowIssue, map_extracted_workbook
 from .profile import MappingProfileV1, mapping_profile_sha256
 
 
@@ -172,12 +172,6 @@ class SnapshotIngestionService:
                 "Workbook Project_Info must contain project_id",
                 422,
             )
-        if source_project_id != project.code:
-            raise ControlCheckApplicationError(
-                "workbook_project_mismatch",
-                "Workbook project ID does not match the target project code",
-                422,
-            )
         raw_source_project_name = extracted.project_values.get("project_name")
         source_project_name = (
             None
@@ -219,6 +213,23 @@ class SnapshotIngestionService:
                 )
 
         mapped = map_extracted_workbook(extracted, self.mapping_profile)
+        if source_project_id != project.code:
+            mapped = replace(
+                mapped,
+                warning_count=mapped.warning_count + 1,
+                project_issues=(
+                    *mapped.project_issues,
+                    RowIssue(
+                        code="source_project_mismatch",
+                        message=(
+                            f"Workbook source project {source_project_id} differs from "
+                            f"target project {project.code}; target project is used for storage and analysis"
+                        ),
+                        field="project_id",
+                        severity=IssueSeverity.warning,
+                    ),
+                ),
+            )
         data_date = _data_date(extracted.project_values)
         dataset_version = (
             _project_value(extracted.project_values, "dataset_version")

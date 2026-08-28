@@ -26,6 +26,8 @@ Provider responsibilities are deliberately narrow:
 
 Hosted data flow is **register/login → create project → upload workbook → persist workbook in R2 → canonical ingestion and deterministic analysis in the Vercel FastAPI Function → persist run/findings/evidence in Supabase → display results in Vercel**. The initial beta accepts workbooks up to **4 MiB**. Database migration is an **explicit release step** before deployment, and the Python bundle must remain below 500 MB. Keep all connection strings, keys, and account-specific endpoints in provider dashboards or deployment secrets only: no secrets appear in source/logs/docs.
 
+During upload, the selected application project is the authoritative destination. A workbook may carry a different source-system `Project_Info.project_id`; ControlCheck preserves that value as `source_project_id` and records a warning instead of forcing users to edit their source export. Missing project metadata and invalid workbook structure remain blocking validation errors.
+
 The beta must demonstrate that the hosted register-to-findings flow passes and that uploaded files and results persist across Vercel Function invocations and deployments. Registrations, active users, projects, workbook uploads, and completed analysis runs are measurable from persisted records. Supabase Free may pause after low activity and has limited capacity/no managed downloadable backups. Upgrade if serverless limits materially affect user experience, the Supabase database approaches 400 MB, R2 approaches 8 GB, or routine usage warrants an always-on backend. Full authentication/RBAC hardening, payment/subscription, enterprise SSO, and production-scale HA/DR remain deferred.
 
 ---

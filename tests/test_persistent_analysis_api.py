@@ -54,7 +54,7 @@ def test_analysis_upload_persists_golden_run(analysis_client, project_root):
     assert response.json()["finding_count"] == 59
 
 
-def test_analysis_upload_returns_project_mismatch_error(analysis_client, project_root):
+def test_analysis_upload_accepts_source_project_mismatch(analysis_client, project_root):
     client, _, mismatch_id = analysis_client
     workbook = project_root / "data" / "ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx"
     with workbook.open("rb") as source:
@@ -64,8 +64,9 @@ def test_analysis_upload_returns_project_mismatch_error(analysis_client, project
             files={"file": ("golden.xlsx", source, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
         )
 
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "workbook_project_mismatch"
+    assert response.status_code == 201, response.text
+    assert response.json()["status"] == "succeeded"
+    assert response.json()["finding_count"] == 59
 
 
 def test_analysis_upload_rejects_invalid_workbook_safely(analysis_client):

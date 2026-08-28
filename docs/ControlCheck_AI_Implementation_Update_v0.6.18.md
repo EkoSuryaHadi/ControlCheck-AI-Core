@@ -1,5 +1,9 @@
 # ControlCheck AI — Implementation Update v0.6.18
 
+> Historical note: the mismatch-blocking behavior described in this document was
+> superseded by v0.6.20. Current ingestion preserves a differing workbook source
+> project ID as a warning and analyzes it under the explicitly selected target project.
+
 **Version:** 0.6.18  
 **Date:** 2026-08-23  
 **Status:** Implemented on `homepage-v3`  

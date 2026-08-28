@@ -625,7 +625,7 @@ def test_post_server_commit_exception_reconciles_snapshot_and_preserves_source(
     assert storage.exists(source.storage_key)
 
 
-def test_project_code_mismatch_stores_nothing(
+def test_project_code_mismatch_is_stored_as_source_identity(
     snapshot_service,
     golden_bytes,
     golden_project,
@@ -637,23 +637,23 @@ def test_project_code_mismatch_stores_nothing(
         lambda book: replace_project_id(book, "SOME-OTHER-PROJECT"),
     )
 
-    with pytest.raises(ControlCheckApplicationError) as exc_info:
-        snapshot_service.ingest(
-            golden_project.organization_id,
-            golden_project.id,
-            "mismatched.xlsx",
-            XLSX_MIME,
-            mismatched,
-        )
+    snapshot = snapshot_service.ingest(
+        golden_project.organization_id,
+        golden_project.id,
+        "mismatched.xlsx",
+        XLSX_MIME,
+        mismatched,
+    )
 
-    assert exc_info.value.code == "workbook_project_mismatch"
-    assert stored_files(storage) == []
+    assert snapshot.status in {"validated", "validated_with_errors"}
+    assert snapshot.source_project_id == "SOME-OTHER-PROJECT"
+    assert stored_files(storage)
     assert count_scoped(
         db_session, GovernedDatasetSnapshotRecord, golden_project.organization_id, golden_project.id
-    ) == 0
+    ) == 1
     assert count_scoped(
         db_session, SourceFileRecord, golden_project.organization_id, golden_project.id
-    ) == 0
+    ) == 1
 
 
 def test_missing_sheet_marks_only_that_domain_blocked_and_persists_healthy_rows(

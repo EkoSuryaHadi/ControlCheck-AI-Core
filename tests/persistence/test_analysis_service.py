@@ -78,17 +78,17 @@ def test_boundary_run_succeeds_with_zero_findings(project_root, tmp_path, phase4
     assert scalar_count(session_factory, FindingRecord, FindingRecord.analysis_run_id == run.id) == 0
 
 
-def test_workbook_project_mismatch_creates_no_run(project_root, tmp_path, phase4_database):
+def test_workbook_project_mismatch_runs_in_target_project(project_root, tmp_path, phase4_database):
     session_factory, _, _, mismatch_id = phase4_database
     service = build_service(project_root, tmp_path, session_factory)
     data = (project_root / "data" / "ControlCheck_AI_Golden_Positive_Dataset_v0.2.xlsx").read_bytes()
 
-    with pytest.raises(ControlCheckApplicationError) as caught:
-        service.run(ORG_ID, mismatch_id, "golden.xlsx", XLSX_MIME, data)
+    run = service.run(ORG_ID, mismatch_id, "golden.xlsx", XLSX_MIME, data)
 
-    assert caught.value.code == "workbook_project_mismatch"
-    assert scalar_count(session_factory, AnalysisRunRecord) == 0
-    assert list(tmp_path.rglob("*.xlsx")) == []
+    assert run.status == "succeeded"
+    assert run.finding_count == 59
+    assert scalar_count(session_factory, AnalysisRunRecord) == 1
+    assert list(tmp_path.rglob("*.xlsx"))
 
 
 def test_failed_engine_run_has_no_partial_findings(project_root, tmp_path, phase4_database):
