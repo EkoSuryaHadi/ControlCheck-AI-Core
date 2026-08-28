@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React from "react"
 import { useNavigate } from "react-router-dom"
 import { useProject } from "@/context/ProjectContext"
 import { HealthGauge } from "@/components/ui/HealthGauge"
@@ -30,99 +30,20 @@ import {
   Legend,
 } from "recharts"
 
-// Mock trend data matching mockup
-const COST_TREND_DATA = [
-  { month: "Jan", bac: 20, ac: 18, eac: 20 },
-  { month: "Feb", bac: 40, ac: 38, eac: 40 },
-  { month: "Mar", bac: 65, ac: 60, eac: 65 },
-  { month: "Apr", bac: 95, ac: 92, eac: 95 },
-  { month: "May", bac: 125, ac: 120, eac: 128 },
-  { month: "Jun", bac: 155, ac: 152, eac: 162 },
-  { month: "Jul", bac: 185, ac: 187, eac: 198 },
-  { month: "Aug", bac: 215, ac: null, eac: 232 },
-  { month: "Sep", bac: 235, ac: null, eac: 254 },
-  { month: "Oct", bac: 245, ac: null, eac: 268 },
-  { month: "Nov", bac: 245, ac: null, eac: 268 },
-  { month: "Dec", bac: 245, ac: null, eac: 268 },
-]
-
-const RISK_TREND_DATA = [
-  { month: "Feb", warning: 30, observation: 15, critical: 10 },
-  { month: "Apr", warning: 32, observation: 14, critical: 12 },
-  { month: "May", warning: 35, observation: 16, critical: 14 },
-  { month: "Jul", warning: 38, observation: 18, critical: 16 },
-  { month: "Aug", warning: 40, observation: 20, critical: 18 },
-  { month: "Sep", warning: 45, observation: 22, critical: 20 },
-]
-
 export const DashboardPage: React.FC = () => {
-  const { currentProject, healthData } = useProject()
+  const { currentProject, currentRun, healthData, liveFindings } = useProject()
   const navigate = useNavigate()
 
-  const criticalFindings = [
-    {
-      id: "FND-2024-001",
-      title: "Cost Overrun Risk - WBS 03.02",
-      impact: "Rp 187.4M",
-      severity: "critical",
-      wbs: "03.02",
-    },
-    {
-      id: "FND-2024-002",
-      title: "PO Exposure exceeds Budget - WBS 11",
-      impact: "Rp 28.7M",
-      severity: "critical",
-      wbs: "11",
-    },
-    {
-      id: "FND-2024-003",
-      title: "Activity Delay - Compressor Installation",
-      impact: "18 days",
-      severity: "critical",
-      wbs: "03.02.01",
-    },
-    {
-      id: "FND-2024-004",
-      title: "Negative Total Float - 5 Activities",
-      impact: "-12 days",
-      severity: "critical",
-      wbs: "Various",
-    },
-    {
-      id: "FND-2024-005",
-      title: "Cost Spike Detected - WBS 04.01",
-      impact: "+132%",
-      severity: "warning",
-      wbs: "04.01",
-    },
-  ]
+  const severityRank: Record<string, number> = { critical: 0, warning: 1, observation: 2 }
+  const criticalFindings = [...liveFindings]
+    .filter((finding) => ["critical", "warning"].includes(String(finding.severity).toLowerCase()))
+    .sort((a, b) => (severityRank[a.severity] ?? 9) - (severityRank[b.severity] ?? 9))
+    .slice(0, 5)
+    .map((finding) => ({ ...finding, impact: finding.impact || finding.potential_impact || "—" }))
 
-  const recentActivities = [
-    {
-      type: "import",
-      title: "Data imported: Actual_Cost_Oct_2024.xlsx",
-      author: "by Budi Santoso",
-      time: "2 minutes ago",
-      icon: FileCheck,
-      iconColor: "text-blue-600 bg-blue-50",
-    },
-    {
-      type: "resolved",
-      title: "Finding resolved: PO Exposure exceeds Budget - WBS 15",
-      author: "by Rina Amelia",
-      time: "1 hour ago",
-      icon: CheckCircle2,
-      iconColor: "text-emerald-600 bg-emerald-50",
-    },
-    {
-      type: "report",
-      title: "Report generated: Monthly_Project_Control_Oct_2024.pdf",
-      author: "by Eko Prasetyo",
-      time: "3 hours ago",
-      icon: FileText,
-      iconColor: "text-purple-600 bg-purple-50",
-    },
-  ]
+  const recentActivities = currentRun ? [{ type: "analysis", title: `Analysis completed: ${currentProject?.name || "Current project"}`, author: "Server analysis", time: currentRun.completed_at ? new Date(currentRun.completed_at).toLocaleString() : "ล่าสุด", icon: FileCheck, iconColor: "text-blue-600 bg-blue-50" }] : []
+  const riskTrendData = [{ month: currentRun?.completed_at ? new Date(currentRun.completed_at).toLocaleDateString(undefined, { month: "short" }) : "Current", warning: liveFindings.filter((f) => f.severity === "warning").length, observation: liveFindings.filter((f) => f.severity === "observation").length, critical: liveFindings.filter((f) => f.severity === "critical").length }]
+  const costTrendData: Array<{ month: string; bac?: number; ac?: number; eac?: number }> = []
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -221,7 +142,7 @@ export const DashboardPage: React.FC = () => {
                   Budget (BAC)
                 </span>
                 <span className="text-xs font-bold text-slate-900 tabular-nums">
-                  Rp 245.00 B
+                  —
                 </span>
               </div>
               <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
@@ -230,7 +151,7 @@ export const DashboardPage: React.FC = () => {
                   Actual (AC)
                 </span>
                 <span className="text-xs font-bold text-slate-900 tabular-nums">
-                  Rp 187.40 B
+                  —
                 </span>
               </div>
               <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
@@ -239,7 +160,7 @@ export const DashboardPage: React.FC = () => {
                   Commitment (PO)
                 </span>
                 <span className="text-xs font-bold text-slate-900 tabular-nums">
-                  Rp 72.30 B
+                  —
                 </span>
               </div>
               <div className="flex items-center justify-between py-1.5">
@@ -248,7 +169,7 @@ export const DashboardPage: React.FC = () => {
                   Estimate at Completion (EAC)
                 </span>
                 <span className="text-xs font-bold text-slate-900 tabular-nums">
-                  Rp 268.60 B
+                  —
                 </span>
               </div>
             </div>
@@ -258,15 +179,15 @@ export const DashboardPage: React.FC = () => {
           <div className="grid grid-cols-3 gap-2 pt-4 mt-4 border-t border-slate-100 text-center">
             <div className="p-2 bg-slate-50 rounded-lg">
               <div className="text-[10px] uppercase font-bold text-slate-500">CPI</div>
-              <div className="text-sm font-bold text-slate-900 tabular-nums mt-0.5">0.92</div>
+              <div className="text-sm font-bold text-slate-900 tabular-nums mt-0.5">—</div>
             </div>
             <div className="p-2 bg-red-50/50 rounded-lg">
               <div className="text-[10px] uppercase font-bold text-red-600">CV</div>
-              <div className="text-xs font-bold text-red-600 tabular-nums mt-0.5">-Rp 20.9 B</div>
+              <div className="text-xs font-bold text-red-600 tabular-nums mt-0.5">—</div>
             </div>
             <div className="p-2 bg-amber-50/50 rounded-lg">
               <div className="text-[10px] uppercase font-bold text-amber-700">EAC VAR</div>
-              <div className="text-xs font-bold text-amber-700 tabular-nums mt-0.5">+ Rp 23.6 B</div>
+              <div className="text-xs font-bold text-amber-700 tabular-nums mt-0.5">—</div>
             </div>
           </div>
         </div>
@@ -285,7 +206,7 @@ export const DashboardPage: React.FC = () => {
 
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={COST_TREND_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <LineChart data={costTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
@@ -409,7 +330,7 @@ export const DashboardPage: React.FC = () => {
 
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={RISK_TREND_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={riskTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
@@ -472,12 +393,7 @@ export const DashboardPage: React.FC = () => {
               </h2>
             </div>
 
-            <p className="text-xs leading-relaxed text-slate-700">
-              Project cost performance is trending worse than last month due to cost spike in{" "}
-              <strong className="text-slate-900 font-semibold">WBS 03.02</strong> and high PO exposure in{" "}
-              <strong className="text-slate-900 font-semibold">WBS 11</strong>. Schedule delay on critical activities may impact final completion by{" "}
-              <strong className="text-red-600 font-semibold">18 days</strong>.
-            </p>
+            <p className="text-xs leading-relaxed text-slate-700">Server returned <strong className="text-slate-900 font-semibold">{liveFindings.length}</strong> findings for this project. Cost KPI cards will populate when a cost dataset is available.</p>
           </div>
 
           <div className="pt-4">
