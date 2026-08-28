@@ -7,6 +7,8 @@ export interface AuthIdentity {
   role: string
 }
 
+import { isDemoAccessToken } from "./demo-session.js"
+
 export const decodeJwtPayload = (token: string): Record<string, any> => {
   const parts = token.split(".")
   if (parts.length !== 3) return {}
@@ -20,6 +22,7 @@ export const decodeJwtPayload = (token: string): Record<string, any> => {
 }
 
 export const isJwtExpired = (token: string, skewSeconds = 15): boolean => {
+  if (isDemoAccessToken(token)) return false
   const claims = decodeJwtPayload(token)
   const exp = Number(claims.exp)
   if (!Number.isFinite(exp)) return true
