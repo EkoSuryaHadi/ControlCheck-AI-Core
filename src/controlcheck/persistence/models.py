@@ -223,6 +223,44 @@ class AuditLogRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ProductEventRecord(Base):
+    __tablename__ = "product_events"
+    __table_args__ = (
+        Index("ix_product_events_org_created", "organization_id", "created_at"),
+        Index("ix_product_events_name_created", "event_name", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), index=True)
+    analysis_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("analysis_runs.id", ondelete="SET NULL"), index=True)
+    finding_id: Mapped[UUID | None] = mapped_column(ForeignKey("findings.id", ondelete="SET NULL"), index=True)
+    event_name: Mapped[str] = mapped_column(String(80))
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FindingFeedbackRecord(Base):
+    __tablename__ = "finding_feedback"
+    __table_args__ = (
+        CheckConstraint("rating IN ('useful','not_useful')", name="ck_finding_feedback_rating"),
+        CheckConstraint("status IN ('new','reviewed','archived')", name="ck_finding_feedback_status"),
+        Index("ix_finding_feedback_org_created", "organization_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    analysis_run_id: Mapped[UUID] = mapped_column(ForeignKey("analysis_runs.id", ondelete="CASCADE"), index=True)
+    finding_id: Mapped[UUID | None] = mapped_column(ForeignKey("findings.id", ondelete="CASCADE"), index=True)
+    rating: Mapped[str] = mapped_column(String(20))
+    comment: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="new", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class RawRowRecord(Base):
     __tablename__ = "raw_rows"
     __table_args__ = (UniqueConstraint("source_file_id", "sheet_name", "row_number", name="uq_raw_rows_source_location"),)

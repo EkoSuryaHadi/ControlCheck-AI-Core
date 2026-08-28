@@ -9,6 +9,49 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class TenantContext(BaseModel):
     organization_id: UUID
+    user_id: UUID | None = None
+    email: str | None = None
+    role: str | None = None
+
+
+class TelemetryEventCreate(BaseModel):
+    event_name: str = Field(min_length=1, max_length=80)
+    project_id: UUID | None = None
+    analysis_run_id: UUID | None = None
+    finding_id: UUID | None = None
+    metadata: dict = Field(default_factory=dict)
+
+
+class FeedbackCreate(BaseModel):
+    rating: Literal["useful", "not_useful"]
+    comment: str | None = Field(default=None, max_length=1000)
+
+
+class FeedbackResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    analysis_run_id: UUID
+    finding_id: UUID | None
+    rating: str
+    comment: str | None
+    status: str
+    created_at: datetime
+
+
+class OwnerMetricsResponse(BaseModel):
+    registrations: int
+    active_users: int
+    projects: int
+    uploads_accepted: int
+    analyses_completed: int
+    result_use_events: int
+    result_use_rate: float
+    feedback_count: int
+    useful_feedback_rate: float
+    error_rate: float
+    generated_at: datetime
 
 
 class ProjectCreate(BaseModel):

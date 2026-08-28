@@ -24,6 +24,7 @@ import { SchedulePage } from "@/pages/schedule/SchedulePage"
 import { ProgressPage } from "@/pages/progress/ProgressPage"
 import { ProjectsPage } from "@/pages/projects/ProjectsPage"
 import { SettingsPage } from "@/pages/settings/SettingsPage"
+import { OwnerMetricsPage } from "@/pages/OwnerMetricsPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,6 +63,7 @@ export const App: React.FC = () => {
                 <Route path="/assistant" element={<AIAssistantPage />} />
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/owner/metrics" element={<OwnerMetricsPage />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -17,6 +17,7 @@ import {
   Search,
   LogOut,
   ClipboardCheck,
+  Activity,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BrandLogo } from "@/components/common/BrandLogo"
@@ -38,6 +39,7 @@ export const AppShell: React.FC = () => {
     { name: "Progress", path: "/progress", icon: LineChart },
     { name: "Reports", path: "/reports", icon: FileSpreadsheet },
     { name: "Settings", path: "/settings", icon: Settings },
+    ...(user?.role === "owner" || user?.role === "org_admin" || user?.role === "org_owner" ? [{ name: "Beta Metrics", path: "/owner/metrics", icon: Activity }] : []),
   ]
 
   return (

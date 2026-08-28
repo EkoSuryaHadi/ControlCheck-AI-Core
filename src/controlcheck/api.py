@@ -27,6 +27,7 @@ from .api_models import (
     HealthSnapshotResponse, HealthTrendListResponse,
     ProjectCreate, ProjectListResponse, ProjectResponse, TenantContext,
     TokenResponse, UserLogin, UserRegister, UserResponse,
+    FeedbackCreate, FeedbackResponse, OwnerMetricsResponse, TelemetryEventCreate,
 )
 from .ai.assistant import ProjectAIAssistant
 from .application import AnalysisService
@@ -48,6 +49,7 @@ from .persistence.repositories import (
     OrganizationRepository, ProjectRepository, UserRepository,
 )
 from .persistence.ingestion_repositories import SnapshotRepository
+from .persistence.telemetry_repository import TelemetryRepository
 from .persistence.models import (
     GovernedDatasetDomainStatusRecord,
     GovernedMappingProfileVersionRecord,
@@ -190,7 +192,18 @@ def create_app(
                 if org_str:
                     org_uuid = UUID(org_str)
                     set_log_context(organization_id=str(org_uuid))
-                    return TenantContext(organization_id=org_uuid)
+                    user_id = None
+                    if payload.get("sub"):
+                        try:
+                            user_id = UUID(str(payload["sub"]))
+                        except ValueError:
+                            user_id = None
+                    return TenantContext(
+                        organization_id=org_uuid,
+                        user_id=user_id,
+                        email=str(payload.get("email")) if payload.get("email") else None,
+                        role=str(payload.get("role")) if payload.get("role") else None,
+                    )
             except Exception as exc:
                 raise ControlCheckApplicationError(
                     "invalid_token", "Authentication token is invalid or expired", 401
@@ -351,6 +364,39 @@ def create_app(
 
 
     if session_factory is not None:
+        def record_product_event(
+            tenant: TenantContext,
+            event_name: str,
+            *,
+            project_id: UUID | None = None,
+            analysis_run_id: UUID | None = None,
+            finding_id: UUID | None = None,
+            metadata: dict | None = None,
+        ) -> None:
+            try:
+                with session_factory() as session:
+                    TelemetryRepository(session).record_event(
+                        organization_id=tenant.organization_id,
+                        user_id=tenant.user_id,
+                        project_id=project_id,
+                        analysis_run_id=analysis_run_id,
+                        finding_id=finding_id,
+                        event_name=event_name,
+                        metadata=metadata,
+                    )
+                    session.commit()
+            except Exception:
+                logger.warning("Product telemetry could not be persisted", exc_info=True)
+
+        def require_owner(tenant: TenantContext) -> None:
+            configured = {
+                item.strip().lower()
+                for item in os.environ.get("CONTROLCHECK_OWNER_EMAILS", "").split(",")
+                if item.strip()
+            }
+            if tenant.role not in {"org_admin", "owner", "org_owner"} and (not tenant.email or tenant.email.lower() not in configured):
+                raise ControlCheckApplicationError("owner_access_required", "Owner access is required", 403)
+
         @application.post("/v1/auth/register", response_model=TokenResponse, status_code=201)
         def register(payload: UserRegister) -> TokenResponse:
             with session_factory() as session:
@@ -376,6 +422,11 @@ def create_app(
                 session.commit()
                 access_tok = create_access_token(user.id, user.email, organization_id=org_id, role=role)
                 refresh_tok = create_refresh_token(user.id)
+                if org_id is not None:
+                    record_product_event(
+                        TenantContext(organization_id=org_id, user_id=user.id, email=user.email, role=role),
+                        "registration_completed",
+                    )
                 return TokenResponse(access_token=access_tok, refresh_token=refresh_tok)
 
         @application.post("/v1/auth/login", response_model=TokenResponse)
@@ -395,6 +446,84 @@ def create_app(
                 access_tok = create_access_token(user.id, user.email, organization_id=org_id, role=role)
                 refresh_tok = create_refresh_token(user.id)
                 return TokenResponse(access_token=access_tok, refresh_token=refresh_tok)
+
+        @application.post("/v1/telemetry/events", status_code=202)
+        def create_telemetry_event(
+            payload: TelemetryEventCreate,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> dict:
+            try:
+                with session_factory() as session:
+                    if payload.project_id is not None and ProjectRepository(session).get_scoped(tenant.organization_id, payload.project_id) is None:
+                        raise ControlCheckApplicationError("project_not_found", "Project was not found for this organization", 404)
+                    if payload.analysis_run_id is not None and AnalysisRepository(session).get_run(tenant.organization_id, payload.analysis_run_id) is None:
+                        raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found for this organization", 404)
+                    if payload.finding_id is not None and FindingRepository(session).get(tenant.organization_id, payload.finding_id) is None:
+                        raise ControlCheckApplicationError("finding_not_found", "Finding was not found for this organization", 404)
+                    event = TelemetryRepository(session).record_event(
+                        organization_id=tenant.organization_id,
+                        user_id=tenant.user_id,
+                        project_id=payload.project_id,
+                        analysis_run_id=payload.analysis_run_id,
+                        finding_id=payload.finding_id,
+                        event_name=payload.event_name,
+                        metadata=payload.metadata,
+                    )
+                    session.commit()
+                    return {"accepted": True, "event_id": str(event.id)}
+            except ValueError as exc:
+                raise ControlCheckApplicationError("invalid_telemetry_event", str(exc), 422) from exc
+
+        @application.post("/v1/runs/{run_id}/feedback", response_model=FeedbackResponse, status_code=201)
+        def create_run_feedback(
+            run_id: UUID,
+            payload: FeedbackCreate,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> FeedbackResponse:
+            with session_factory() as session:
+                run = AnalysisRepository(session).get_run(tenant.organization_id, run_id)
+                if run is None:
+                    raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found", 404)
+                feedback = TelemetryRepository(session).add_feedback(
+                    organization_id=tenant.organization_id,
+                    project_id=run.project_id,
+                    analysis_run_id=run.id,
+                    user_id=tenant.user_id,
+                    rating=payload.rating,
+                    comment=payload.comment,
+                )
+                session.commit()
+                record_product_event(tenant, "run_feedback_submitted", project_id=run.project_id, analysis_run_id=run.id)
+                return FeedbackResponse.model_validate(feedback)
+
+        @application.post("/v1/findings/{finding_id}/feedback", response_model=FeedbackResponse, status_code=201)
+        def create_finding_feedback(
+            finding_id: UUID,
+            payload: FeedbackCreate,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> FeedbackResponse:
+            with session_factory() as session:
+                finding = FindingRepository(session).get(tenant.organization_id, finding_id)
+                if finding is None:
+                    raise ControlCheckApplicationError("finding_not_found", "Finding was not found", 404)
+                feedback = TelemetryRepository(session).add_feedback(
+                    organization_id=tenant.organization_id,
+                    project_id=finding.project_id,
+                    analysis_run_id=finding.analysis_run_id,
+                    finding_id=finding.id,
+                    user_id=tenant.user_id,
+                    rating=payload.rating,
+                    comment=payload.comment,
+                )
+                session.commit()
+                record_product_event(tenant, "finding_feedback_submitted", project_id=finding.project_id, analysis_run_id=finding.analysis_run_id, finding_id=finding.id)
+                return FeedbackResponse.model_validate(feedback)
+
+        @application.get("/v1/owner/metrics", response_model=OwnerMetricsResponse)
+        def get_owner_metrics(tenant: TenantContext = Depends(require_tenant)) -> OwnerMetricsResponse:
+            require_owner(tenant)
+            with session_factory() as session:
+                return OwnerMetricsResponse.model_validate(TelemetryRepository(session).metrics(tenant.organization_id))
 
         @application.post(
             "/v1/organizations/{organization_id}/projects",
@@ -419,6 +548,7 @@ def create_app(
                     payload.currency.upper(),
                 )
                 session.commit()
+                record_product_event(tenant, "project_created", project_id=project.id)
                 return ProjectResponse.model_validate(project)
 
         @application.get(
@@ -694,11 +824,24 @@ def create_app(
                         idempotency_key=x_idempotency_key,
                     )
                 except (InvalidWorkbookError, ValidationError) as exc:
+                    record_product_event(tenant, "upload_failed", project_id=project_id, metadata={"reason": "invalid_workbook"})
                     raise ControlCheckApplicationError(
                         InvalidWorkbookError.code,
                         InvalidWorkbookError.safe_message,
                         422,
                     ) from exc
+                except Exception:
+                    record_product_event(tenant, "analysis_failed", project_id=project_id)
+                    raise
+                record_product_event(tenant, "upload_accepted", project_id=project_id, analysis_run_id=run.id)
+                if str(run.status).lower() in {"succeeded", "completed"}:
+                    record_product_event(
+                        tenant,
+                        "analysis_completed",
+                        project_id=project_id,
+                        analysis_run_id=run.id,
+                        metadata={"finding_count": run.finding_count, "rule_count": run.rule_count},
+                    )
                 return AnalysisRunResponse.model_validate(run)
 
         @application.get(

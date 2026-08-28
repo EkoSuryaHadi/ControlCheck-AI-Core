@@ -46,6 +46,8 @@ export interface AnalysisRun {
   id: string; project_id: string; engine_version?: string; workbook_sha256?: string; status: "completed" | "running" | "failed" | string;
   rule_count?: number; finding_count?: number; duration_ms?: number; started_at?: string; completed_at?: string; created_at?: string
 }
+export interface FindingFeedback { id: string; organization_id: string; project_id: string; analysis_run_id: string; finding_id?: string | null; rating: "useful" | "not_useful"; comment?: string | null; status: string; created_at: string }
+export interface OwnerMetrics { registrations: number; active_users: number; projects: number; uploads_accepted: number; analyses_completed: number; result_use_events: number; result_use_rate: number; feedback_count: number; useful_feedback_rate: number; error_rate: number; generated_at: string }
 export interface AIAskResponse {
   conversation_id: string; answer: string; key_evidence: Array<Record<string, any>>; impact: string; recommended_action: string;
   confidence: string; data_caveat?: string | null; evidence_references: string[]
@@ -103,6 +105,10 @@ export const api = {
     login: async (credentials: { email: string; password: string }) => (await apiClient.post("/v1/auth/login", credentials)).data,
     register: async (data: { email: string; password: string; full_name?: string; organization_name?: string }) => (await apiClient.post("/v1/auth/register", data)).data,
   },
+  telemetry: {
+    event: async (event_name: string, payload: { project_id?: string; analysis_run_id?: string; finding_id?: string; metadata?: Record<string, string | number | boolean | null> } = {}) =>
+      (await apiClient.post("/v1/telemetry/events", { event_name, ...payload })).data,
+  },
   projects: {
     list: async (orgId: string) => (await apiClient.get(`/v1/organizations/${orgId}/projects`)).data,
     create: async (orgId: string, data: { code: string; name: string; currency?: string }) => (await apiClient.post(`/v1/organizations/${orgId}/projects`, data)).data,
@@ -128,6 +134,15 @@ export const api = {
     closeGoverned: async (findingId: string) => (await apiClient.post(`/v1/findings/${findingId}/close`)).data,
     getClosureApproval: async (findingId: string): Promise<ClosureApproval | null> => (await apiClient.get(`/v1/findings/${findingId}/closure-approval`)).data,
     requestClosureApproval: async (findingId: string, note?: string): Promise<ClosureApproval> => (await apiClient.post(`/v1/findings/${findingId}/closure-approval`, { note })).data,
+    feedback: async (findingId: string, rating: "useful" | "not_useful", comment?: string): Promise<FindingFeedback> =>
+      (await apiClient.post(`/v1/findings/${findingId}/feedback`, { rating, comment })).data,
+  },
+  feedback: {
+    run: async (runId: string, rating: "useful" | "not_useful", comment?: string): Promise<FindingFeedback> =>
+      (await apiClient.post(`/v1/runs/${runId}/feedback`, { rating, comment })).data,
+  },
+  owner: {
+    metrics: async (): Promise<OwnerMetrics> => (await apiClient.get("/v1/owner/metrics")).data,
   },
   actions: {
     listProject: async (projectId: string): Promise<{ items: PersistentFindingAction[] }> => (await apiClient.get(`/v1/projects/${projectId}/actions`)).data,

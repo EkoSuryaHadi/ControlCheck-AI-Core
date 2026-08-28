@@ -22,6 +22,8 @@ import {
   UserRound,
   CalendarDays,
   ClipboardCheck,
+  ThumbsDown,
+  ThumbsUp,
 } from "lucide-react"
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
@@ -43,6 +45,11 @@ export const FindingDetailV2Page: React.FC = () => {
   const [dueDate, setDueDate] = useState("")
   const [priority, setPriority] = useState<ActionPriority>("high")
   const [notes, setNotes] = useState("")
+  const [feedbackRating, setFeedbackRating] = useState<"useful" | "not_useful" | null>(null)
+  const [feedbackComment, setFeedbackComment] = useState("")
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  const [feedbackError, setFeedbackError] = useState<string | null>(null)
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
 
   const finding: any = useMemo(
     () => resolveServerFinding(liveFindings, findingId) || {
@@ -75,13 +82,19 @@ export const FindingDetailV2Page: React.FC = () => {
     setEvidence([])
     setEvidenceLoaded(!serverBacked)
     setEvidenceError(null)
+    setFeedbackRating(null)
+    setFeedbackComment("")
+    setFeedbackSubmitted(false)
+    setFeedbackError(null)
     trackEvent("finding_detail_viewed", { finding_id: canonicalFindingId, severity: finding.severity })
+    if (serverBacked) void api.telemetry.event("finding_viewed", { finding_id: canonicalFindingId }).catch(() => undefined)
 
     if (serverBacked) {
       api.findings.getEvidence(canonicalFindingId).then((res) => {
         const items = Array.isArray(res) ? res : res?.items || []
         setEvidence(items)
         setEvidenceLoaded(true)
+        void api.telemetry.event("evidence_viewed", { finding_id: canonicalFindingId }).catch(() => undefined)
       }).catch(() => {
         setEvidence([])
         setEvidenceLoaded(true)
@@ -218,6 +231,21 @@ export const FindingDetailV2Page: React.FC = () => {
     window.setTimeout(() => void refreshClosure(), 900)
   }
 
+  const submitFeedback = async () => {
+    if (!serverBacked || !feedbackRating) return
+    setIsSubmittingFeedback(true)
+    setFeedbackError(null)
+    try {
+      await api.findings.feedback(canonicalFindingId, feedbackRating, feedbackComment.trim() || undefined)
+      setFeedbackSubmitted(true)
+      trackEvent("finding_feedback_submitted", { finding_id: canonicalFindingId, rating: feedbackRating })
+    } catch {
+      setFeedbackError("Feedback belum tersimpan. Coba kirim ulang.")
+    } finally {
+      setIsSubmittingFeedback(false)
+    }
+  }
+
   const primaryAction = () => {
     if (isClosed) return null
     if (!hasAction) return { label: "Create Action", onClick: () => document.getElementById("resolution-action-form")?.scrollIntoView({ behavior: "smooth" }), disabled: false }
@@ -330,6 +358,24 @@ export const FindingDetailV2Page: React.FC = () => {
         </div>
 
         <div className="space-y-5">
+          {serverBacked && <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Finding feedback</div>
+            {feedbackSubmitted ? (
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Terima kasih. Feedback tersimpan untuk review beta.</div>
+            ) : (
+              <>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Apakah finding ini berguna untuk review project Anda?</p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setFeedbackRating("useful")} className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${feedbackRating === "useful" ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}><ThumbsUp className="h-4 w-4" /> Useful</button>
+                  <button type="button" onClick={() => setFeedbackRating("not_useful")} className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${feedbackRating === "not_useful" ? "border-amber-400 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}><ThumbsDown className="h-4 w-4" /> Not useful</button>
+                </div>
+                <textarea value={feedbackComment} onChange={(e) => setFeedbackComment(e.target.value)} maxLength={1000} rows={3} placeholder="Optional context (maks. 1.000 karakter)" className="mt-3 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-xs outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                <button type="button" disabled={!feedbackRating || isSubmittingFeedback} onClick={() => void submitFeedback()} className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">{isSubmittingFeedback ? "Saving…" : "Send feedback"}</button>
+                {feedbackError && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">{feedbackError}</div>}
+              </>
+            )}
+          </section>}
+
           <div className="rounded-2xl border border-purple-200 bg-purple-50 p-6">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-purple-700"><Sparkles className="h-4 w-4" /> AI-assisted interpretation</div>
             <p className="mt-4 text-sm leading-6 text-slate-700">{why}</p>
