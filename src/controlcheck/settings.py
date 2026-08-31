@@ -23,9 +23,13 @@ def _normalized_environment(name: str, allowed: set[str]) -> str | None:
 def _runtime_environment() -> str:
     """Resolve application mode with production platform signals failing closed.
 
-    CONTROLCHECK_ENV takes precedence over legacy ENV. A production Vercel signal,
-    or a serverless runtime without an explicit platform mode, always forces the
-    stricter production contract.
+    Vercel's platform environment is authoritative: production deployments always
+    use the strict production contract, while Preview deployments stay isolated
+    from production-only secret/storage requirements even when project-level
+    environment variables contain ``CONTROLCHECK_ENV=production``.
+
+    Outside Vercel, CONTROLCHECK_ENV takes precedence over legacy ENV. Unknown
+    serverless runtimes still fail closed to the production contract.
     """
     explicit = _normalized_environment(
         "CONTROLCHECK_ENV", _APPLICATION_ENVIRONMENTS
@@ -36,6 +40,8 @@ def _runtime_environment() -> str:
 
     if vercel_env == "production":
         return "production"
+    if vercel_env in {"development", "preview"}:
+        return "development"
     if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         return "production"
     if os.environ.get("RENDER"):
@@ -44,8 +50,6 @@ def _runtime_environment() -> str:
         return "production"
     if explicit is not None:
         return explicit
-    if vercel_env in {"development", "preview"}:
-        return "development"
     return "development"
 
 
