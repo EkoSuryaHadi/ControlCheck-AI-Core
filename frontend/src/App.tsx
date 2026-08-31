@@ -16,6 +16,7 @@ import { FindingsPage } from "@/pages/findings/FindingsPage"
 import { FindingDetailV2Page } from "@/pages/findings/FindingDetailV2Page"
 import { ActionsPage } from "@/pages/actions/ActionsPage"
 import { DataImportWizard } from "@/pages/data/DataImportWizard"
+import { ValidatedImportPage } from "@/pages/data/ValidatedImportPage"
 import { AnalysisProgressPage } from "@/pages/analysis/AnalysisProgressPage"
 import { AIAssistantPage } from "@/pages/assistant/AIAssistantPage"
 import { ReportsPage } from "@/pages/reports/ReportsPage"
@@ -28,10 +29,7 @@ import { OwnerMetricsPage } from "@/pages/OwnerMetricsPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
+    queries: { refetchOnWindowFocus: false, retry: 1 },
   },
 })
 
@@ -51,7 +49,8 @@ export const App: React.FC = () => {
               <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/data" element={<DataImportWizard />} />
+                <Route path="/data" element={<ValidatedImportPage />} />
+                <Route path="/data/advanced" element={<DataImportWizard />} />
                 <Route path="/analysis-progress" element={<AnalysisProgressPage />} />
                 <Route path="/findings" element={<FindingsPage />} />
                 <Route path="/findings/:findingId" element={<FindingDetailV2Page />} />

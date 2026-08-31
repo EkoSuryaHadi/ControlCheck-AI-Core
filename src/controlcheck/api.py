@@ -31,6 +31,7 @@ from .api_models import (
 )
 from .ai.assistant import ProjectAIAssistant
 from .application import AnalysisService
+from .analysis_summary import summarize_dataset
 from .auth import (
     create_access_token, create_refresh_token, decode_token,
     hash_password, verify_password,
@@ -49,6 +50,7 @@ from .persistence.repositories import (
     OrganizationRepository, ProjectRepository, UserRepository,
 )
 from .persistence.ingestion_repositories import SnapshotRepository
+from .persistence.dataset_loader import DatabaseDatasetLoader
 from .persistence.telemetry_repository import TelemetryRepository
 from .persistence.models import (
     GovernedDatasetDomainStatusRecord,
@@ -887,6 +889,34 @@ def create_app(
                 if run is None:
                     raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found", 404)
                 return AnalysisRunResponse.model_validate(run)
+
+        @application.get("/v1/projects/{project_id}/analysis-runs/{run_id}/summary")
+        def get_analysis_run_summary(
+            project_id: UUID,
+            run_id: UUID,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> dict:
+            with session_factory() as session:
+                run = AnalysisRepository(session).get_run(tenant.organization_id, run_id)
+                if run is None or run.project_id != project_id:
+                    raise ControlCheckApplicationError(
+                        "analysis_run_not_found", "Analysis run was not found", 404
+                    )
+                snapshot_id = run.governed_dataset_snapshot_id
+            if snapshot_id is None:
+                raise ControlCheckApplicationError(
+                    "analysis_summary_unavailable",
+                    "This legacy analysis run does not have governed source data.",
+                    409,
+                )
+            loaded = DatabaseDatasetLoader(session_factory).load(
+                tenant.organization_id, project_id, snapshot_id
+            )
+            return {
+                "analysis_run_id": str(run_id),
+                "snapshot_id": str(snapshot_id),
+                **summarize_dataset(loaded.snapshot, loaded.domain_statuses),
+            }
 
         @application.get("/v1/analysis-runs/{run_id}/findings", response_model=FindingListResponse)
         def list_findings(

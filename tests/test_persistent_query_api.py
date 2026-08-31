@@ -70,6 +70,22 @@ def test_run_history_detail_and_combined_filters(query_context):
     assert all(item["rule_id"] == "CST-001" and item["severity"] == "warning" for item in findings.json()["items"])
 
 
+def test_run_summary_exposes_only_data_from_the_selected_run(query_context):
+    client, _, project_id, run_id, _ = query_context
+
+    response = client.get(
+        f"/v1/projects/{project_id}/analysis-runs/{run_id}/summary",
+        headers=headers(),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["analysis_run_id"] == str(run_id)
+    assert payload["schedule"]["activity_count"] > 0
+    assert payload["cost"]["available"] is True
+    assert payload["progress"]["available"] is True
+
+
 def test_cross_tenant_finding_is_not_returned(query_context):
     client, _, _, _, finding_id = query_context
     response = client.get(f"/v1/findings/{finding_id}", headers=headers(OTHER_ORG_ID))
