@@ -9,3 +9,9 @@ test("demo access token is accepted by the demo session policy", () => {
 test("ordinary tokens are not treated as demo sessions", () => {
   assert.equal(isDemoAccessToken("some-other-token"), false)
 })
+
+
+test("demo sessions are never eligible for persistent workspace APIs", () => {
+  assert.equal(isPersistentWorkspaceSession(DEMO_ACCESS_TOKEN), false)
+  assert.equal(isPersistentWorkspaceSession("real-workspace-token"), true)
+})
