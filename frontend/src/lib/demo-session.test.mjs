@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { DEMO_ACCESS_TOKEN, isDemoAccessToken } from "./demo-session.js"
+import { DEMO_ACCESS_TOKEN, isDemoAccessToken, isPersistentWorkspaceSession } from "./demo-session.js"
 
 test("demo access token is accepted by the demo session policy", () => {
   assert.equal(isDemoAccessToken(DEMO_ACCESS_TOKEN), true)
