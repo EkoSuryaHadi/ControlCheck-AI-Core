@@ -38,13 +38,20 @@ jobs:
           from pathlib import Path
           path = Path('/tmp/mppjs/java/src/main/java/org/msproject2xml/Convert.java')
           text = path.read_text(encoding='utf-8')
-          old = 'ProjectFile project = new UniversalProjectReader().read(input);'
-          new = 'ProjectFile project = new UniversalProjectReader().setReadPresentationData(false).read(input);'
-          if old not in text:
-              raise SystemExit('Expected upstream converter line was not found; refusing an unverified patch.')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+          old_import = 'import org.mpxj.reader.UniversalProjectReader;'
+          new_import = 'import org.mpxj.mpp.MPPReader;'
+          old_read = '            ProjectFile project = new UniversalProjectReader().read(input);'
+          new_read = (
+              '            MPPReader reader = new MPPReader();\n'
+              '            reader.setReadPresentationData(false);\n'
+              '            ProjectFile project = reader.read(input);'
+          )
+          if old_import not in text or old_read not in text:
+              raise SystemExit('Expected upstream converter source was not found; refusing an unverified patch.')
+          text = text.replace(old_import, new_import).replace(old_read, new_read)
+          path.write_text(text, encoding='utf-8')
           PY
-          grep -n "setReadPresentationData" /tmp/mppjs/java/src/main/java/org/msproject2xml/Convert.java
+          grep -n -E "MPPReader|setReadPresentationData" /tmp/mppjs/java/src/main/java/org/msproject2xml/Convert.java
 
       - name: Build shaded MPXJ jar
         working-directory: /tmp/mppjs/java
@@ -80,13 +87,15 @@ jobs:
           Upstream tag: v0.1.6
           MPXJ version: 16.1.0
 
-          ControlCheck patch: `UniversalProjectReader` is configured with
-          `setReadPresentationData(false)` before reading the input project.
+          ControlCheck patch: the converter uses `org.mpxj.mpp.MPPReader`
+          directly and calls `setReadPresentationData(false)` before reading
+          the Microsoft Project file.
 
           Purpose: ControlCheck imports schedule data only. Skipping Microsoft
           Project presentation/view formatting prevents the known headless Linux
           AWT failure for MPP files with saved Gantt Chart formatting while
-          preserving tasks, resources, assignments, calendars and relationships.
+          preserving schedule tasks, resources, assignments, calendars and
+          relationships.
 
           The native binary contains MPXJ and remains subject to the upstream
           LGPL-2.1-or-later terms included in LICENSE and NOTICE.
