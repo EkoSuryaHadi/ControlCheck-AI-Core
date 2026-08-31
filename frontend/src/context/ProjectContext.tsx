@@ -50,15 +50,14 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isUploading, setIsUploading] = useState(false)
 
   const refreshProjects = useCallback(async () => {
-    if (!orgId || !isPersistentSession) {
-      if (!isPersistentSession) {
-        setProjects([])
-        setCurrentProject(null)
-        setCurrentRun(null)
-        setLiveFindings([])
-      }
+    if (!isPersistentSession) {
+      setProjects([])
+      setCurrentProject(null)
+      setCurrentRun(null)
+      setLiveFindings([])
       return
     }
+    if (!orgId) return
     try {
       setIsLoading(true)
       const data = await api.projects.list(orgId)
