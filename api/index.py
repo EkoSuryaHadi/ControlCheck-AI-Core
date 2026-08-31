@@ -50,32 +50,128 @@ def _register_import_routes() -> None:
             return {"error": {"code": "invalid_import_file", "message": str(exc)}}
 
 
-def _register_account_repair_route() -> None:
-    """Repair legacy users that exist without an organization membership.
-
-    Older beta accounts may predate mandatory workspace creation. They can
-    authenticate successfully but receive a token without ``org_id``, which
-    makes the current frontend unable to enter a tenant-scoped workspace.
-    This endpoint accepts that freshly-issued user token, creates a personal
-    workspace only when one is missing, and returns a replacement token.
-    """
-    if not hasattr(inner_app, "post"):
-        return
-
-    from fastapi import Header, HTTPException
+def _workspace_for_user(session, user):
+    """Return an existing membership or create a personal workspace for a legacy user."""
     from sqlalchemy import select
 
-    from controlcheck.auth import create_access_token, create_refresh_token, decode_token
+    from controlcheck.persistence.models import OrganizationMemberRecord, OrganizationRecord
+
+    membership = session.scalar(
+        select(OrganizationMemberRecord).where(OrganizationMemberRecord.user_id == user.id)
+    )
+    if membership is not None:
+        return membership
+
+    slug = f"workspace-{user.id.hex}"
+    organization = session.scalar(
+        select(OrganizationRecord).where(OrganizationRecord.slug == slug)
+    )
+    if organization is None:
+        display_name = (user.full_name or user.email.split("@", 1)[0] or "ControlCheck User").strip()
+        organization = OrganizationRecord(
+            name=f"{display_name} Workspace"[:200],
+            slug=slug,
+        )
+        session.add(organization)
+        session.flush()
+
+    membership = OrganizationMemberRecord(
+        organization_id=organization.id,
+        user_id=user.id,
+        role="org_admin",
+    )
+    session.add(membership)
+    session.flush()
+    return membership
+
+
+def _database_session_factory():
     from controlcheck.persistence.database import create_session_factory
-    from controlcheck.persistence.models import OrganizationMemberRecord, OrganizationRecord, UserRecord
 
     database_url = (
         os.environ.get("CONTROLCHECK_DATABASE_URL", "").strip()
         or os.environ.get("DATABASE_URL", "").strip()
     )
     if not database_url:
+        return None
+    return create_session_factory(database_url)
+
+
+def _replace_login_route() -> None:
+    """Make Vercel login repair legacy workspace-less accounts atomically."""
+    if not hasattr(inner_app, "post") or not hasattr(inner_app, "router"):
         return
-    session_factory = create_session_factory(database_url)
+
+    session_factory = _database_session_factory()
+    if session_factory is None:
+        return
+
+    from fastapi import HTTPException
+    from pydantic import BaseModel
+    from sqlalchemy import func, select
+
+    from controlcheck.auth import create_access_token, create_refresh_token, verify_password
+    from controlcheck.persistence.models import UserRecord
+
+    class LoginPayload(BaseModel):
+        email: str
+        password: str
+
+    inner_app.router.routes = [
+        route
+        for route in inner_app.router.routes
+        if not (
+            getattr(route, "path", None) == "/v1/auth/login"
+            and "POST" in (getattr(route, "methods", set()) or set())
+        )
+    ]
+
+    @inner_app.post("/v1/auth/login")
+    def hardened_login(payload: LoginPayload):
+        with session_factory() as session:
+            email = payload.email.strip().lower()
+            user = session.scalar(
+                select(UserRecord).where(func.lower(UserRecord.email) == email)
+            )
+            if user is None or not verify_password(payload.password, user.password_hash):
+                raise HTTPException(status_code=401, detail="Invalid email or password")
+            if getattr(user, "status", "active") != "active":
+                raise HTTPException(status_code=401, detail="Account is not active")
+
+            try:
+                membership = _workspace_for_user(session, user)
+                session.commit()
+            except Exception as exc:
+                session.rollback()
+                raise HTTPException(
+                    status_code=503,
+                    detail="Workspace initialization failed. Please retry sign in.",
+                ) from exc
+
+            return {
+                "access_token": create_access_token(
+                    user.id,
+                    user.email,
+                    organization_id=membership.organization_id,
+                    role=membership.role,
+                ),
+                "refresh_token": create_refresh_token(user.id),
+            }
+
+
+def _register_account_repair_route() -> None:
+    """Repair a freshly-issued legacy token that does not yet contain org_id."""
+    if not hasattr(inner_app, "post"):
+        return
+
+    session_factory = _database_session_factory()
+    if session_factory is None:
+        return
+
+    from fastapi import Header, HTTPException
+
+    from controlcheck.auth import create_access_token, create_refresh_token, decode_token
+    from controlcheck.persistence.models import UserRecord
 
     @inner_app.post("/v1/auth/ensure-workspace")
     def ensure_workspace(authorization: str | None = Header(None)):
@@ -90,48 +186,32 @@ def _register_account_repair_route() -> None:
 
         with session_factory() as session:
             user = session.get(UserRecord, user_id)
-            if user is None or user.status != "active":
+            if user is None or getattr(user, "status", "active") != "active":
                 raise HTTPException(status_code=401, detail="Account is not active")
 
-            membership = session.scalar(
-                select(OrganizationMemberRecord).where(OrganizationMemberRecord.user_id == user.id)
-            )
-            if membership is None:
-                slug = f"workspace-{user.id.hex}"
-                organization = session.scalar(
-                    select(OrganizationRecord).where(OrganizationRecord.slug == slug)
-                )
-                if organization is None:
-                    display_name = (user.full_name or user.email.split("@", 1)[0] or "ControlCheck User").strip()
-                    organization = OrganizationRecord(
-                        name=f"{display_name} Workspace"[:200],
-                        slug=slug,
-                    )
-                    session.add(organization)
-                    session.flush()
+            try:
+                membership = _workspace_for_user(session, user)
+                session.commit()
+            except Exception as exc:
+                session.rollback()
+                raise HTTPException(
+                    status_code=503,
+                    detail="Workspace initialization failed. Please retry sign in.",
+                ) from exc
 
-                membership = OrganizationMemberRecord(
-                    organization_id=organization.id,
-                    user_id=user.id,
-                    role="org_admin",
-                )
-                session.add(membership)
-                session.flush()
-
-            session.commit()
-            access_token = create_access_token(
-                user.id,
-                user.email,
-                organization_id=membership.organization_id,
-                role=membership.role,
-            )
             return {
-                "access_token": access_token,
+                "access_token": create_access_token(
+                    user.id,
+                    user.email,
+                    organization_id=membership.organization_id,
+                    role=membership.role,
+                ),
                 "refresh_token": create_refresh_token(user.id),
             }
 
 
 _register_import_routes()
+_replace_login_route()
 _register_account_repair_route()
 
 
