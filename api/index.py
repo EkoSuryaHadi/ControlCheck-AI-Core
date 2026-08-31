@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from uuid import UUID
@@ -67,12 +68,14 @@ def _register_account_repair_route() -> None:
     from controlcheck.auth import create_access_token, create_refresh_token, decode_token
     from controlcheck.persistence.database import create_session_factory
     from controlcheck.persistence.models import OrganizationMemberRecord, OrganizationRecord, UserRecord
-    from controlcheck.settings import ProductionSettings
 
-    settings = ProductionSettings.from_env()
-    if not settings.database_url:
+    database_url = (
+        os.environ.get("CONTROLCHECK_DATABASE_URL", "").strip()
+        or os.environ.get("DATABASE_URL", "").strip()
+    )
+    if not database_url:
         return
-    session_factory = create_session_factory(settings.database_url)
+    session_factory = create_session_factory(database_url)
 
     @inner_app.post("/v1/auth/ensure-workspace")
     def ensure_workspace(authorization: str | None = Header(None)):
