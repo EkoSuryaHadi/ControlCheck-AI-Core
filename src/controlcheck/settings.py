@@ -105,6 +105,13 @@ class ProductionSettings:
         cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
         trusted_hosts_raw = os.environ.get("CONTROLCHECK_TRUSTED_HOSTS", "*")
         trusted_hosts = [host.strip() for host in trusted_hosts_raw.split(",") if host.strip()]
+
+        # Vercel preview URLs are generated dynamically per commit and branch. Allow
+        # only the platform preview domain family when we are explicitly in Preview;
+        # Vercel Production remains subject to the strict explicit-host contract below.
+        if os.environ.get("VERCEL_ENV", "").strip().lower() == "preview":
+            trusted_hosts = list(dict.fromkeys([*trusted_hosts, "*.vercel.app"]))
+
         max_upload = int(
             os.environ.get(
                 "CONTROLCHECK_MAX_UPLOAD_BYTES",
