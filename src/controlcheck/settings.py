@@ -121,6 +121,11 @@ class ProductionSettings:
         storage_backend = os.environ.get(
             "CONTROLCHECK_STORAGE_BACKEND", "local"
         ).strip().lower()
+        if (
+            os.environ.get("VERCEL")
+            and os.environ.get("VERCEL_ENV", "").strip().lower() == "preview"
+        ):
+            storage_backend = "local"
         s3_bucket = os.environ.get("CONTROLCHECK_S3_BUCKET", "").strip()
         s3_region = os.environ.get("CONTROLCHECK_S3_REGION", "ap-southeast-1").strip()
         s3_endpoint_url = os.environ.get("CONTROLCHECK_S3_ENDPOINT_URL") or None
