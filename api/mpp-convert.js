@@ -1,10 +1,14 @@
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const { execFile } = require('child_process')
+const { promisify } = require('util')
 const { XMLParser } = require('fast-xml-parser')
 const XLSX = require('xlsx')
 
+const execFileAsync = promisify(execFile)
 const MAX_BYTES = 4 * 1024 * 1024
+const PATCHED_MPP_BINARY = path.join(__dirname, '..', 'vendor', 'mppjs', 'linux-x64', 'mpxj-convert')
 
 function asArray(value) {
   if (value == null) return []
@@ -88,6 +92,29 @@ async function readBody(req) {
   return Buffer.concat(chunks)
 }
 
+async function convertWithPatchedMpxj(input, output) {
+  if (process.platform !== 'linux' || process.arch !== 'x64') {
+    throw new Error(`Native MPP conversion requires Linux x64; received ${process.platform}-${process.arch}.`)
+  }
+  if (!fs.existsSync(PATCHED_MPP_BINARY)) {
+    throw new Error('Patched MPP converter is missing from the deployment bundle.')
+  }
+  try {
+    fs.chmodSync(PATCHED_MPP_BINARY, 0o755)
+  } catch (_) {
+    // The executable bit is normally preserved by Git/Vercel; chmod is best-effort.
+  }
+  try {
+    await execFileAsync(PATCHED_MPP_BINARY, [input, output], {
+      timeout: 50_000,
+      maxBuffer: 1024 * 1024,
+    })
+  } catch (err) {
+    const detail = String(err && (err.stderr || err.message) ? (err.stderr || err.message) : err).trim()
+    throw new Error(`Patched MPP conversion failed${detail ? `: ${detail}` : '.'}`)
+  }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: { message: 'Method not allowed' } })
   try {
@@ -101,8 +128,7 @@ module.exports = async function handler(req, res) {
     const output = path.join(tmp, 'output.xml')
     fs.writeFileSync(input, bytes)
 
-    const { convert } = await import('@byteink/mppjs')
-    await convert(input, output)
+    await convertWithPatchedMpxj(input, output)
     const xml = fs.readFileSync(output, 'utf8')
     const parsed = new XMLParser({ ignoreAttributes: false, parseTagValue: false, trimValues: true }).parse(xml)
     const project = parsed.Project || parsed.project
@@ -201,6 +227,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/\.mpp$/i, '')}_ControlCheck.xlsx"`)
     res.setHeader('X-ControlCheck-Task-Count', String(flatTasks.length))
+    res.setHeader('X-ControlCheck-MPP-Converter', 'patched-mpxj-headless')
     return res.status(200).send(out)
   } catch (err) {
     console.error('MPP conversion failed', err)
