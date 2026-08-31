@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { useNavigate, Link, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
-import { api } from "@/lib/api"
+import { api, apiClient } from "@/lib/api"
 import { normalizeAuthResponse } from "@/lib/authSession"
 import { trackEvent } from "@/lib/analytics"
 import { Lock, Mail, ArrowRight, AlertCircle } from "lucide-react"
@@ -11,8 +11,8 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { login } = useAuth()
-  const [email, setEmail] = useState("admin@controlcheck.ai")
-  const [password, setPassword] = useState("controlcheck123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -26,8 +26,25 @@ export const LoginPage: React.FC = () => {
     trackEvent("login_started", { source })
 
     try {
-      const res = await api.auth.login({ email, password })
-      const identity = normalizeAuthResponse(res, { email })
+      let res = await api.auth.login({ email, password })
+      let identity
+
+      try {
+        identity = normalizeAuthResponse(res, { email })
+      } catch (normalizeError: any) {
+        const needsWorkspace = String(normalizeError?.message || "").includes("No workspace organization")
+        if (!needsWorkspace || !res?.access_token) throw normalizeError
+
+        const repaired = await apiClient.post(
+          "/v1/auth/ensure-workspace",
+          {},
+          { headers: { Authorization: `Bearer ${res.access_token}` } },
+        )
+        res = repaired.data
+        identity = normalizeAuthResponse(res, { email })
+        trackEvent("legacy_workspace_repaired", { source })
+      }
+
       login(
         identity.accessToken,
         { id: identity.userId, email: identity.email, name: identity.fullName, role: identity.role },
@@ -67,16 +84,17 @@ export const LoginPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-[11px] font-bold uppercase text-slate-600 block mb-1">Email Address</label>
-            <div className="relative"><Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@company.com" /></div>
+            <div className="relative"><Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@company.com" autoComplete="email" /></div>
           </div>
           <div>
             <label className="text-[11px] font-bold uppercase text-slate-600 block mb-1">Password</label>
-            <div className="relative"><Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" /></div>
+            <div className="relative"><Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" autoComplete="current-password" /></div>
           </div>
           <button type="submit" disabled={isLoading} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-md shadow-blue-500/20 flex items-center justify-center gap-1.5 transition-all"><span>{isLoading ? "Signing in..." : "Sign In to Workspace"}</span><ArrowRight className="w-4 h-4" /></button>
         </form>
 
         <button onClick={handleDemoLogin} className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Enter Demo Workspace</button>
+        <p className="text-center text-[10px] leading-4 text-slate-400">Demo mode is for preview and preflight validation. Persistent project import requires a real workspace account.</p>
 
         <div className="rounded-xl bg-slate-50 p-4 text-center"><div className="text-xs text-slate-500">New to ControlCheck?</div><Link to={`/register?source=${encodeURIComponent(source)}`} className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-700">Create workspace <ArrowRight className="h-3.5 w-3.5" /></Link></div>
       </div>
