@@ -16,6 +16,16 @@ from ..logging import get_logger
 logger = get_logger("ai.assistant")
 
 
+def _grounding(items: list[dict[str, Any]]) -> tuple[str, str | None]:
+    """Derive confidence from persisted evidence availability."""
+    if not items:
+        return "high", None
+    grounded = [item for item in items if item.get("evidence")]
+    if len(grounded) == len(items):
+        return "high", None
+    return "medium", "Some findings do not have persisted evidence references; verify the source records before acting."
+
+
 class ProjectAIAssistant:
     """Deterministic, tool-grounded AI reasoning assistant for project-control audits."""
 
@@ -44,6 +54,7 @@ class ProjectAIAssistant:
                 })
 
             top_item = delayed[0]
+            confidence, caveat = _grounding(delayed)
             answer = (
                 f"Detected {len(delayed)} schedule issue(s). Key delayed activity is '{top_item.get('activity_id')}' "
                 f"({top_item.get('title')}). Description: {top_item.get('description')}."
@@ -73,6 +84,7 @@ class ProjectAIAssistant:
                 })
 
             top_cost = cost_drivers[0]
+            confidence, caveat = _grounding(cost_drivers)
             answer = (
                 f"Found {len(cost_drivers)} significant cost finding(s). The highest impact item is "
                 f"'{top_cost.get('finding_id')}' on entity {top_cost.get('entity_id')}: {top_cost.get('title')}."
@@ -113,6 +125,7 @@ class ProjectAIAssistant:
         )
 
         drivers = health.get("key_drivers", [])
+        confidence, caveat = _grounding(drivers)
         return sanitize_ai_response({
             "answer": answer,
             "key_evidence": drivers[:3],
@@ -122,3 +135,4 @@ class ProjectAIAssistant:
             "data_caveat": None,
             "evidence_references": [str(d.get("finding_id", "")) for d in drivers if isinstance(d, dict) and d.get("finding_id")],
         })
+
