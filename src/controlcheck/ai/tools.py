@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
 from ..persistence.models import (
@@ -78,7 +78,7 @@ def get_top_cost_drivers(
                 FindingRecord.analysis_run_id == run_id,
                 FindingRecord.category.in_(["COST", "DATA_QUALITY"]),
             )
-            .order_by(FindingRecord.severity == "critical", FindingRecord.id)
+            .order_by(case((FindingRecord.severity == "critical", 0), else_=1), FindingRecord.id)
             .limit(limit)
         )
     )
@@ -95,6 +95,7 @@ def get_top_cost_drivers(
             "business_impact": f.business_impact,
             "recommendation": f.recommendation,
             "metrics": f.metrics,
+            "evidence": _evidence_for_record(f, session),
         }
         for f in findings
     ]
@@ -117,7 +118,7 @@ def get_delayed_activities(
                 FindingRecord.analysis_run_id == run_id,
                 FindingRecord.category == "SCHEDULE",
             )
-            .order_by(FindingRecord.severity == "critical", FindingRecord.id)
+            .order_by(case((FindingRecord.severity == "critical", 0), else_=1), FindingRecord.id)
             .limit(10)
         )
     )
@@ -134,11 +135,29 @@ def get_delayed_activities(
             "business_impact": f.business_impact,
             "recommendation": f.recommendation,
             "metrics": f.metrics,
+            "evidence": _evidence_for_record(f, session),
         }
         for f in findings
     ]
 
 
+
+def _evidence_for_record(finding: FindingRecord, session: Session) -> list[dict[str, Any]]:
+    """Return only persisted, source-addressable evidence for a finding."""
+    return [
+        {
+            "source_sheet": item.source_sheet,
+            "source_rows": item.source_rows,
+            "record_ids": item.record_ids,
+            "fields": item.fields,
+            "aggregation": item.aggregation,
+        }
+        for item in session.scalars(
+            select(FindingEvidenceRecord)
+            .where(FindingEvidenceRecord.finding_id == finding.id)
+            .order_by(FindingEvidenceRecord.evidence_order)
+        )
+    ]
 def get_finding_evidence(
     organization_id: UUID, finding_id: UUID, session: Session
 ) -> list[dict[str, Any]]:
@@ -167,3 +186,6 @@ def get_finding_evidence(
         }
         for e in evidence_records
     ]
+
+
+
