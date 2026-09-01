@@ -18,7 +18,7 @@ interface ProjectContextType {
   removeProject: (projectId: string) => void
   refreshProjects: () => Promise<void>
   refreshHealthAndFindings: () => Promise<void>
-  uploadWorkbook: (file: File) => Promise<AnalysisRun | null>
+  uploadWorkbook: (file: File, preset?: string) => Promise<AnalysisRun | null>
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
@@ -115,7 +115,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [currentProject, isPersistentSession])
 
-  const uploadWorkbook = async (file: File): Promise<AnalysisRun | null> => {
+  const uploadWorkbook = async (file: File, preset?: string): Promise<AnalysisRun | null> => {
     if (!isPersistentSession) throw new Error("Demo mode is limited to preflight validation.")
     if (!currentProject?.id) throw new Error("A project must be selected before upload.")
     if (!file || file.size <= 0) throw new Error("A non-empty source file is required.")
@@ -124,7 +124,9 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsUploading(true)
       trackEvent("project_check_upload_started", { project_id: currentProject.id, file_name: file.name })
 
-      const res = await api.runs.upload(currentProject.id, file)
+      const res = preset
+        ? await api.runs.uploadValidated(currentProject.id, file, preset)
+        : await api.runs.upload(currentProject.id, file)
       if (!res?.id) throw new Error("Upload API did not return a valid analysis run ID.")
 
       setCurrentRun(isSuccessfulRun(res) ? res : null)
@@ -182,5 +184,7 @@ export const useProject = () => {
   if (!context) throw new Error("useProject must be used within a ProjectProvider")
   return context
 }
+
+
 
 

@@ -6,6 +6,7 @@ const roundedScore = (value, computed) =>
 export const mapHealthSnapshot = (raw) => {
   const computationStatus = raw.computation_status ?? "computed"
   const computed = computationStatus === "computed"
+  const hasAnyComputedDomain = computationStatus !== "not_computed"
   const overallScore = roundedScore(raw.overall_score, computed)
   const scoreBand =
     raw.score_band ??
@@ -22,12 +23,12 @@ export const mapHealthSnapshot = (raw) => {
   return {
     id: raw.id,
     overall_score: overallScore,
-    cost_score: roundedScore(raw.cost_score, computed),
-    schedule_score: roundedScore(raw.schedule_score, computed),
-    progress_score: roundedScore(raw.progress_score, computed),
+    cost_score: roundedScore(raw.cost_score, hasAnyComputedDomain),
+    schedule_score: roundedScore(raw.schedule_score, hasAnyComputedDomain),
+    progress_score: roundedScore(raw.progress_score, hasAnyComputedDomain),
     data_quality_score: roundedScore(
       raw.dq_score ?? raw.data_quality_score,
-      computed,
+      hasAnyComputedDomain,
     ),
     status_label: scoreBand.toUpperCase(),
     critical_findings_count: raw.component_breakdown?.critical_count ?? 0,
@@ -42,3 +43,5 @@ export const mapHealthSnapshot = (raw) => {
     created_at: raw.created_at,
   }
 }
+
+

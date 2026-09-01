@@ -44,6 +44,7 @@ export const DashboardPage: React.FC = () => {
   }, [currentProject?.id, currentRun?.id])
 
   const severityRank: Record<string, number> = { critical: 0, warning: 1, observation: 2 }
+  const findingCount = (severity: string) => liveFindings.filter((finding) => String(finding.severity).toLowerCase() === severity).length
   const criticalFindings = [...liveFindings]
     .filter((finding) => ["critical", "warning"].includes(String(finding.severity).toLowerCase()))
     .sort((a, b) => (severityRank[a.severity] ?? 9) - (severityRank[b.severity] ?? 9))
@@ -74,19 +75,19 @@ export const DashboardPage: React.FC = () => {
           <div className="md:col-span-9 grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               title="CRITICAL"
-              value={healthData?.critical_findings_count ?? liveFindings.filter((f) => f.severity === "critical").length}
+              value={findingCount("critical")}
               delta={{ label: "current run", value: 0, isPositive: true }}
               variant="critical"
             />
             <MetricCard
               title="WARNING"
-              value={healthData?.warning_findings_count ?? liveFindings.filter((f) => f.severity === "warning").length}
+              value={findingCount("warning")}
               delta={{ label: "current run", value: 0, isPositive: true }}
               variant="warning"
             />
             <MetricCard
               title="OBSERVATION"
-              value={healthData?.observation_findings_count ?? liveFindings.filter((f) => f.severity === "observation").length}
+              value={findingCount("observation")}
               delta={{ label: "current run", value: 0, isPositive: true }}
               variant="observation"
             />
@@ -425,3 +426,4 @@ export const DashboardPage: React.FC = () => {
     </div>
   )
 }
+

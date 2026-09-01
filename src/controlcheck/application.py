@@ -266,25 +266,26 @@ class AnalysisService:
                     )
                 )
                 score_is_available = computation_status == "computed"
-                component_breakdown = health_result.component_breakdown
-                if not score_is_available:
-                    component_breakdown = {
-                        category: {
-                            **component,
-                            "score": None,
-                            "weighted_score": None,
-                        }
-                        for category, component in component_breakdown.items()
-                    }
+                available_categories = available_health_categories(
+                    list(execution.executed_rule_ids)
+                )
+                component_breakdown = {
+                    category: (
+                        component
+                        if category in available_categories
+                        else {**component, "score": None, "weighted_score": None}
+                    )
+                    for category, component in health_result.component_breakdown.items()
+                }
                 HealthRepository(session).create_snapshot(
                     organization_id=organization_id,
                     project_id=project_id,
                     analysis_run_id=completed.id,
                     overall_score=(health_result.overall_score if score_is_available else None),
-                    cost_score=(health_result.category_scores["COST"].score if score_is_available else None),
-                    schedule_score=(health_result.category_scores["SCHEDULE"].score if score_is_available else None),
-                    progress_score=(health_result.category_scores["PROGRESS"].score if score_is_available else None),
-                    dq_score=(health_result.category_scores["DATA_QUALITY"].score if score_is_available else None),
+                    cost_score=(health_result.category_scores["COST"].score if "COST" in available_categories else None),
+                    schedule_score=(health_result.category_scores["SCHEDULE"].score if "SCHEDULE" in available_categories else None),
+                    progress_score=(health_result.category_scores["PROGRESS"].score if "PROGRESS" in available_categories else None),
+                    dq_score=(health_result.category_scores["DATA_QUALITY"].score if "DATA_QUALITY" in available_categories else None),
                     score_band=(
                         health_result.score_band
                         if score_is_available
@@ -430,6 +431,21 @@ class AnalysisService:
         ) from cause
 
 
+def available_health_categories(executed_rule_ids: list[str]) -> set[str]:
+    """Expose only domain scores backed by at least one executed rule."""
+    categories: set[str] = set()
+    for rule_id in executed_rule_ids:
+        normalized = rule_id.upper()
+        if normalized.startswith("SCH-"):
+            categories.add("SCHEDULE")
+        elif normalized.startswith("PRG-"):
+            categories.add("PROGRESS")
+        elif normalized.startswith(("CST-", "XDOM-")):
+            categories.add("COST")
+        elif normalized.startswith("DQ-"):
+            categories.add("DATA_QUALITY")
+    return categories
+
 def classify_health_availability(
     executed_rule_ids: list[str], skipped_rules: list[dict]
 ) -> tuple[str, float, list[str]]:
@@ -447,3 +463,4 @@ def classify_health_availability(
     if not executed_rule_ids:
         return "not_computed", 0.0, unavailable_domains
     return "partial", coverage_ratio, unavailable_domains
+

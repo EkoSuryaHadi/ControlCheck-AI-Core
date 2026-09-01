@@ -1,4 +1,7 @@
 import os
+from io import BytesIO
+
+import openpyxl
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -88,3 +91,26 @@ def test_analysis_upload_rejects_invalid_workbook_safely(analysis_client):
     assert response.json()["error"]["code"] == "invalid_workbook"
     assert response.json()["error"]["message"] == "Workbook could not be parsed"
     assert "zip" not in response.text.lower()
+
+
+def test_validated_schedule_import_persists_schedule_analysis(analysis_client):
+    client, golden_id, _ = analysis_client
+    source = openpyxl.Workbook()
+    tasks = source.active
+    tasks.title = "Tasks"
+    tasks.append(["ID", "Name", "Outline Number", "Baseline Start", "Baseline Finish", "Start", "Finish", "% Complete", "Total Slack"])
+    tasks.append(["10", "Install compressor", "1.2", "2026-01-01", "2026-01-10", "2026-01-02", None, 35, -2])
+    payload = BytesIO()
+    source.save(payload)
+
+    response = client.post(
+        f"/v1/projects/{golden_id}/validated-imports/analysis-runs?preset=msproject",
+        headers={"X-Organization-ID": str(ORG_ID)},
+        files={"file": ("tasks.xlsx", payload.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["status"] == "succeeded"
+    assert response.json()["rule_count"] > 0
+
+

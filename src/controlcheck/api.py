@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 from time import perf_counter
@@ -40,6 +41,8 @@ from .errors import ControlCheckApplicationError, InvalidWorkbookError, StorageU
 from .config import load_catalogue
 from .ingestion.profile import load_mapping_profile
 from .ingestion.service import SnapshotIngestionService
+from .ingestion.preflight_validator import validate_workbook_bytes
+from .ingestion.validated_import import build_schedule_workbook
 from .loader import WorkbookSchemaError
 from .limits import PUBLIC_BETA_MAX_UPLOAD_BYTES
 from .logging import clear_log_context, configure_logging, get_logger, set_log_context
@@ -801,6 +804,66 @@ def create_app(
                     tenant.organization_id, project_id, snapshot_id
                 )
                 return AnalysisRunResponse.model_validate(run)
+            @application.post(
+                "/v1/projects/{project_id}/validated-imports/analysis-runs",
+                response_model=AnalysisRunResponse,
+                status_code=201,
+            )
+            async def create_validated_schedule_analysis_run(
+                project_id: UUID,
+                file: UploadFile,
+                preset: str = "msproject",
+                tenant: TenantContext = Depends(require_tenant),
+            ) -> AnalysisRunResponse:
+                data = await read_snapshot_upload(file)
+                try:
+                    validation = validate_workbook_bytes(
+                        data, file.filename or "schedule.xlsx", preset=preset
+                    )
+                except ValueError as exc:
+                    raise ControlCheckApplicationError(
+                        "invalid_workbook", "Workbook could not be validated", 422
+                    ) from exc
+                if not validation["can_import"]:
+                    raise ControlCheckApplicationError(
+                        "validated_import_blocked",
+                        "Validated import is blocked until required schedule data is corrected",
+                        422,
+                    )
+                with session_factory() as session:
+                    project = ProjectRepository(session).get_scoped(
+                        tenant.organization_id, project_id
+                    )
+                    if project is None:
+                        raise ControlCheckApplicationError(
+                            "project_not_found", "Project was not found for this organization", 404
+                        )
+                    canonical = build_schedule_workbook(
+                        data,
+                        file.filename or "schedule.xlsx",
+                        project_code=project.code,
+                        project_name=project.name,
+                        data_date=date.today(),
+                        preset=preset,
+                    )
+                run = analysis_service.run(
+                    tenant.organization_id,
+                    project_id,
+                    f"validated_{file.filename or 'schedule.xlsx'}",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    canonical,
+                )
+                record_product_event(
+                    tenant, "upload_accepted", project_id=project_id,
+                    analysis_run_id=run.id,
+                    metadata={"source": "validated_schedule_import"},
+                )
+                record_product_event(
+                    tenant, "analysis_completed", project_id=project_id,
+                    analysis_run_id=run.id,
+                    metadata={"finding_count": run.finding_count, "rule_count": run.rule_count},
+                )
+                return AnalysisRunResponse.model_validate(run)
 
             @application.post(
                 "/v1/projects/{project_id}/analysis-runs",
@@ -1149,3 +1212,4 @@ def create_configured_app() -> FastAPI:
         cors_origins=prod_settings.cors_origins,
         trusted_hosts=prod_settings.trusted_hosts,
     )
+

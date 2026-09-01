@@ -107,7 +107,7 @@ export const ValidatedImportPage: React.FC = () => {
       return
     }
     setError(null)
-    try { await uploadWorkbook(importFile); setDone(true) }
+    try { await uploadWorkbook(importFile, preset); setDone(true) }
     catch (err: any) { setError(err?.response?.data?.error?.message || err?.message || "Import failed") }
   }
 
@@ -181,3 +181,4 @@ export const ValidatedImportPage: React.FC = () => {
     </div>
   </div>
 }
+

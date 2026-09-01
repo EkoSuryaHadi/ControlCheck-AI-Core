@@ -46,3 +46,23 @@ test("fully computed healthy scores remain compatible", () => {
   assert.equal(health.overall_score, 92)
   assert.equal(health.status_label, "HEALTHY")
 })
+
+test("partial health preserves available schedule score while keeping overall unavailable", () => {
+  const health = mapHealthSnapshot({
+    overall_score: null,
+    cost_score: null,
+    schedule_score: 70.6,
+    progress_score: null,
+    dq_score: null,
+    computation_status: "partial",
+    coverage_ratio: 0.25,
+    unavailable_domains: ["cost", "progress", "data_quality"],
+    score_band: "Partial",
+    component_breakdown: {},
+    key_drivers: [],
+  })
+
+  assert.equal(health.overall_score, null)
+  assert.equal(health.schedule_score, 71)
+  assert.equal(health.cost_score, null)
+})

@@ -133,6 +133,10 @@ export const api = {
       if (idempotencyKey) headers["X-Idempotency-Key"] = idempotencyKey
       return (await apiClient.post(`/v1/projects/${projectId}/analysis-runs`, formData, { headers })).data
     },
+    uploadValidated: async (projectId: string, file: File, preset: string) => {
+      const formData = new FormData(); formData.append("file", file)
+      return (await apiClient.post(`/v1/projects/${projectId}/validated-imports/analysis-runs?preset=${encodeURIComponent(preset)}`, formData, { headers: { "Content-Type": "multipart/form-data" } })).data
+    },
     getSummary: async (projectId: string, runId: string): Promise<AnalysisSummary> =>
       (await apiClient.get(`/v1/projects/${projectId}/analysis-runs/${runId}/summary`)).data,
     getHealth: async (runId: string) => (await apiClient.get(`/v1/analysis-runs/${runId}/health`)).data,
@@ -191,3 +195,4 @@ export const api = {
     getMessages: async (conversationId: string) => (await apiClient.get(`/v1/ai/conversations/${conversationId}/messages`)).data,
   },
 }
+
