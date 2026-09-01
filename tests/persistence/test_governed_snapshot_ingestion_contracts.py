@@ -656,6 +656,29 @@ def test_project_code_mismatch_is_stored_as_source_identity(
     ) == 1
 
 
+def test_missing_source_project_metadata_uses_selected_project_context(
+    snapshot_service,
+    golden_bytes,
+    golden_project,
+):
+    def remove_project_metadata(book):
+        sheet = book["Project_Info"]
+        for row in range(sheet.max_row, 1, -1):
+            if sheet.cell(row=row, column=1).value in {"project_id", "project_name"}:
+                sheet.delete_rows(row)
+
+    snapshot = snapshot_service.ingest(
+        golden_project.organization_id,
+        golden_project.id,
+        "missing-project-metadata.xlsx",
+        XLSX_MIME,
+        mutate_workbook(golden_bytes, remove_project_metadata),
+    )
+
+    assert snapshot.source_project_id == golden_project.code
+    assert snapshot.source_project_name == golden_project.name
+
+
 def test_missing_sheet_marks_only_that_domain_blocked_and_persists_healthy_rows(
     snapshot_service,
     golden_bytes,
