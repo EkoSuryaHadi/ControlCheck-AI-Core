@@ -111,6 +111,22 @@ def test_complete_production_configuration_is_accepted(monkeypatch) -> None:
     assert settings.cors_origins == ["https://controlcheck.example"]
 
 
+def test_vercel_production_hostname_is_trusted(monkeypatch) -> None:
+    _set_valid_production_environment(monkeypatch)
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    monkeypatch.setenv("CONTROLCHECK_STORAGE_BACKEND", "s3")
+    monkeypatch.setenv("CONTROLCHECK_S3_BUCKET", "controlcheck-test")
+    monkeypatch.setenv(
+        "VERCEL_URL",
+        "control-check-cd3krhzfi-ekosuryahadis-projects.vercel.app",
+    )
+
+    settings = ProductionSettings.from_env()
+
+    assert "control-check-cd3krhzfi-ekosuryahadis-projects.vercel.app" in settings.trusted_hosts
+
+
 def test_production_defaults_to_four_mib_upload_limit(monkeypatch) -> None:
     _set_valid_production_environment(monkeypatch)
     monkeypatch.delenv("CONTROLCHECK_MAX_UPLOAD_BYTES", raising=False)

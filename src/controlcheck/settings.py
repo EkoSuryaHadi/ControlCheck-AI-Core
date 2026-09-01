@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from .limits import PUBLIC_BETA_MAX_UPLOAD_BYTES
 
@@ -111,6 +112,18 @@ class ProductionSettings:
         # Vercel Production remains subject to the strict explicit-host contract below.
         if os.environ.get("VERCEL_ENV", "").strip().lower() == "preview":
             trusted_hosts = list(dict.fromkeys([*trusted_hosts, "*.vercel.app"]))
+
+        # Vercel assigns a deployment hostname to every production promotion.
+        # Include the platform-provided hostname so the deployment URL itself
+        # remains reachable while the explicit trusted-host requirement stays
+        # intact for non-Vercel deployments.
+        vercel_url = os.environ.get("VERCEL_URL", "").strip()
+        if os.environ.get("VERCEL") and vercel_url:
+            hostname = urlparse(
+                vercel_url if "://" in vercel_url else f"https://{vercel_url}"
+            ).hostname
+            if hostname and hostname.lower().endswith(".vercel.app"):
+                trusted_hosts = list(dict.fromkeys([*trusted_hosts, hostname]))
 
         max_upload = int(
             os.environ.get(
