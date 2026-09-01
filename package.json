@@ -5,5 +5,10 @@
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
     "vercel-build": "cd frontend && npm install && npm run build && mkdir -p ../public && cp -r dist/* ../public/"
+  },
+  "dependencies": {
+    "@byteink/mppjs": "^0.1.6",
+    "fast-xml-parser": "^5.2.5",
+    "xlsx": "^0.18.5"
   }
 }

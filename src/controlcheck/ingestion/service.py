@@ -165,25 +165,19 @@ class SnapshotIngestionService:
             )
 
         extracted = extract_workbook(data, self.mapping_profile)
-        source_project_id = _project_value(extracted.project_values, "project_id")
-        if source_project_id is None:
-            raise ControlCheckApplicationError(
-                "invalid_project_metadata",
-                "Workbook Project_Info must contain project_id",
-                422,
-            )
+        # The selected ControlCheck project is the authoritative persistence
+        # context. Source files exported from scheduling tools frequently do
+        # not contain a project identifier, so derive the source metadata from
+        # that context instead of rejecting an otherwise valid workbook.
+        source_project_id = _project_value(extracted.project_values, "project_id") or project.code
         raw_source_project_name = extracted.project_values.get("project_name")
         source_project_name = (
-            None
+            project.name
             if raw_source_project_name is None
             else str(raw_source_project_name)
         )
-        if source_project_name is None or not source_project_name.strip():
-            raise ControlCheckApplicationError(
-                "invalid_project_metadata",
-                "Workbook Project_Info must contain project_name",
-                422,
-            )
+        if not source_project_name or not source_project_name.strip():
+            source_project_name = project.name
 
         profile_sha = mapping_profile_sha256(self.mapping_profile)
         normal_dedupe_key = _dedupe_key(

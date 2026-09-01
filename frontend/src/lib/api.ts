@@ -46,6 +46,17 @@ export interface AnalysisRun {
   id: string; project_id: string; engine_version?: string; workbook_sha256?: string; status: "completed" | "running" | "failed" | string;
   rule_count?: number; finding_count?: number; duration_ms?: number; started_at?: string; completed_at?: string; created_at?: string
 }
+export interface AnalysisSummary {
+  analysis_run_id: string
+  snapshot_id: string
+  domains: Record<string, string>
+  cost: { available: boolean; budget_total: number; actual_total: number; commitment_total: number }
+  schedule: {
+    activity_count: number; critical_count: number; negative_float_count: number; high_float_count: number
+    activities: Array<{ activity_id: string; activity_name: string; wbs_code?: string | null; baseline_finish: string; actual_finish?: string | null; planned_progress: number; actual_progress: number; total_float_days: number; critical: boolean; status: string }>
+  }
+  progress: { available: boolean; source: string; planned_progress: number; actual_progress: number; variance: number }
+}
 export interface FindingFeedback { id: string; organization_id: string; project_id: string; analysis_run_id: string; finding_id?: string | null; rating: "useful" | "not_useful"; comment?: string | null; status: string; created_at: string }
 export interface OwnerMetrics { registrations: number; active_users: number; projects: number; uploads_accepted: number; analyses_completed: number; result_use_events: number; result_use_rate: number; feedback_count: number; useful_feedback_rate: number; error_rate: number; generated_at: string }
 export interface AIAskResponse {
@@ -122,6 +133,8 @@ export const api = {
       if (idempotencyKey) headers["X-Idempotency-Key"] = idempotencyKey
       return (await apiClient.post(`/v1/projects/${projectId}/analysis-runs`, formData, { headers })).data
     },
+    getSummary: async (projectId: string, runId: string): Promise<AnalysisSummary> =>
+      (await apiClient.get(`/v1/projects/${projectId}/analysis-runs/${runId}/summary`)).data,
     getHealth: async (runId: string) => (await apiClient.get(`/v1/analysis-runs/${runId}/health`)).data,
     getFindings: async (runId: string, params?: { severity?: string; category?: string; status?: string }) => collectFindingPages<Finding>(
       async (pageParams: Record<string, unknown>) => (await apiClient.get(`/v1/analysis-runs/${runId}/findings`, { params: pageParams })).data,

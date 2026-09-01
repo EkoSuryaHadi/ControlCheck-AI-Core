@@ -1,0 +1,21 @@
+This package distributes a binary derived from the following projects:
+
+  MPXJ
+    https://github.com/joniles/mpxj
+    Copyright (c) 2000-present Jon Iles
+    License: GNU LGPL 2.1 or later
+
+  Apache POI
+    https://poi.apache.org/
+    License: Apache License 2.0
+
+  GraalVM / Liberica Native Image Kit
+    https://bell-sw.com/libericanik/
+    License: GNU GPL v2 with Classpath Exception
+
+Per the LGPL: the corresponding source for the LGPL components used to build
+this binary is available at https://github.com/joniles/mpxj at the version
+recorded in the build metadata of this release.
+
+To rebuild this binary from source, see
+https://github.com/byteink/mpxjs#building-from-source

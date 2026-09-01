@@ -136,7 +136,7 @@ export const FindingsPage: React.FC = () => {
         })}
 
         {filteredFindings.length === 0 && (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No findings match the selected filters.</div>
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">{sourceFindings.length === 0 ? "The selected analysis run completed with no control-rule findings. Review Schedule for imported MPP metrics and Data for source-quality warnings." : "No findings match the selected filters."}</div>
         )}
       </div>
 

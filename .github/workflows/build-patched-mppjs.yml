@@ -1,0 +1,126 @@
+name: Build Patched MPP Converter
+
+on:
+  push:
+    branches: [ feature/import-center-v1 ]
+    paths:
+      - .github/workflows/build-patched-mppjs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-x64:
+    name: Build headless MPXJ converter
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout ControlCheck branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/import-center-v1
+          fetch-depth: 0
+
+      - name: Set up GraalVM Java 21
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'false'
+
+      - name: Fetch upstream mppjs v0.1.6
+        run: |
+          git clone --depth 1 --branch v0.1.6 https://github.com/byteink/mppjs.git /tmp/mppjs
+
+      - name: Patch converter for headless schedule extraction
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/mppjs/java/src/main/java/org/msproject2xml/Convert.java')
+          text = path.read_text(encoding='utf-8')
+          old_import = 'import org.mpxj.reader.UniversalProjectReader;'
+          new_import = 'import org.mpxj.mpp.MPPReader;'
+          old_read = '            ProjectFile project = new UniversalProjectReader().read(input);'
+          new_read = (
+              '            MPPReader reader = new MPPReader();\n'
+              '            reader.setReadPresentationData(false);\n'
+              '            ProjectFile project = reader.read(input);'
+          )
+          if old_import not in text or old_read not in text:
+              raise SystemExit('Expected upstream converter source was not found; refusing an unverified patch.')
+          text = text.replace(old_import, new_import).replace(old_read, new_read)
+          path.write_text(text, encoding='utf-8')
+          PY
+          grep -n -E "MPPReader|setReadPresentationData" /tmp/mppjs/java/src/main/java/org/msproject2xml/Convert.java
+
+      - name: Build shaded MPXJ jar
+        working-directory: /tmp/mppjs/java
+        run: mvn -q -DskipTests package
+
+      - name: Build GraalVM native Linux x64 binary
+        working-directory: /tmp/mppjs
+        run: |
+          mkdir -p bin
+          native-image \
+            -H:+UnlockExperimentalVMOptions \
+            --no-fallback \
+            -H:+AddAllCharsets \
+            -H:ConfigurationFileDirectories=.ni-config \
+            -H:Name=mpxj-convert \
+            -H:Path=bin \
+            -jar java/target/mpxj-convert.jar
+          chmod +x bin/mpxj-convert
+          file bin/mpxj-convert
+          ls -lh bin/mpxj-convert
+
+      - name: Stage patched binary and license notices
+        run: |
+          mkdir -p vendor/mppjs/linux-x64
+          cp /tmp/mppjs/bin/mpxj-convert vendor/mppjs/linux-x64/mpxj-convert
+          cp /tmp/mppjs/packages/_assets/LICENSE vendor/mppjs/LICENSE
+          cp /tmp/mppjs/packages/_assets/NOTICE vendor/mppjs/NOTICE
+          chmod +x vendor/mppjs/linux-x64/mpxj-convert
+          cat > vendor/mppjs/PATCH.md <<'EOF'
+          # Patched mppjs Linux converter
+
+          Upstream: https://github.com/byteink/mppjs
+          Upstream tag: v0.1.6
+          MPXJ version: 16.1.0
+
+          ControlCheck patch: the converter uses `org.mpxj.mpp.MPPReader`
+          directly and calls `setReadPresentationData(false)` before reading
+          the Microsoft Project file.
+
+          Purpose: ControlCheck imports schedule data only. Skipping Microsoft
+          Project presentation/view formatting prevents the known headless Linux
+          AWT failure for MPP files with saved Gantt Chart formatting while
+          preserving schedule tasks, resources, assignments, calendars and
+          relationships.
+
+          The native binary contains MPXJ and remains subject to the upstream
+          LGPL-2.1-or-later terms included in LICENSE and NOTICE.
+          EOF
+
+      - name: Upload binary artifact for acceptance testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: patched-mppjs-linux-x64
+          path: |
+            vendor/mppjs/linux-x64/mpxj-convert
+            vendor/mppjs/LICENSE
+            vendor/mppjs/NOTICE
+            vendor/mppjs/PATCH.md
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Commit patched binary to feature branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor/mppjs
+          if git diff --cached --quiet; then
+            echo "Patched binary already matches repository state."
+            exit 0
+          fi
+          git commit -m "build(mpp): vendor patched headless Linux converter"
+          git push origin HEAD:feature/import-center-v1

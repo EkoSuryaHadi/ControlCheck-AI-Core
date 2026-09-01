@@ -1,10 +1,10 @@
-import React from "react"
+import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useProject } from "@/context/ProjectContext"
 import { HealthGauge } from "@/components/ui/HealthGauge"
 import { DomainHealthBar, MetricCard } from "@/components/ui/DomainHealthBar"
 import { SeverityBadge } from "@/components/ui/Badges"
-import { formatCurrency, formatNumber } from "@/lib/utils"
+import { api, AnalysisSummary } from "@/lib/api"
 import {
   DollarSign,
   TrendingUp,
@@ -32,7 +32,16 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const { currentProject, currentRun, healthData, liveFindings } = useProject()
+  const [summary, setSummary] = useState<AnalysisSummary | null>(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!currentProject?.id || !currentRun?.id) {
+      setSummary(null)
+      return
+    }
+    void api.runs.getSummary(currentProject.id, currentRun.id).then(setSummary).catch(() => setSummary(null))
+  }, [currentProject?.id, currentRun?.id])
 
   const severityRank: Record<string, number> = { critical: 0, warning: 1, observation: 2 }
   const criticalFindings = [...liveFindings]
@@ -43,7 +52,7 @@ export const DashboardPage: React.FC = () => {
 
   const recentActivities = currentRun ? [{ type: "analysis", title: `Analysis completed: ${currentProject?.name || "Current project"}`, author: "Server analysis", time: currentRun.completed_at ? new Date(currentRun.completed_at).toLocaleString() : "ล่าสุด", icon: FileCheck, iconColor: "text-blue-600 bg-blue-50" }] : []
   const riskTrendData = [{ month: currentRun?.completed_at ? new Date(currentRun.completed_at).toLocaleDateString(undefined, { month: "short" }) : "Current", warning: liveFindings.filter((f) => f.severity === "warning").length, observation: liveFindings.filter((f) => f.severity === "observation").length, critical: liveFindings.filter((f) => f.severity === "critical").length }]
-  const costTrendData: Array<{ month: string; bac?: number; ac?: number; eac?: number }> = []
+  const costTrendData: Array<{ month: string; bac?: number; ac?: number; eac?: number }> = summary?.cost.available ? [{ month: "Current", bac: summary.cost.budget_total, ac: summary.cost.actual_total, eac: summary.cost.actual_total }] : []
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -53,9 +62,9 @@ export const DashboardPage: React.FC = () => {
           {/* Health Gauge Box */}
           <div className="md:col-span-3">
             <HealthGauge
-              score={healthData ? healthData.overall_score : 68}
-              label={healthData?.status_label ?? "MODERATE"}
-              lastUpdated="Last update: 2 minutes ago"
+              score={healthData?.overall_score ?? null}
+              label={healthData?.status_label ?? "NOT COMPUTED"}
+              lastUpdated={currentRun ? "Latest completed analysis" : "No completed analysis"}
               size={150}
               className="h-full"
             />
@@ -65,20 +74,20 @@ export const DashboardPage: React.FC = () => {
           <div className="md:col-span-9 grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               title="CRITICAL"
-              value={healthData?.critical_findings_count ?? 17}
-              delta={{ label: "vs last month", value: 4, isPositive: false }}
+              value={healthData?.critical_findings_count ?? liveFindings.filter((f) => f.severity === "critical").length}
+              delta={{ label: "current run", value: 0, isPositive: true }}
               variant="critical"
             />
             <MetricCard
               title="WARNING"
-              value={healthData?.warning_findings_count ?? 23}
-              delta={{ label: "vs last month", value: 5, isPositive: false }}
+              value={healthData?.warning_findings_count ?? liveFindings.filter((f) => f.severity === "warning").length}
+              delta={{ label: "current run", value: 0, isPositive: true }}
               variant="warning"
             />
             <MetricCard
               title="OBSERVATION"
-              value={healthData?.observation_findings_count ?? 12}
-              delta={{ label: "vs last month", value: 2, isPositive: true }}
+              value={healthData?.observation_findings_count ?? liveFindings.filter((f) => f.severity === "observation").length}
+              delta={{ label: "current run", value: 0, isPositive: true }}
               variant="observation"
             />
             <MetricCard
@@ -94,28 +103,28 @@ export const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <DomainHealthBar
             title="COST HEALTH"
-            score={healthData ? healthData.cost_score : 58}
+              score={healthData?.cost_score ?? null}
             weight="30%"
             icon="cost"
             onClick={() => navigate("/cost")}
           />
           <DomainHealthBar
             title="SCHEDULE HEALTH"
-            score={healthData ? healthData.schedule_score : 71}
+              score={healthData?.schedule_score ?? null}
             weight="30%"
             icon="schedule"
             onClick={() => navigate("/schedule")}
           />
           <DomainHealthBar
             title="PROGRESS HEALTH"
-            score={healthData ? healthData.progress_score : 67}
+              score={healthData?.progress_score ?? null}
             weight="25%"
             icon="progress"
             onClick={() => navigate("/progress")}
           />
           <DomainHealthBar
             title="DATA QUALITY"
-            score={healthData ? healthData.data_quality_score : 92}
+              score={healthData?.data_quality_score ?? null}
             weight="15%"
             icon="quality"
             onClick={() => navigate("/data")}
@@ -175,6 +184,12 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
+          <div className="mt-4 rounded-lg bg-blue-50 p-3 text-xs text-blue-900">
+            <div className="font-semibold">Schedule coverage</div>
+            <div className="mt-1">{summary ? `${summary.schedule.activity_count.toLocaleString()} activities imported` : "Run summary is loading"}</div>
+            {summary && <button onClick={() => navigate("/schedule")} className="mt-2 font-semibold text-blue-700 hover:underline">View schedule details →</button>}
+          </div>
+
           {/* Bottom KPI Triad */}
           <div className="grid grid-cols-3 gap-2 pt-4 mt-4 border-t border-slate-100 text-center">
             <div className="p-2 bg-slate-50 rounded-lg">
@@ -205,7 +220,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <div className="h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            {costTrendData.length === 0 ? <div className="flex h-full items-center justify-center text-center text-xs text-slate-400">Cost data is not available in this analysis run.</div> : <ResponsiveContainer width="100%" height="100%">
               <LineChart data={costTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
@@ -246,7 +261,7 @@ export const DashboardPage: React.FC = () => {
                   strokeWidth={1.5}
                 />
               </LineChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </div>
 
           <div className="flex items-center justify-center gap-4 text-[10px] text-slate-500 pt-2 border-t border-slate-100">

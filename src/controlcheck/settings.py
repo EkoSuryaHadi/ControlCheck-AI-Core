@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from .limits import PUBLIC_BETA_MAX_UPLOAD_BYTES
 
@@ -23,9 +24,13 @@ def _normalized_environment(name: str, allowed: set[str]) -> str | None:
 def _runtime_environment() -> str:
     """Resolve application mode with production platform signals failing closed.
 
-    CONTROLCHECK_ENV takes precedence over legacy ENV. A production Vercel signal,
-    or a serverless runtime without an explicit platform mode, always forces the
-    stricter production contract.
+    Vercel's platform environment is authoritative: production deployments always
+    use the strict production contract, while Preview deployments stay isolated
+    from production-only secret/storage requirements even when project-level
+    environment variables contain ``CONTROLCHECK_ENV=production``.
+
+    Outside Vercel, CONTROLCHECK_ENV takes precedence over legacy ENV. Unknown
+    serverless runtimes still fail closed to the production contract.
     """
     explicit = _normalized_environment(
         "CONTROLCHECK_ENV", _APPLICATION_ENVIRONMENTS
@@ -36,6 +41,8 @@ def _runtime_environment() -> str:
 
     if vercel_env == "production":
         return "production"
+    if vercel_env in {"development", "preview"}:
+        return "development"
     if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         return "production"
     if os.environ.get("RENDER"):
@@ -44,8 +51,6 @@ def _runtime_environment() -> str:
         return "production"
     if explicit is not None:
         return explicit
-    if vercel_env in {"development", "preview"}:
-        return "development"
     return "development"
 
 
@@ -101,6 +106,25 @@ class ProductionSettings:
         cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
         trusted_hosts_raw = os.environ.get("CONTROLCHECK_TRUSTED_HOSTS", "*")
         trusted_hosts = [host.strip() for host in trusted_hosts_raw.split(",") if host.strip()]
+
+        # Vercel preview URLs are generated dynamically per commit and branch. Allow
+        # only the platform preview domain family when we are explicitly in Preview;
+        # Vercel Production remains subject to the strict explicit-host contract below.
+        if os.environ.get("VERCEL_ENV", "").strip().lower() == "preview":
+            trusted_hosts = list(dict.fromkeys([*trusted_hosts, "*.vercel.app"]))
+
+        # Vercel assigns a deployment hostname to every production promotion.
+        # Include the platform-provided hostname so the deployment URL itself
+        # remains reachable while the explicit trusted-host requirement stays
+        # intact for non-Vercel deployments.
+        vercel_url = os.environ.get("VERCEL_URL", "").strip()
+        if os.environ.get("VERCEL") and vercel_url:
+            hostname = urlparse(
+                vercel_url if "://" in vercel_url else f"https://{vercel_url}"
+            ).hostname
+            if hostname and hostname.lower().endswith(".vercel.app"):
+                trusted_hosts = list(dict.fromkeys([*trusted_hosts, hostname]))
+
         max_upload = int(
             os.environ.get(
                 "CONTROLCHECK_MAX_UPLOAD_BYTES",
@@ -110,6 +134,11 @@ class ProductionSettings:
         storage_backend = os.environ.get(
             "CONTROLCHECK_STORAGE_BACKEND", "local"
         ).strip().lower()
+        if (
+            os.environ.get("VERCEL")
+            and os.environ.get("VERCEL_ENV", "").strip().lower() == "preview"
+        ):
+            storage_backend = "local"
         s3_bucket = os.environ.get("CONTROLCHECK_S3_BUCKET", "").strip()
         s3_region = os.environ.get("CONTROLCHECK_S3_REGION", "ap-southeast-1").strip()
         s3_endpoint_url = os.environ.get("CONTROLCHECK_S3_ENDPOINT_URL") or None

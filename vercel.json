@@ -3,10 +3,15 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 240,
-      "excludeFiles": "{frontend/**,tests/**,docs/**,results/**,validation/**,tools/**,docker/**,build/**,.venv/**,alembic/**,data/*.xlsx,data/*.inspect.ndjson,data/*expected_findings*.json}"
+      "excludeFiles": "{frontend/**,tests/**,docs/**,results/**,validation/**,tools/**,docker/**,build/**,.venv/**,alembic/**,vendor/mppjs/**,data/*.xlsx,data/*.inspect.ndjson,data/*expected_findings*.json}"
+    },
+    "api/mpp-convert.js": {
+      "maxDuration": 60,
+      "includeFiles": "vendor/mppjs/linux-x64/mpxj-convert"
     }
   },
   "routes": [
+    { "src": "/api/mpp-convert", "dest": "/api/mpp-convert.js" },
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }

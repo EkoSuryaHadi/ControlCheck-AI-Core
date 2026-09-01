@@ -4,6 +4,7 @@ import { useAuth } from "./AuthContext"
 import { trackEvent } from "@/lib/analytics"
 import { mapHealthSnapshot } from "@/lib/health"
 import { initialProjectWorkspace, projectIdToPersist } from "@/lib/project-selection.js"
+import { isPersistentWorkspaceSession } from "@/lib/demo-session.js"
 
 interface ProjectContextType {
   projects: Project[]
@@ -37,7 +38,8 @@ const latestSuccessfulRun = (runs: AnalysisRun[]): AnalysisRun | null => {
 }
 
 export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { orgId, isAuthenticated } = useAuth()
+  const { orgId, isAuthenticated, token } = useAuth()
+  const isPersistentSession = isPersistentWorkspaceSession(token)
   const initialWorkspace = initialProjectWorkspace()
   const [projects, setProjects] = useState<Project[]>(initialWorkspace.projects)
   const [currentProject, setCurrentProject] = useState<Project | null>(initialWorkspace.currentProject)
@@ -48,6 +50,13 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isUploading, setIsUploading] = useState(false)
 
   const refreshProjects = useCallback(async () => {
+    if (!isPersistentSession) {
+      setProjects([])
+      setCurrentProject(null)
+      setCurrentRun(null)
+      setLiveFindings([])
+      return
+    }
     if (!orgId) return
     try {
       setIsLoading(true)
@@ -64,10 +73,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoading(false)
     }
-  }, [orgId])
+  }, [orgId, isPersistentSession])
 
   const refreshHealthAndFindings = useCallback(async () => {
-    if (!currentProject) return
+    if (!currentProject || !isPersistentSession) return
     try {
       const runsData = await api.runs.list(currentProject.id)
       const runs: AnalysisRun[] = Array.isArray(runsData) ? runsData : runsData.items || []
@@ -104,9 +113,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch {
       // Preserve current workspace state on transient failures.
     }
-  }, [currentProject])
+  }, [currentProject, isPersistentSession])
 
   const uploadWorkbook = async (file: File): Promise<AnalysisRun | null> => {
+    if (!isPersistentSession) throw new Error("Demo mode is limited to preflight validation.")
     if (!currentProject?.id) throw new Error("A project must be selected before upload.")
     if (!file || file.size <= 0) throw new Error("A non-empty source file is required.")
 
@@ -153,12 +163,12 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [isAuthenticated, orgId, refreshProjects])
 
   useEffect(() => {
-    if (currentProject) {
+    if (currentProject && isPersistentSession) {
       const projectId = projectIdToPersist(currentProject.id)
       if (projectId) localStorage.setItem("controlcheck_current_project_id", projectId)
       refreshHealthAndFindings()
     }
-  }, [currentProject, refreshHealthAndFindings])
+  }, [currentProject, isPersistentSession, refreshHealthAndFindings])
 
   return (
     <ProjectContext.Provider value={{ projects, currentProject, currentRun, healthData, liveFindings, isLoading, isUploading, setCurrentProject, removeProject, refreshProjects, refreshHealthAndFindings, uploadWorkbook }}>
