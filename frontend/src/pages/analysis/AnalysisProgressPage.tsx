@@ -6,6 +6,7 @@ import { useProject } from "@/context/ProjectContext"
 import { trackEvent } from "@/lib/analytics"
 
 const POLL_INTERVAL_MS = 2500
+const isSuccessfulStatus = (status: unknown) => ["succeeded", "completed"].includes(String(status || "").toLowerCase())
 
 export const AnalysisProgressPage: React.FC = () => {
   const navigate = useNavigate()
@@ -24,7 +25,7 @@ export const AnalysisProgressPage: React.FC = () => {
 
   const targetRunId = run?.id || currentRun?.id || storedSummary.runId || null
   const normalizedStatus = String(run?.status || "running").toLowerCase()
-  const completed = normalizedStatus === "completed"
+  const completed = isSuccessfulStatus(normalizedStatus)
   const failed = normalizedStatus === "failed"
   const running = !completed && !failed
 
@@ -38,7 +39,7 @@ export const AnalysisProgressPage: React.FC = () => {
       if (!latest) throw new Error("The analysis run is not present in the current project run list.")
       setRun(latest)
       setPollError(null)
-      if (String(latest.status).toLowerCase() === "completed") await refreshHealthAndFindings()
+      if (isSuccessfulStatus(latest.status)) await refreshHealthAndFindings()
     } catch (err: any) {
       setPollError(err?.response?.data?.error?.message || err?.message || "Could not refresh analysis status.")
     } finally {
@@ -107,3 +108,4 @@ const PipelineCard = ({ icon: Icon, title, detail }: { icon: React.ElementType; 
 const Metric = ({ label, value }: { label: string; value: string }) => <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</div><div className="mt-2 break-all text-sm font-black capitalize text-slate-900">{value}</div></div>
 
 export default AnalysisProgressPage
+

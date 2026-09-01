@@ -128,6 +128,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       localStorage.setItem("controlcheck_last_analysis_summary", JSON.stringify(summary))
       trackEvent("project_check_upload_accepted", { project_id: currentProject.id, run_id: res.id, finding_count: summary.findingCount })
+      if (isSuccessfulRun(res)) await refreshHealthAndFindings()
       return res
     } catch (err) {
       console.error("Upload error:", err)
@@ -171,3 +172,5 @@ export const useProject = () => {
   if (!context) throw new Error("useProject must be used within a ProjectProvider")
   return context
 }
+
+
