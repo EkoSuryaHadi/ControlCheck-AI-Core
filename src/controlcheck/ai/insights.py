@@ -113,10 +113,12 @@ class OpenAIInsightClient:
         api_key: str,
         *,
         model: str = "gpt-4.1-mini",
+        base_url: str = "https://api.openai.com/v1",
         request: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> None:
         self.api_key = api_key
         self.model = model
+        self.base_url = base_url.rstrip("/")
         self._request = request or self._post
 
     def generate(self, facts: dict[str, Any], *, allowed_finding_ids: set[str]) -> dict[str, Any]:
@@ -152,7 +154,7 @@ class OpenAIInsightClient:
 
     def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
         request = Request(
-            "https://api.openai.com/v1/chat/completions",
+            f'{self.base_url}/chat/completions',
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Authorization": f"Bearer {self.api_key}",
