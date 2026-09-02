@@ -253,6 +253,8 @@ class AnalysisRepository:
         run = self.session.get(AnalysisRunRecord, run_id)
         if run is None:
             raise LookupError(f"Analysis run not found: {run_id}")
+        finding_records: list[FindingRecord] = []
+        evidence_payloads: list[tuple[FindingRecord, list[dict]]] = []
         for finding in audit.findings:
             payload = finding.model_dump(mode="json")
             record = FindingRecord(
@@ -275,9 +277,16 @@ class AnalysisRepository:
                 recommendation=finding.recommendation,
                 confidence=Decimal(str(finding.confidence)),
             )
-            self.session.add(record)
+            finding_records.append(record)
+            evidence_payloads.append((record, payload["evidence"]))
+
+        if finding_records:
+            self.session.add_all(finding_records)
             self.session.flush()
-            for order, evidence in enumerate(payload["evidence"]):
+
+        evidence_records: list[FindingEvidenceRecord] = []
+        for record, evidence_items in evidence_payloads:
+            for order, evidence in enumerate(evidence_items):
                 raw_row_ids = []
                 if raw_row_index is not None:
                     raw_row_ids = [
@@ -286,7 +295,7 @@ class AnalysisRepository:
                         if (evidence["source_sheet"], row_number)
                         in raw_row_index
                     ]
-                self.session.add(FindingEvidenceRecord(
+                evidence_records.append(FindingEvidenceRecord(
                     finding_id=record.id,
                     evidence_order=order,
                     source_sheet=evidence["source_sheet"],
@@ -296,6 +305,8 @@ class AnalysisRepository:
                     fields=evidence["fields"],
                     aggregation=evidence.get("aggregation"),
                 ))
+        if evidence_records:
+            self.session.add_all(evidence_records)
         run.status = "succeeded"
         run.rule_count = audit.rule_count
         run.finding_count = audit.finding_count
