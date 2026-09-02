@@ -255,6 +255,21 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class AIInsightResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    analysis_run_id: UUID
+    status: str
+    model: str | None
+    content: dict | None
+    referenced_finding_ids: list[str]
+    error_code: str | None
+    attempt_count: int
+    generated_at: datetime | None
+    created_at: datetime
+
 class AIAskRequest(BaseModel):
     question: str = Field(min_length=2, max_length=2000)
     conversation_id: UUID | None = None

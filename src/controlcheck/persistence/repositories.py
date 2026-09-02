@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from .models import (
     AIConversationRecord,
     AIMessageRecord,
+    AIInsightRecord,
     AnalysisRunRecord,
     AuditLogRecord,
     BudgetRecordRecord,
@@ -780,3 +781,55 @@ class AIRepository:
 
 
 
+
+class AIInsightRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def ensure_pending(
+        self, organization_id: UUID, project_id: UUID, analysis_run_id: UUID
+    ) -> AIInsightRecord:
+        record = self.get_for_run(organization_id, analysis_run_id)
+        if record is None:
+            record = AIInsightRecord(
+                organization_id=organization_id,
+                project_id=project_id,
+                analysis_run_id=analysis_run_id,
+                status="pending",
+            )
+            self.session.add(record)
+            self.session.flush()
+        return record
+
+    def get_for_run(self, organization_id: UUID, analysis_run_id: UUID) -> AIInsightRecord | None:
+        return self.session.scalar(
+            select(AIInsightRecord).where(
+                AIInsightRecord.organization_id == organization_id,
+                AIInsightRecord.analysis_run_id == analysis_run_id,
+            )
+        )
+
+    def begin_generation(self, record: AIInsightRecord) -> bool:
+        if record.status in {"ready", "generating"}:
+            return False
+        record.status = "generating"
+        record.error_code = None
+        record.attempt_count += 1
+        self.session.flush()
+        return True
+
+    def complete(self, record: AIInsightRecord, content: dict, model: str) -> AIInsightRecord:
+        record.status = "ready"
+        record.model = model
+        record.content = content
+        record.referenced_finding_ids = content.get("finding_ids", [])
+        record.error_code = None
+        record.generated_at = datetime.now(timezone.utc)
+        self.session.flush()
+        return record
+
+    def fail(self, record: AIInsightRecord, error_code: str) -> AIInsightRecord:
+        record.status = "failed"
+        record.error_code = error_code
+        self.session.flush()
+        return record

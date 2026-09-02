@@ -116,3 +116,25 @@ def test_evidence_and_status_update_are_persisted_and_audited(query_context):
     with session_factory() as session:
         assert session.get(FindingRecord, finding_id).resolved_at is not None
         assert session.scalar(select(AuditLogRecord).where(AuditLogRecord.entity_id == str(finding_id))) is not None
+
+
+def test_ai_insight_is_scoped_to_the_analysis_run_and_is_retryable(query_context):
+    client, _, _, run_id, _ = query_context
+
+    created = client.post(
+        f"/v1/runs/{run_id}/ai-insight/generate",
+        headers=headers(),
+    )
+    assert created.status_code == 200
+    assert created.json()["analysis_run_id"] == str(run_id)
+    assert created.json()["status"] in {"pending", "generating", "failed", "ready"}
+
+    loaded = client.get(f"/v1/analysis-runs/{run_id}/ai-insight", headers=headers())
+    assert loaded.status_code == 200
+    assert loaded.json()["analysis_run_id"] == str(run_id)
+
+    other_tenant = client.get(
+        f"/v1/analysis-runs/{run_id}/ai-insight",
+        headers=headers(OTHER_ORG_ID),
+    )
+    assert other_tenant.status_code == 404

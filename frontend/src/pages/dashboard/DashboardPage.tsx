@@ -4,14 +4,13 @@ import { useProject } from "@/context/ProjectContext"
 import { HealthGauge } from "@/components/ui/HealthGauge"
 import { DomainHealthBar, MetricCard } from "@/components/ui/DomainHealthBar"
 import { SeverityBadge } from "@/components/ui/Badges"
-import { api, AnalysisSummary } from "@/lib/api"
+import { api, AIInsight, AnalysisSummary } from "@/lib/api"
 import {
   DollarSign,
   TrendingUp,
   AlertTriangle,
   ChevronRight,
   Sparkles,
-  Bot,
   ArrowUpRight,
   FileCheck,
   CheckCircle2,
@@ -33,6 +32,8 @@ import {
 export const DashboardPage: React.FC = () => {
   const { currentProject, currentRun, healthData, liveFindings } = useProject()
   const [summary, setSummary] = useState<AnalysisSummary | null>(null)
+  const [insight, setInsight] = useState<AIInsight | null>(null)
+  const [insightLoading, setInsightLoading] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -42,6 +43,42 @@ export const DashboardPage: React.FC = () => {
     }
     void api.runs.getSummary(currentProject.id, currentRun.id).then(setSummary).catch(() => setSummary(null))
   }, [currentProject?.id, currentRun?.id])
+
+  useEffect(() => {
+    let active = true
+    const loadInsight = async () => {
+      if (!currentRun?.id) {
+        if (active) setInsight(null)
+        return
+      }
+      setInsightLoading(true)
+      try {
+        const result = await api.aiInsights.get(currentRun.id)
+        if (active) setInsight(result)
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          try {
+            const created = await api.aiInsights.generate(currentRun.id)
+            if (active) setInsight(created)
+          } catch {
+            if (active) setInsight(null)
+          }
+        } else if (active) setInsight(null)
+      } finally {
+        if (active) setInsightLoading(false)
+      }
+    }
+    void loadInsight()
+    return () => { active = false }
+  }, [currentRun?.id])
+
+  useEffect(() => {
+    if (!currentRun?.id || !insight || !["pending", "generating"].includes(insight.status)) return
+    const timer = window.setTimeout(() => {
+      void api.aiInsights.get(currentRun.id).then(setInsight).catch(() => undefined)
+    }, 3500)
+    return () => window.clearTimeout(timer)
+  }, [currentRun?.id, insight?.status])
 
   const severityRank: Record<string, number> = { critical: 0, warning: 1, observation: 2 }
   const findingCount = (severity: string) => liveFindings.filter((finding) => String(finding.severity).toLowerCase() === severity).length
@@ -397,29 +434,24 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* AI Insight & Assistant Trigger */}
+        {/* Evidence-grounded AI Insight */}
         <div className="lg:col-span-4 bg-linear-to-br from-purple-50/80 via-white to-purple-50/40 p-5 rounded-xl border border-purple-200/80 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="p-1.5 rounded-lg bg-purple-600 text-white">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-purple-900">
-                AI INSIGHT
-              </h2>
+              <div className="p-1.5 rounded-lg bg-purple-600 text-white"><Sparkles className="w-4 h-4" /></div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-purple-900">AI INSIGHT</h2>
             </div>
-
-            <p className="text-xs leading-relaxed text-slate-700">Server returned <strong className="text-slate-900 font-semibold">{liveFindings.length}</strong> findings for this project. Cost KPI cards will populate when a cost dataset is available.</p>
+            {(insightLoading || insight?.status === "pending" || insight?.status === "generating") && <p className="text-xs leading-relaxed text-slate-600">Menyiapkan insight dari finding dan evidence analisa ini…</p>}
+            {insight?.status === "ready" && insight.content && <div className="space-y-3">
+              <p className="text-xs leading-relaxed text-slate-700">{insight.content.executive_summary}</p>
+              {!!insight.content.priority_actions?.length && <div><p className="text-[10px] font-bold uppercase tracking-wide text-purple-700">Prioritas tindakan</p><ul className="mt-1 space-y-1 text-xs text-slate-700">{insight.content.priority_actions.slice(0, 3).map((action, index) => <li key={index}>• {action}</li>)}</ul></div>}
+              {!!insight.content.data_limitations?.length && <p className="text-[10px] text-slate-500">{insight.content.data_limitations.join(" ")}</p>}
+            </div>}
+            {!insightLoading && (!insight || insight.status === "failed") && <p className="text-xs leading-relaxed text-slate-600">AI Insight belum tersedia. Hasil analisa tetap dapat digunakan tanpa insight AI.</p>}
           </div>
-
-          <div className="pt-4">
-            <button
-              onClick={() => navigate("/assistant")}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all hover:shadow-md"
-            >
-              <Bot className="w-4 h-4" />
-              <span>Ask AI Assistant</span>
-            </button>
+          <div className="pt-4 space-y-2">
+            {insight?.status === "ready" && insight.referenced_finding_ids.length > 0 && <button onClick={() => navigate(`/findings/${insight.referenced_finding_ids[0]}`)} className="w-full py-2 px-3 border border-purple-200 text-purple-700 hover:bg-purple-50 rounded-lg text-xs font-semibold">Buka finding pendukung</button>}
+            {(!insight || insight.status === "failed") && currentRun?.id && <button onClick={() => { setInsightLoading(true); void api.aiInsights.generate(currentRun.id).then(setInsight).finally(() => setInsightLoading(false)) }} className="w-full py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all">Coba buat AI Insight</button>}
           </div>
         </div>
       </div>

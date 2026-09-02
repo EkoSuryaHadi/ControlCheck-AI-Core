@@ -17,3 +17,5 @@ def test_configured_app_enables_durable_routes_from_environment(monkeypatch, pro
 
     assert "/v1/projects/{project_id}/analysis-runs" in paths
     assert "/v1/findings/{finding_id}/evidence" in paths
+    assert "/v1/analysis-runs/{run_id}/ai-insight" in paths
+    assert "/v1/runs/{run_id}/ai-insight/generate" in paths

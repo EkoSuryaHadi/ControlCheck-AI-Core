@@ -7,7 +7,7 @@ from pathlib import Path
 from time import perf_counter
 from uuid import UUID, uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from . import __version__
 from .api_models import (
-    AIAskRequest, AIAskResponse, AIConversationListResponse, AIConversationResponse, AIMessageResponse,
+    AIAskRequest, AIAskResponse, AIConversationListResponse, AIConversationResponse, AIInsightResponse, AIMessageResponse,
     AnalysisRunListResponse, AnalysisRunResponse, EvidenceListResponse, EvidenceResponse,
     DatasetSnapshotListResponse, DatasetSnapshotResponse, DomainStatusResponse,
     FindingListResponse, FindingResponse, FindingStatusUpdate,
@@ -31,6 +31,7 @@ from .api_models import (
     FeedbackCreate, FeedbackResponse, OwnerMetricsResponse, TelemetryEventCreate,
 )
 from .ai.assistant import ProjectAIAssistant
+from .ai.insight_service import AIInsightGenerationService
 from .application import AnalysisService
 from .analysis_summary import summarize_dataset
 from .auth import (
@@ -49,7 +50,7 @@ from .logging import clear_log_context, configure_logging, get_logger, set_log_c
 from .metrics import metrics_collector
 from .models import AuditResult
 from .persistence.repositories import (
-    AIRepository, AnalysisRepository, FindingRepository, HealthRepository,
+    AIInsightRepository, AIRepository, AnalysisRepository, FindingRepository, HealthRepository,
     OrganizationRepository, ProjectRepository, UserRepository,
 )
 from .persistence.ingestion_repositories import SnapshotRepository
@@ -585,18 +586,29 @@ def create_app(
                     has_more=(offset + len(projects) < total),
                 )
 
-        @application.delete("/v1/projects/{project_id}", status_code=204)
+        @application.delete("/v1/projects/{project_id}", status_code=204, response_class=Response)
         def delete_project(
             project_id: UUID,
             tenant: TenantContext = Depends(require_tenant),
-        ) -> None:
+        ) -> Response:
             with session_factory() as session:
                 if not ProjectRepository(session).delete_scoped(tenant.organization_id, project_id):
                     raise ControlCheckApplicationError("project_not_found", "Project was not found", 404)
                 session.commit()
+            return Response(status_code=204)
 
         if storage is not None:
             analysis_service = AnalysisService(session_factory, storage, catalogue)
+            insight_service = AIInsightGenerationService(session_factory)
+
+            def schedule_ai_insight(
+                background_tasks: BackgroundTasks,
+                organization_id: UUID,
+                project_id: UUID,
+                run_id: UUID,
+            ) -> None:
+                insight_service.ensure_pending(organization_id, project_id, run_id)
+                background_tasks.add_task(insight_service.generate, organization_id, run_id)
             mapping_profile = load_mapping_profile(
                 catalogue.parent / "controlcheck_mapping_profile_v0.1.json"
             )
@@ -798,11 +810,13 @@ def create_app(
             def analyze_dataset_snapshot(
                 project_id: UUID,
                 snapshot_id: UUID,
+                background_tasks: BackgroundTasks,
                 tenant: TenantContext = Depends(require_tenant),
             ) -> AnalysisRunResponse:
                 run = analysis_service.run_snapshot(
                     tenant.organization_id, project_id, snapshot_id
                 )
+                schedule_ai_insight(background_tasks, tenant.organization_id, project_id, run.id)
                 return AnalysisRunResponse.model_validate(run)
             @application.post(
                 "/v1/projects/{project_id}/validated-imports/analysis-runs",
@@ -812,6 +826,7 @@ def create_app(
             async def create_validated_schedule_analysis_run(
                 project_id: UUID,
                 file: UploadFile,
+                background_tasks: BackgroundTasks,
                 preset: str = "msproject",
                 tenant: TenantContext = Depends(require_tenant),
             ) -> AnalysisRunResponse:
@@ -863,6 +878,7 @@ def create_app(
                     analysis_run_id=run.id,
                     metadata={"finding_count": run.finding_count, "rule_count": run.rule_count},
                 )
+                schedule_ai_insight(background_tasks, tenant.organization_id, project_id, run.id)
                 return AnalysisRunResponse.model_validate(run)
 
             @application.post(
@@ -873,6 +889,7 @@ def create_app(
             async def create_analysis_run(
                 project_id: UUID,
                 file: UploadFile,
+                background_tasks: BackgroundTasks,
                 x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
                 tenant: TenantContext = Depends(require_tenant),
             ) -> AnalysisRunResponse:
@@ -908,6 +925,7 @@ def create_app(
                 except Exception:
                     record_product_event(tenant, "analysis_failed", project_id=project_id)
                     raise
+                schedule_ai_insight(background_tasks, tenant.organization_id, project_id, run.id)
                 record_product_event(tenant, "upload_accepted", project_id=project_id, analysis_run_id=run.id)
                 if str(run.status).lower() in {"succeeded", "completed"}:
                     record_product_event(
@@ -953,6 +971,36 @@ def create_app(
                     raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found", 404)
                 return AnalysisRunResponse.model_validate(run)
 
+        @application.get("/v1/analysis-runs/{run_id}/ai-insight", response_model=AIInsightResponse)
+        def get_ai_insight(
+            run_id: UUID,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> AIInsightResponse:
+            with session_factory() as session:
+                if AnalysisRepository(session).get_run(tenant.organization_id, run_id) is None:
+                    raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found", 404)
+                insight = AIInsightRepository(session).get_for_run(tenant.organization_id, run_id)
+                if insight is None:
+                    raise ControlCheckApplicationError("ai_insight_not_found", "AI Insight is not available for this analysis run", 404)
+                return AIInsightResponse.model_validate(insight)
+
+        @application.post("/v1/runs/{run_id}/ai-insight/generate", response_model=AIInsightResponse)
+        def generate_ai_insight(
+            run_id: UUID,
+            background_tasks: BackgroundTasks,
+            tenant: TenantContext = Depends(require_tenant),
+        ) -> AIInsightResponse:
+            with session_factory() as session:
+                run = AnalysisRepository(session).get_run(tenant.organization_id, run_id)
+                if run is None:
+                    raise ControlCheckApplicationError("analysis_run_not_found", "Analysis run was not found", 404)
+                insight = AIInsightRepository(session).ensure_pending(
+                    tenant.organization_id, run.project_id, run_id
+                )
+                session.commit()
+                response = AIInsightResponse.model_validate(insight)
+            background_tasks.add_task(insight_service.generate, tenant.organization_id, run_id)
+            return response
         @application.get("/v1/projects/{project_id}/analysis-runs/{run_id}/summary")
         def get_analysis_run_summary(
             project_id: UUID,

@@ -59,6 +59,16 @@ export interface AnalysisSummary {
 }
 export interface FindingFeedback { id: string; organization_id: string; project_id: string; analysis_run_id: string; finding_id?: string | null; rating: "useful" | "not_useful"; comment?: string | null; status: string; created_at: string }
 export interface OwnerMetrics { registrations: number; active_users: number; projects: number; uploads_accepted: number; analyses_completed: number; result_use_events: number; result_use_rate: number; feedback_count: number; useful_feedback_rate: number; error_rate: number; generated_at: string }
+export interface AIInsight {
+  id: string; organization_id: string; project_id: string; analysis_run_id: string;
+  status: "pending" | "generating" | "ready" | "failed" | string;
+  model?: string | null; content?: {
+    executive_summary?: string; top_risks?: string[]; priority_actions?: string[];
+    data_limitations?: string[]; finding_ids?: string[];
+  } | null;
+  referenced_finding_ids: string[]; error_code?: string | null; attempt_count: number;
+  generated_at?: string | null; created_at: string;
+}
 export interface AIAskResponse {
   conversation_id: string; answer: string; key_evidence: Array<Record<string, any>>; impact: string; recommended_action: string;
   confidence: string; data_caveat?: string | null; evidence_references: string[]
@@ -189,6 +199,10 @@ export const api = {
     acknowledgeEscalation: async (escalationId: string): Promise<GovernanceEscalation> => (await apiClient.post(`/v1/governance-escalations/${escalationId}/acknowledge`)).data,
   },
   health: { getTrend: async (projectId: string) => (await apiClient.get(`/v1/projects/${projectId}/health-trend`)).data },
+  aiInsights: {
+    get: async (runId: string): Promise<AIInsight> => (await apiClient.get(`/v1/analysis-runs/${runId}/ai-insight`)).data,
+    generate: async (runId: string): Promise<AIInsight> => (await apiClient.post(`/v1/runs/${runId}/ai-insight/generate`)).data,
+  },
   ai: {
     ask: async (projectId: string, question: string, conversationId?: string) => (await apiClient.post(`/v1/projects/${projectId}/ai/ask`, { question, conversation_id: conversationId || undefined })).data,
     listConversations: async (projectId: string) => (await apiClient.get(`/v1/projects/${projectId}/ai/conversations`)).data,

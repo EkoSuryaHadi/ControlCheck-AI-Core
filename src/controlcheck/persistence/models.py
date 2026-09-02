@@ -928,6 +928,25 @@ class AIMessageRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+
+class AIInsightRecord(TimestampMixin, Base):
+    __tablename__ = "ai_insights"
+    __table_args__ = (
+        UniqueConstraint("analysis_run_id", name="uq_ai_insights_run"),
+        CheckConstraint("status IN ('pending','generating','ready','failed')", name="ck_ai_insights_status"),
+        Index("ix_ai_insights_org_run", "organization_id", "analysis_run_id"),
+    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    analysis_run_id: Mapped[UUID] = mapped_column(ForeignKey("analysis_runs.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    model: Mapped[str | None] = mapped_column(String(100))
+    content: Mapped[dict | None] = mapped_column(JSONB)
+    referenced_finding_ids: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 class ReportPackageRecord(Base):
     __tablename__ = "report_packages"
     __table_args__ = (
