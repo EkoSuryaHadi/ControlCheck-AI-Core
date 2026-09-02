@@ -14,6 +14,7 @@ SCHEDULE_HEADERS = [
     "baseline_start", "baseline_finish", "actual_start", "actual_finish",
     "planned_progress", "actual_progress", "total_float_days", "critical", "status",
 ]
+WBS_HEADERS = ["wbs_code", "wbs_name", "parent_wbs", "discipline", "level"]
 
 
 def _cell(row: list[Any], mapping: dict[str, int | None], name: str) -> Any:
@@ -61,6 +62,12 @@ def build_schedule_workbook(
     project_sheet.append(["dataset_version", "validated-schedule-1"])
     project_sheet.append(["source_sheet", sheet_name])
 
+    wbs_sheet = book.create_sheet("WBS")
+    wbs_sheet.append([])
+    wbs_sheet.append([])
+    wbs_sheet.append(WBS_HEADERS)
+    wbs_nodes: dict[str, tuple[str, str | None, int]] = {}
+
     schedule = book.create_sheet("Schedule")
     schedule.append([])
     schedule.append([])
@@ -75,6 +82,19 @@ def build_schedule_workbook(
         baseline_finish = _date_value(_cell(row, mapping, "baseline_finish"))
         if not activity_id or not activity_name or not baseline_start or not baseline_finish:
             continue
+        wbs_code = _text(_cell(row, mapping, "wbs"))
+        if wbs_code:
+            parts = [part for part in wbs_code.split(".") if part]
+            for level in range(1, len(parts) + 1):
+                code = ".".join(parts[:level])
+                wbs_nodes.setdefault(
+                    code,
+                    (
+                        activity_name if level == len(parts) else f"WBS {code}",
+                        ".".join(parts[: level - 1]) or None,
+                        level,
+                    ),
+                )
         actual_start = _date_value(_cell(row, mapping, "start"))
         actual_finish = _date_value(_cell(row, mapping, "finish"))
         progress = _number(_cell(row, mapping, "progress"))
@@ -82,7 +102,7 @@ def build_schedule_workbook(
         status = "completed" if progress >= 100 else "in_progress"
         schedule.append([
             activity_id,
-            _text(_cell(row, mapping, "wbs")),
+            wbs_code,
             activity_name,
             None,
             baseline_start,
@@ -95,6 +115,11 @@ def build_schedule_workbook(
             total_float <= 0,
             status,
         ])
+
+    for code, (name, parent, level) in sorted(
+        wbs_nodes.items(), key=lambda item: (item[1][2], item[0])
+    ):
+        wbs_sheet.append([code, name, parent, None, level])
 
     output = BytesIO()
     book.save(output)

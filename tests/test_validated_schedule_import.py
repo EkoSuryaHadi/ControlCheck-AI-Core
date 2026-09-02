@@ -1,8 +1,12 @@
 from datetime import date, datetime
 from io import BytesIO
+from pathlib import Path
 
 import openpyxl
 
+from controlcheck.ingestion.extractor import extract_workbook
+from controlcheck.ingestion.mapper import DomainStatus, map_extracted_workbook
+from controlcheck.ingestion.profile import load_mapping_profile
 from controlcheck.ingestion.validated_import import build_schedule_workbook
 
 
@@ -39,6 +43,43 @@ def test_build_schedule_workbook_maps_ms_project_tasks_into_governed_schedule():
     assert values["total_float_days"] == -2
     assert values["critical"] is True
 
+
+def test_build_schedule_workbook_generates_wbs_master_that_unblocks_schedule_rules():
+    source = openpyxl.Workbook()
+    tasks = source.active
+    tasks.title = "Tasks"
+    tasks.append([
+        "ID", "Name", "Outline Number", "Baseline Start", "Baseline Finish",
+        "Start", "Finish", "% Complete", "Total Slack",
+    ])
+    tasks.append(["10", "Install compressor", "1.2", "2026-01-01", "2026-01-10", None, None, 0, -2])
+    buffer = BytesIO()
+    source.save(buffer)
+
+    payload = build_schedule_workbook(
+        buffer.getvalue(),
+        "tasks.xlsx",
+        project_code="ABACUS-1",
+        project_name="ABD",
+        data_date=date(2026, 1, 15),
+        preset="msproject",
+    )
+
+    workbook = openpyxl.load_workbook(BytesIO(payload), data_only=True)
+    assert "WBS" in workbook.sheetnames
+    assert [cell.value for cell in workbook["WBS"][3]] == [
+        "wbs_code", "wbs_name", "parent_wbs", "discipline", "level"
+    ]
+    assert [cell.value for cell in workbook["WBS"][4]] == ["1", "WBS 1", None, None, 1]
+    assert [cell.value for cell in workbook["WBS"][5]] == ["1.2", "Install compressor", "1", None, 2]
+
+    project_root = Path(__file__).resolve().parents[1]
+    mapped = map_extracted_workbook(
+        extract_workbook(payload, load_mapping_profile(project_root / "data" / "controlcheck_mapping_profile_v0.1.json")),
+        load_mapping_profile(project_root / "data" / "controlcheck_mapping_profile_v0.1.json"),
+    )
+    assert mapped.domain_statuses["wbs"] is DomainStatus.valid
+    assert mapped.domain_statuses["schedule"] is DomainStatus.valid
 
 def test_build_schedule_workbook_uses_snapshot_dataset_version_that_fits_database_limit():
     source = openpyxl.Workbook()
