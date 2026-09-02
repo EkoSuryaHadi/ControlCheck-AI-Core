@@ -40,6 +40,35 @@ def test_build_schedule_workbook_maps_ms_project_tasks_into_governed_schedule():
     assert values["critical"] is True
 
 
+def test_build_schedule_workbook_uses_snapshot_dataset_version_that_fits_database_limit():
+    source = openpyxl.Workbook()
+    tasks = source.active
+    tasks.title = "Tasks"
+    tasks.append([
+        "ID", "Name", "Outline Number", "Baseline Start", "Baseline Finish",
+        "Start", "Finish", "% Complete", "Total Slack",
+    ])
+    tasks.append(["10", "Install compressor", "1.2", "2026-01-01", "2026-01-10", None, None, 0, 0])
+    buffer = BytesIO()
+    source.save(buffer)
+
+    payload = build_schedule_workbook(
+        buffer.getvalue(),
+        "tasks.xlsx",
+        project_code="ABACUS-1",
+        project_name="ABD",
+        data_date=date(2026, 1, 15),
+        preset="msproject",
+    )
+
+    workbook = openpyxl.load_workbook(BytesIO(payload), data_only=True)
+    project_values = {
+        row[0].value: row[1].value
+        for row in workbook["Project_Info"].iter_rows(min_row=2, max_col=2)
+    }
+    assert project_values["dataset_version"] == "validated-schedule-1"
+    assert len(project_values["dataset_version"]) <= 20
+
 def test_available_health_categories_only_includes_executed_rule_domains():
     from controlcheck.application import available_health_categories
 

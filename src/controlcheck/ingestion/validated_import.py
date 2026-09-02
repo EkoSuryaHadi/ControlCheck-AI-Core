@@ -58,7 +58,7 @@ def build_schedule_workbook(
     project_sheet.append(["project_id", project_code])
     project_sheet.append(["project_name", project_name])
     project_sheet.append(["data_date", data_date.isoformat()])
-    project_sheet.append(["dataset_version", "validated-schedule-v1"])
+    project_sheet.append(["dataset_version", "validated-schedule-1"])
     project_sheet.append(["source_sheet", sheet_name])
 
     schedule = book.create_sheet("Schedule")
