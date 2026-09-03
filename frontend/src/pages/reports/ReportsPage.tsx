@@ -167,7 +167,7 @@ export const ReportsPage: React.FC = () => {
           <p className="mt-2 text-sm text-slate-500">Generate a report to freeze the current analysis state and supporting evidence.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th className="px-4 py-3">Report</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Period</th><th className="px-4 py-3">Generated</th><th className="px-4 py-3">PDF</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
             <tbody className="divide-y divide-slate-100">

@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { useProject } from "@/context/ProjectContext"
@@ -18,6 +18,8 @@ import {
   LogOut,
   ClipboardCheck,
   Activity,
+  Menu,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BrandLogo } from "@/components/common/BrandLogo"
@@ -27,6 +29,12 @@ export const AppShell: React.FC = () => {
   const { currentProject, projects, setCurrentProject } = useProject()
   const location = useLocation()
   const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Close the mobile drawer on navigation
+  React.useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -44,11 +52,29 @@ export const AppShell: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
-      <aside className="w-64 shrink-0 bg-navy-950 text-slate-300 flex flex-col justify-between border-r border-navy-900 select-none z-30">
-        <div className="flex flex-col h-full overflow-hidden">
-          <Link to="/dashboard" className="px-4 py-4 flex items-center border-b border-navy-900 hover:opacity-90 transition-opacity" title="ControlCheck AI Dashboard">
-            <BrandLogo variant="full" theme="dark" size="sm" imgClassName="h-8 w-auto max-w-[195px]" />
-          </Link>
+      {/* Backdrop for the mobile drawer */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] shrink-0 flex-col justify-between border-r border-navy-900 bg-navy-950 text-slate-300 select-none transition-transform duration-200 ease-in-out",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          "lg:static lg:z-30 lg:w-64 lg:translate-x-0"
+        )}
+      >
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="flex items-center justify-between border-b border-navy-900">
+            <Link to="/dashboard" className="flex items-center px-4 py-4 hover:opacity-90 transition-opacity" title="ControlCheck AI Dashboard">
+              <BrandLogo variant="full" theme="dark" size="sm" imgClassName="h-8 w-auto max-w-[195px]" />
+            </Link>
+            <button onClick={() => setSidebarOpen(false)} className="mr-3 p-1 text-slate-400 hover:text-white lg:hidden" aria-label="Close menu"><X className="w-5 h-5" /></button>
+          </div>
 
           <div className="px-3 pt-4 pb-2">
             <div className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-2 mb-1.5">Project Context</div>
@@ -85,15 +111,18 @@ export const AppShell: React.FC = () => {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
-        <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 z-20">
-          <div className="flex items-center gap-3"><h1 className="text-base font-bold text-slate-900 tracking-tight">{currentProject?.name || "Gas Compression Facility Expansion"}</h1><span className="text-xs font-mono px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">{currentProject?.code || "GCF-EXP-01"}</span></div>
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-slate-50">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-6 z-20">
+          <div className="flex min-w-0 items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="p-1.5 -ml-1 text-slate-500 hover:bg-slate-100 rounded-lg lg:hidden" aria-label="Open menu"><Menu className="w-5 h-5" /></button>
+            <h1 className="truncate text-base font-bold text-slate-900 tracking-tight">{currentProject?.name || "Gas Compression Facility Expansion"}</h1><span className="hidden sm:inline-flex text-xs font-mono px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">{currentProject?.code || "GCF-EXP-01"}</span>
+          </div>
           <div className="flex items-center gap-3">
-            <div className="relative"><Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" /><input type="text" placeholder="Search findings, WBS, evidence..." className="pl-9 pr-3 py-1.5 text-xs bg-slate-100/80 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 transition-all" /></div>
+            <div className="relative hidden md:block"><Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" /><input type="text" placeholder="Search findings, WBS, evidence..." className="pl-9 pr-3 py-1.5 text-xs bg-slate-100/80 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64 transition-all" /></div>
             <button title="Notifications" className="p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 relative transition-colors"><Bell className="w-4 h-4" /><span className="w-2 h-2 rounded-full bg-red-500 absolute top-1.5 right-1.5" /></button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6"><Outlet /></main>
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6"><Outlet /></main>
       </div>
     </div>
   )
