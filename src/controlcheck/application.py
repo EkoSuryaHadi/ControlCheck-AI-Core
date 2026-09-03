@@ -5,7 +5,7 @@ import json
 from io import BytesIO
 from pathlib import Path
 from time import perf_counter
-from typing import Callable
+from typing import Any, Callable
 from uuid import UUID
 
 from sqlalchemy import select
@@ -41,12 +41,14 @@ class AnalysisService:
         audit_runner: Callable[..., AuditResult] | None = None,
         engine: ControlEngine | None = None,
         mapping_profile_path: Path | str | None = None,
+        mpp_converter: Any | None = None,
     ):
         self.session_factory = session_factory
         self.storage = storage
         self.catalogue_path = Path(catalogue_path)
         self.audit_runner = audit_runner
         self.engine = engine or ControlEngine(ALL_RULES)
+        self.mpp_converter = mpp_converter
         self.mapping_profile_path = (
             Path(mapping_profile_path)
             if mapping_profile_path
@@ -395,6 +397,7 @@ class AnalysisService:
             self.session_factory,
             self.storage,
             load_mapping_profile(self.mapping_profile_path),
+            mpp_converter=self.mpp_converter,
         ).ingest(
             organization_id,
             project_id,

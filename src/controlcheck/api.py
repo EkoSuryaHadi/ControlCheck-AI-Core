@@ -42,6 +42,7 @@ from .errors import ControlCheckApplicationError, InvalidWorkbookError, StorageU
 from .config import load_catalogue
 from .ingestion.profile import load_mapping_profile
 from .ingestion.service import SnapshotIngestionService
+from .ingestion.mpp_converter import build_mpp_converter
 from .ingestion.preflight_validator import validate_workbook_bytes
 from .ingestion.validated_import import build_schedule_workbook
 from .loader import WorkbookSchemaError
@@ -598,7 +599,10 @@ def create_app(
             return Response(status_code=204)
 
         if storage is not None:
-            analysis_service = AnalysisService(session_factory, storage, catalogue)
+            mpp_converter = build_mpp_converter()
+            analysis_service = AnalysisService(
+                session_factory, storage, catalogue, mpp_converter=mpp_converter
+            )
             insight_service = AIInsightGenerationService(session_factory)
 
             def schedule_ai_insight(
@@ -613,7 +617,7 @@ def create_app(
                 catalogue.parent / "controlcheck_mapping_profile_v0.1.json"
             )
             snapshot_ingestion = SnapshotIngestionService(
-                session_factory, storage, mapping_profile
+                session_factory, storage, mapping_profile, mpp_converter=mpp_converter
             )
 
             def snapshot_response(
@@ -893,9 +897,13 @@ def create_app(
                 x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
                 tenant: TenantContext = Depends(require_tenant),
             ) -> AnalysisRunResponse:
-                if not file.filename or not file.filename.lower().endswith(".xlsx"):
+                if not file.filename or not file.filename.lower().endswith(
+                    (".xlsx", ".xlsm", ".csv", ".mpp", ".mpx")
+                ):
                     raise ControlCheckApplicationError(
-                        "unsupported_file_type", "Only .xlsx workbooks are supported", 415
+                        "unsupported_file_type",
+                        "Supported formats are .xlsx, .xlsm, .csv and MS Project (.mpp)",
+                        415,
                     )
                 data = bytearray()
                 while chunk := await file.read(1024 * 1024):

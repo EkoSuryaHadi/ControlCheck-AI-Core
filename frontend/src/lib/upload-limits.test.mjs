@@ -5,7 +5,22 @@ import {
   ASYNC_UPLOAD_MAX_BYTES,
   validatePublicBetaUpload,
   shouldUseAsyncUpload,
+  isMsProjectFile,
 } from "./upload-limits.js"
+
+test("MS Project files always route to the async worker path", () => {
+  const tiny = { name: "proyek.mpp", size: 1024 }
+  assert.equal(isMsProjectFile(tiny), true)
+  assert.equal(shouldUseAsyncUpload(tiny), true)
+  assert.equal(validatePublicBetaUpload(tiny), null)
+  assert.equal(shouldUseAsyncUpload({ name: "plan.mpx", size: 1024 }), true)
+})
+
+test("Excel workbooks below 4 MiB stay on the synchronous path", () => {
+  const file = { name: "plan.xlsx", size: 1024 }
+  assert.equal(isMsProjectFile(file), false)
+  assert.equal(shouldUseAsyncUpload(file), false)
+})
 
 test("oversized workbook beyond the 500 MB worker limit is rejected", () => {
   const error = validatePublicBetaUpload({

@@ -90,7 +90,7 @@ const PRESETS: Record<ConnectorPreset, PresetConfig> = {
   },
 }
 
-const ALLOWED_EXTENSIONS = ["xlsx", "xls", "csv"]
+const ALLOWED_EXTENSIONS = ["xlsx", "xls", "csv", "mpp", "mpx"]
 
 export const DataImportWizard: React.FC = () => {
   const navigate = useNavigate()
@@ -106,7 +106,7 @@ export const DataImportWizard: React.FC = () => {
 
   const validateFile = (file: File) => {
     const extension = file.name.split(".").pop()?.toLowerCase() || ""
-    if (!ALLOWED_EXTENSIONS.includes(extension)) return "Unsupported file type. Upload .xlsx, .xls, or .csv."
+    if (!ALLOWED_EXTENSIONS.includes(extension)) return "Unsupported file type. Upload .xlsx, .xls, .csv, or MS Project (.mpp)."
     if (file.size <= 0) return "The selected file is empty."
     return validatePublicBetaUpload(file)
   }
@@ -198,9 +198,9 @@ export const DataImportWizard: React.FC = () => {
       </div>
 
       {currentStep === 1 && <section className="mx-auto max-w-2xl space-y-5 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600"><UploadCloud className="h-7 w-7" /></div><h2 className="mt-4 text-base font-bold">Upload Project Control Workbook</h2><p className="mt-1 text-xs text-slate-500">Accepted: .xlsx, .xls, .csv · Public beta maximum 4 MB</p></div>
+        <div className="text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600"><UploadCloud className="h-7 w-7" /></div><h2 className="mt-4 text-base font-bold">Upload Project Control Workbook</h2><p className="mt-1 text-xs text-slate-500">Accepted: .xlsx, .xls, .csv, .mpp · Files up to 4 MB run instantly; larger files and .mpp are processed by the worker</p></div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><label className="block text-[11px] font-bold uppercase text-slate-600">Source preset</label><select value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value as ConnectorPreset)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs font-semibold"><option value="standard">Standard EPC Canonical Workbook</option><option value="sap">SAP S/4HANA & ECC</option><option value="p6">Oracle Primavera P6</option><option value="msproject">Microsoft Project</option></select><p className="mt-2 text-[11px] text-slate-500">{activePresetConfig.description}</p></div>
-        <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-8 text-center hover:border-blue-400"><input id="file-upload" type="file" accept=".xlsx,.xls,.csv" onChange={handleFileSelected} className="hidden" /><label htmlFor="file-upload" className="cursor-pointer text-xs font-semibold text-blue-600">Choose source file</label><div className="mt-2 text-[10px] text-slate-400">No demo file or simulated ingestion is used.</div></div>
+        <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-8 text-center hover:border-blue-400"><input id="file-upload" type="file" accept=".xlsx,.xls,.csv,.mpp,.mpx" onChange={handleFileSelected} className="hidden" /><label htmlFor="file-upload" className="cursor-pointer text-xs font-semibold text-blue-600">Choose source file</label><div className="mt-2 text-[10px] text-slate-400">No demo file or simulated ingestion is used.</div></div>
         {fileObject && <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4"><div className="min-w-0"><div className="truncate text-xs font-bold text-emerald-900">{fileObject.name}</div><div className="mt-1 text-[10px] text-emerald-700">{fileSizeLabel}</div></div><FileCheck2 className="h-5 w-5 text-emerald-600" /></div>}
         <div className="flex justify-end"><button onClick={() => goToStep(2)} disabled={!fileObject} className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">Next: Map Columns <ArrowRight className="h-3.5 w-3.5" /></button></div>
       </section>}

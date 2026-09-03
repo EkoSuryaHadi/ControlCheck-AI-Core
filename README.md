@@ -140,6 +140,17 @@ celery -A controlcheck.worker.celery_app:celery_app worker -B --concurrency=2 --
 End-to-end verification script: `tools/e2e_async_worker.py` (register →
 project → queue job → worker completes → findings + health + cleanup).
 
+## 📎 Supported Source Formats
+
+- **Excel workbooks** — `.xlsx`, `.xlsm`, `.csv` (standard ControlCheck template)
+- **Native Microsoft Project files** — `.mpp` / `.mpx` are parsed by **MPXJ**
+  (JVM-based) on the worker: MS Project tasks are mapped onto the standard
+  Schedule/WBS/Progress/Budget sheets, then the full 20-rule audit runs.
+  `.mpp` uploads always flow through the async worker path (the serverless
+  API has no JVM and returns a clear `mpp_requires_worker` error otherwise).
+  Worker image: `Dockerfile.worker` installs `openjdk-17-jre-headless` plus
+  the `[mpp]` extras (`pip install -e ".[mpp]"` → `mpxj>=16`, `jpype1`).
+
 ---
 
 ## 🛠️ Quickstart & Setup

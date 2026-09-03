@@ -6,15 +6,17 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
 COPY src/ src/
 COPY data/ data/
 
-# Install app + Celery with Redis broker support.
+# Install app + Celery with Redis broker + MPXJ (MS Project .mpp parsing).
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -e ".[dev]" \
+    && pip install --no-cache-dir -e ".[mpp]" \
     && pip install --no-cache-dir "celery[redis]>=5.3"
 
 # Local-upload fallback directory (cleaned after each job).
@@ -23,7 +25,8 @@ RUN mkdir -p /tmp/worker-uploads && chmod 1777 /tmp/worker-uploads
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     CONTROLCHECK_UPLOAD_ROOT=/tmp/worker-uploads \
-    CONTROLCHECK_REDIS_URL=redis://redis:6379/0
+    CONTROLCHECK_REDIS_URL=redis://redis:6379/0 \
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
 # Worker + beat scheduler in one process. Bounded concurrency: 2 analyses at
 # most on an 8 GB VPS (each workbook is held in memory during processing).

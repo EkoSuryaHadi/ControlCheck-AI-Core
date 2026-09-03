@@ -17,6 +17,7 @@ from ..persistence.repositories import ProjectRepository
 from ..storage import FileStorage
 from .extractor import extract_workbook
 from .mapper import IssueSeverity, RowIssue, map_extracted_workbook
+from .mpp_converter import MppConversionError
 from .profile import MappingProfileV1, mapping_profile_sha256
 
 
@@ -89,10 +90,12 @@ class SnapshotIngestionService:
         session_factory: sessionmaker[Session],
         storage: FileStorage,
         mapping_profile: MappingProfileV1,
+        mpp_converter: Any | None = None,
     ):
         self.session_factory = session_factory
         self.storage = storage
         self.mapping_profile = mapping_profile
+        self.mpp_converter = mpp_converter
 
     @staticmethod
     def _detached(
@@ -164,7 +167,26 @@ class SnapshotIngestionService:
                 404,
             )
 
-        extracted = extract_workbook(data, self.mapping_profile)
+        # Native MS Project binaries (.mpp/.mpx) are converted to the standard
+        # workbook shape via MPXJ before the mapping-profile extraction runs.
+        extract_data = data
+        if filename.lower().endswith((".mpp", ".mpx")):
+            if self.mpp_converter is None:
+                raise ControlCheckApplicationError(
+                    "mpp_requires_worker",
+                    "MS Project (.mpp) uploads must be processed by the VPS "
+                    "worker — the MPXJ converter is not available in this "
+                    "serverless environment.",
+                    400,
+                )
+            try:
+                extract_data = self.mpp_converter.to_workbook_bytes(data, filename)
+            except MppConversionError as exc:
+                raise ControlCheckApplicationError(
+                    "mpp_parse_failed", str(exc), 422
+                ) from exc
+
+        extracted = extract_workbook(extract_data, self.mapping_profile)
         # The selected ControlCheck project is the authoritative persistence
         # context. Source files exported from scheduling tools frequently do
         # not contain a project identifier, so derive the source metadata from

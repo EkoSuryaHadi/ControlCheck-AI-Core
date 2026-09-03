@@ -68,7 +68,14 @@ def build_worker_dependencies() -> tuple["sessionmaker[Session]", FileStorage, A
         raise RuntimeError("CONTROLCHECK_DATABASE_URL is required for the worker")
     session_factory = create_session_factory(settings.database_url)
     storage = _build_storage()
-    service = AnalysisService(session_factory, storage, _default_catalogue())
+    from ..ingestion.mpp_converter import build_mpp_converter
+
+    service = AnalysisService(
+        session_factory,
+        storage,
+        _default_catalogue(),
+        mpp_converter=build_mpp_converter(),
+    )
     return session_factory, storage, service
 
 
