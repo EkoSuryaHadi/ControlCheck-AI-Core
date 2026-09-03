@@ -114,11 +114,13 @@ class OpenAIInsightClient:
         *,
         model: str = "gpt-4.1-mini",
         base_url: str = "https://api.openai.com/v1",
+        timeout: float = 45.0,
         request: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> None:
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
         self._request = request or self._post
 
     def generate(self, facts: dict[str, Any], *, allowed_finding_ids: set[str]) -> dict[str, Any]:
@@ -162,5 +164,5 @@ class OpenAIInsightClient:
             },
             method="POST",
         )
-        with urlopen(request, timeout=15) as response:  # noqa: S310 - fixed OpenAI endpoint
+        with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - fixed OpenAI endpoint
             return json.loads(response.read().decode("utf-8"))

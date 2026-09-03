@@ -96,4 +96,5 @@ class AIInsightGenerationService:
             api_key,
             model=os.environ.get("CONTROLCHECK_OPENAI_MODEL", "gpt-4.1-mini"),
             base_url=os.environ.get("CONTROLCHECK_OPENAI_BASE_URL", os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")),
+            timeout=float(os.environ.get("CONTROLCHECK_AI_TIMEOUT_SECONDS", "45")),
         )
