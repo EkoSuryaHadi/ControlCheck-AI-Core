@@ -965,3 +965,39 @@ class ReportPackageRecord(Base):
     pdf_bytes: Mapped[bytes] = mapped_column(LargeBinary)
     pdf_size_bytes: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AnalysisJobRecord(Base):
+    """Queued heavy-analysis job consumed by the VPS Celery worker.
+
+    Large workbooks are uploaded directly to object storage (R2) by the
+    browser; this record is the durable queue row the worker claims.
+    """
+
+    __tablename__ = "analysis_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued','processing','completed','failed')",
+            name="ck_analysis_jobs_status",
+        ),
+        CheckConstraint("file_size_bytes >= 0", name="ck_analysis_jobs_size"),
+        Index("ix_analysis_jobs_org_status_created", "organization_id", "status", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    analysis_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("analysis_runs.id", ondelete="SET NULL"), index=True
+    )
+    storage_key: Mapped[str] = mapped_column(Text)
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    file_size_bytes: Mapped[int] = mapped_column(Integer)
+    workbook_sha256: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

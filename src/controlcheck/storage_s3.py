@@ -58,12 +58,31 @@ class S3FileStorage:
             raise StorageUnavailableError() from exc
         return StoredObject(key=key, size_bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
 
+    def get(self, key: str) -> bytes:
+        client = self._get_client()
+        try:
+            response = client.get_object(Bucket=self.bucket, Key=key)
+            return response["Body"].read()
+        except Exception as exc:
+            raise StorageUnavailableError() from exc
+
     def delete(self, key: str) -> None:
         client = self._get_client()
         try:
             client.delete_object(Bucket=self.bucket, Key=key)
         except Exception as exc:
             raise StorageUnavailableError() from exc
+
+    def presign_put(self, key: str, content_type: str, expires_in: int = 900) -> str | None:
+        client = self._get_client()
+        try:
+            return client.generate_presigned_url(
+                "put_object",
+                Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
+                ExpiresIn=expires_in,
+            )
+        except Exception:
+            return None
 
     def exists(self, key: str) -> bool:
         client = self._get_client()

@@ -1,0 +1,31 @@
+# ControlCheck AI — VPS Celery Worker image
+# Consumes analysis_jobs from Supabase PostgreSQL; heavy processing happens here.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+COPY src/ src/
+COPY data/ data/
+
+# Install app + Celery with Redis broker support.
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -e ".[dev]" \
+    && pip install --no-cache-dir "celery[redis]>=5.3"
+
+# Local-upload fallback directory (cleaned after each job).
+RUN mkdir -p /tmp/worker-uploads && chmod 1777 /tmp/worker-uploads
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CONTROLCHECK_UPLOAD_ROOT=/tmp/worker-uploads \
+    CONTROLCHECK_REDIS_URL=redis://redis:6379/0
+
+# Worker + beat scheduler in one process. Bounded concurrency: 2 analyses at
+# most on an 8 GB VPS (each workbook is held in memory during processing).
+CMD ["celery", "-A", "controlcheck.worker.celery_app:celery_app", "worker", "-B", \
+     "--concurrency=2", "--loglevel=INFO"]

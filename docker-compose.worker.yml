@@ -1,0 +1,54 @@
+# ControlCheck AI — VPS Worker stack (Redis + Celery worker + beat)
+#
+# The worker polls Supabase for queued analysis_jobs, downloads the workbook
+# from Cloudflare R2 (or S3/MinIO), runs the deterministic audit engine and
+# persists findings/health back through the shared PostgreSQL database.
+#
+# Usage:
+#   cp .env.worker.example .env.worker
+#   # edit .env.worker with real Supabase / R2 credentials
+#   docker-compose -f docker-compose.worker.yml up -d --build
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: controlcheck-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: controlcheck-worker
+    restart: unless-stopped
+    env_file:
+      - .env.worker
+    environment:
+      - CONTROLCHECK_REDIS_URL=redis://redis:6379/0
+      - CONTROLCHECK_ENV=production
+      - ENV=production
+      - CONTROLCHECK_UPLOAD_ROOT=/tmp/worker-uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - worker_tmp:/tmp/worker-uploads
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: 3G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+volumes:
+  redis_data:
+  worker_tmp:

@@ -1213,6 +1213,16 @@ def create_app(
 
 
 
+    if session_factory is not None and storage is not None:
+        from .jobs_api import install_job_routes
+
+        install_job_routes(
+            application,
+            require_tenant=require_tenant,
+            session_factory=session_factory,
+            storage=storage,
+        )
+
     return application
 
 

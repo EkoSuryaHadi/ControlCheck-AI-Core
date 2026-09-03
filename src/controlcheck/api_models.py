@@ -311,3 +311,51 @@ class AIMessageResponse(BaseModel):
     content: str
     tool_calls: dict | list | None = None
     created_at: datetime
+
+
+class AsyncRunRequest(BaseModel):
+    """Metadata for a workbook already uploaded to object storage (R2)."""
+
+    storage_key: str = Field(min_length=1, max_length=1024)
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(default="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    file_size_bytes: int = Field(gt=0, le=500 * 1024 * 1024)
+    workbook_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+
+
+class UploadUrlRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(default="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    file_size_bytes: int = Field(gt=0, le=500 * 1024 * 1024)
+
+
+class UploadUrlResponse(BaseModel):
+    upload_url: str
+    storage_key: str
+    expires_in: int = 900
+
+
+class AnalysisJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    analysis_run_id: UUID | None = None
+    filename: str
+    file_size_bytes: int
+    status: str
+    error_code: str | None = None
+    error_message: str | None = None
+    attempts: int = 0
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+class AnalysisJobListResponse(BaseModel):
+    items: list[AnalysisJobResponse]
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+    has_more: bool = False

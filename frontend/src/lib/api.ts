@@ -121,6 +121,22 @@ export interface ReportPackage {
   created_at: string
 }
 
+export interface AnalysisJob {
+  id: string
+  organization_id: string
+  project_id: string
+  analysis_run_id?: string | null
+  filename: string
+  file_size_bytes: number
+  status: "queued" | "processing" | "completed" | "failed" | string
+  error_code?: string | null
+  error_message?: string | null
+  attempts?: number
+  created_at: string
+  started_at?: string | null
+  completed_at?: string | null
+}
+
 export const api = {
   auth: {
     login: async (credentials: { email: string; password: string }) => (await apiClient.post("/v1/auth/login", credentials)).data,
@@ -137,6 +153,7 @@ export const api = {
   },
   runs: {
     list: async (projectId: string) => (await apiClient.get(`/v1/projects/${projectId}/analysis-runs`)).data,
+    get: async (runId: string): Promise<AnalysisRun> => (await apiClient.get(`/v1/analysis-runs/${runId}`)).data,
     upload: async (projectId: string, file: File, idempotencyKey?: string) => {
       const formData = new FormData(); formData.append("file", file)
       const headers: Record<string, string> = { "Content-Type": "multipart/form-data" }
@@ -147,6 +164,18 @@ export const api = {
       const formData = new FormData(); formData.append("file", file)
       return (await apiClient.post(`/v1/projects/${projectId}/validated-imports/analysis-runs?preset=${encodeURIComponent(preset)}`, formData, { headers: { "Content-Type": "multipart/form-data" } })).data
     },
+    // ── Large-workbook async path (browser → R2 presigned PUT → queued job) ──
+    createUploadUrl: async (projectId: string, file: File) => {
+      const res = await apiClient.post(`/v1/projects/${projectId}/upload-urls`, {
+        filename: file.name,
+        content_type: file.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        file_size_bytes: file.size,
+      })
+      return res.data as { upload_url: string; storage_key: string; expires_in: number }
+    },
+    createAsyncRun: async (projectId: string, payload: {
+      storage_key: string; filename: string; content_type: string; file_size_bytes: number; workbook_sha256?: string | null
+    }): Promise<AnalysisJob> => (await apiClient.post(`/v1/projects/${projectId}/analysis-runs/async`, payload)).data,
     getSummary: async (projectId: string, runId: string): Promise<AnalysisSummary> =>
       (await apiClient.get(`/v1/projects/${projectId}/analysis-runs/${runId}/summary`)).data,
     getHealth: async (runId: string) => (await apiClient.get(`/v1/analysis-runs/${runId}/health`)).data,
@@ -154,6 +183,11 @@ export const api = {
       async (pageParams: Record<string, unknown>) => (await apiClient.get(`/v1/analysis-runs/${runId}/findings`, { params: pageParams })).data,
       params,
     ),
+  },
+  jobs: {
+    get: async (jobId: string): Promise<AnalysisJob> => (await apiClient.get(`/v1/analysis-jobs/${jobId}`)).data,
+    list: async (projectId: string, params?: { limit?: number; offset?: number }) =>
+      (await apiClient.get(`/v1/projects/${projectId}/analysis-jobs`, { params })).data,
   },
   findings: {
     updateStatus: async (findingId: string, status: string) => (await apiClient.patch(`/v1/findings/${findingId}/status`, { status })).data,

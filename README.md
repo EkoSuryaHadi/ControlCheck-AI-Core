@@ -96,6 +96,52 @@ The beta must demonstrate that the hosted register-to-findings flow passes and t
 
 ---
 
+## 🔄 Large-Workbook Async Pipeline (VPS Worker)
+
+Vercel serverless functions reject request bodies above ~4.5 MB, so workbooks
+larger than the synchronous beta limit (4 MiB) use a **browser → R2 → VPS
+worker** path instead:
+
+```
+[Browser]  POST /v1/projects/{id}/upload-urls          → presigned R2 PUT URL
+[Browser]  PUT workbook directly to R2                 (bypasses Vercel limit)
+[Browser]  POST /v1/projects/{id}/analysis-runs/async  → job {status: queued}
+[VPS]      Celery beat polls queued analysis_jobs every 10 s
+[VPS]      Worker claims job → downloads R2 → full ingest + 20-rule engine
+           → health score → AI insight → marks job completed
+[Browser]  GET /v1/analysis-jobs/{job_id}              → poll until completed
+```
+
+- Small workbooks (≤ 4 MiB) keep the synchronous serverless path unchanged.
+- Queue table: `analysis_jobs` (migration `20260908_0001`).
+- Worker recovers stale `processing` jobs after 30 min (beat task) and deletes
+  the transient R2 upload copy after a successful run.
+- Bounded concurrency: run `--concurrency=1..2` on an 8 GB VPS (each workbook
+  is held in memory while the engine runs).
+
+### Run the worker stack (VPS, Docker)
+
+```bash
+cp .env.worker.example .env.worker    # fill Supabase + R2 credentials
+docker-compose -f docker-compose.worker.yml up -d --build
+```
+
+### Run the worker locally (no Docker)
+
+```bash
+pip install -e ".[dev]" "celery[redis]>=5.3"
+export CONTROLCHECK_DATABASE_URL="postgresql+psycopg://controlcheck:controlcheck@127.0.0.1:54329/controlcheck"
+export CONTROLCHECK_JWT_SECRET="$(openssl rand -hex 32)"
+export CONTROLCHECK_STORAGE_BACKEND=local CONTROLCHECK_UPLOAD_ROOT=var/uploads
+alembic upgrade head
+celery -A controlcheck.worker.celery_app:celery_app worker -B --concurrency=2 --loglevel=INFO
+```
+
+End-to-end verification script: `tools/e2e_async_worker.py` (register →
+project → queue job → worker completes → findings + health + cleanup).
+
+---
+
 ## 🛠️ Quickstart & Setup
 
 ### Prerequisites

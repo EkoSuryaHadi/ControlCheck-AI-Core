@@ -1,10 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react"
-import { api, Project, AnalysisRun, HealthSnapshot, Finding } from "@/lib/api"
+import { api, Project, AnalysisRun, HealthSnapshot, Finding, AnalysisJob } from "@/lib/api"
 import { useAuth } from "./AuthContext"
 import { trackEvent } from "@/lib/analytics"
 import { mapHealthSnapshot } from "@/lib/health"
 import { initialProjectWorkspace, projectIdToPersist } from "@/lib/project-selection.js"
 import { isPersistentWorkspaceSession } from "@/lib/demo-session.js"
+import { shouldUseAsyncUpload } from "@/lib/upload-limits.js"
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const JOB_POLL_INTERVAL_MS = 3000
+const JOB_POLL_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes ceiling
 
 interface ProjectContextType {
   projects: Project[]
@@ -115,10 +121,85 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [currentProject, isPersistentSession])
 
+  const pollAnalysisJob = async (job: AnalysisJob): Promise<AnalysisJob> => {
+    const deadline = Date.now() + JOB_POLL_TIMEOUT_MS
+    let current = job
+    while (["queued", "processing"].includes(String(current.status || "").toLowerCase())) {
+      if (Date.now() > deadline) {
+        throw new Error("Analysis is taking longer than expected — check the job list shortly.")
+      }
+      await sleep(JOB_POLL_INTERVAL_MS)
+      current = await api.jobs.get(job.id)
+    }
+    return current
+  }
+
+  const uploadWorkbookAsync = async (file: File): Promise<AnalysisRun | null> => {
+    if (!currentProject?.id) throw new Error("A project must be selected before upload.")
+    trackEvent("project_check_async_upload_started", { project_id: currentProject.id, file_name: file.name, file_size: file.size })
+
+    // 1. Ask the API for a presigned R2 upload target.
+    const { upload_url, storage_key } = await api.runs.createUploadUrl(currentProject.id, file)
+
+    // 2. Browser streams the file straight to object storage (bypasses the
+    //    serverless request-body limit entirely).
+    const putResponse = await fetch(upload_url, {
+      method: "PUT",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    })
+    if (!putResponse.ok) {
+      throw new Error(`Direct storage upload failed (HTTP ${putResponse.status}).`)
+    }
+
+    // 3. Record the queued job and poll until the VPS worker finishes.
+    const job = await api.runs.createAsyncRun(currentProject.id, {
+      storage_key,
+      filename: file.name,
+      content_type: file.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      file_size_bytes: file.size,
+      workbook_sha256: null,
+    })
+    const finished = await pollAnalysisJob(job)
+    if (String(finished.status).toLowerCase() === "failed") {
+      throw new Error(finished.error_message || "Analysis failed on the worker.")
+    }
+    if (!finished.analysis_run_id) {
+      throw new Error("Worker finished without producing an analysis run.")
+    }
+
+    // 4. Load the completed run and refresh the workspace.
+    const run = await api.runs.get(finished.analysis_run_id)
+    setCurrentRun(isSuccessfulRun(run) ? run : null)
+    const summary = {
+      runId: run.id,
+      projectId: currentProject.id,
+      ruleCount: Number(run.rule_count ?? 0),
+      findingCount: Number(run.finding_count ?? 0),
+      durationMs: run.duration_ms,
+      completedAt: run.completed_at || null,
+    }
+    localStorage.setItem("controlcheck_last_analysis_summary", JSON.stringify(summary))
+    trackEvent("project_check_async_upload_completed", { project_id: currentProject.id, run_id: run.id, finding_count: summary.findingCount })
+    if (isSuccessfulRun(run)) await refreshHealthAndFindings()
+    return run
+  }
+
   const uploadWorkbook = async (file: File, preset?: string): Promise<AnalysisRun | null> => {
     if (!isPersistentSession) throw new Error("Demo mode is limited to preflight validation.")
     if (!currentProject?.id) throw new Error("A project must be selected before upload.")
     if (!file || file.size <= 0) throw new Error("A non-empty source file is required.")
+
+    // Large workbooks bypass the serverless body limit: browser → R2 → VPS
+    // worker queue. Small workbooks keep the synchronous fast path.
+    if (!preset && shouldUseAsyncUpload(file)) {
+      try {
+        setIsUploading(true)
+        return await uploadWorkbookAsync(file)
+      } finally {
+        setIsUploading(false)
+      }
+    }
 
     try {
       setIsUploading(true)
