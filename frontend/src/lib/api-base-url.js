@@ -1,3 +1,3 @@
 export function resolveApiBaseUrl(viteApiBaseUrl) {
-  return viteApiBaseUrl || "/api"
+  return viteApiBaseUrl || "/v1"
 }
