@@ -290,6 +290,8 @@ def create_app(
     if not frontend_dist.exists():
         frontend_dist = Path("/app/frontend/dist")
 
+    # Root + SPA deep links serve the React app. The legacy static "web/"
+    # bundle is only a fallback when frontend/dist has not been built.
     if frontend_dist.exists() and (frontend_dist / "index.html").exists():
         assets_dir = frontend_dist / "assets"
         if assets_dir.exists():
@@ -303,10 +305,16 @@ def create_app(
             legacy_fav = Path(__file__).resolve().parent / "web" / "favicon.png"
             return FileResponse(legacy_fav)
 
+        @application.get("/", include_in_schema=False)
+        def index_spa():
+            return FileResponse(frontend_dist / "index.html")
+
         spa_routes = [
-            "/dashboard", "/findings", "/findings/{finding_id}", "/data",
-            "/assistant", "/reports", "/cost", "/schedule", "/progress",
-            "/projects", "/settings", "/login"
+            "/demo", "/login", "/register", "/onboarding",
+            "/dashboard", "/projects", "/data", "/data/advanced",
+            "/analysis-progress", "/findings", "/findings/{finding_id}",
+            "/actions", "/cost", "/schedule", "/progress",
+            "/assistant", "/reports", "/settings", "/owner/metrics",
         ]
         for route in spa_routes:
             @application.get(route, include_in_schema=False)
@@ -314,16 +322,12 @@ def create_app(
                 return FileResponse(frontend_dist / "index.html")
 
     web_dir = Path(__file__).resolve().parent / "web"
-    if web_dir.exists():
+    if (not (frontend_dist.exists() and (frontend_dist / "index.html").exists())) and web_dir.exists():
         application.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
 
         @application.get("/", include_in_schema=False)
         def index():
             return FileResponse(web_dir / "index.html")
-    elif frontend_dist.exists() and (frontend_dist / "index.html").exists():
-        @application.get("/", include_in_schema=False)
-        def index_spa():
-            return FileResponse(frontend_dist / "index.html")
 
 
 
