@@ -305,6 +305,19 @@ def create_app(
             legacy_fav = Path(__file__).resolve().parent / "web" / "favicon.png"
             return FileResponse(legacy_fav)
 
+        # Root-level public assets (vite copies public/* into dist root but
+        # only /assets is mounted) — serve the ones the SPA references.
+        for _asset_name in ("favicon.svg", "logo-light.svg", "logo-dark.svg",
+                            "logo-light.png", "logo-dark.png",
+                            "logo-icon.svg", "logo-icon.png", "icons.svg"):
+
+            @application.get(f"/{_asset_name}", include_in_schema=False)
+            def root_public_asset(_name: str = _asset_name):
+                asset_file = frontend_dist / _name
+                if asset_file.exists():
+                    return FileResponse(asset_file)
+                raise HTTPException(404, "Not Found")
+
         @application.get("/", include_in_schema=False)
         def index_spa():
             return FileResponse(frontend_dist / "index.html")
