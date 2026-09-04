@@ -385,11 +385,13 @@ def create_app(
                 },
             ) from exc
 
-        # ── MS Project (.mpp) → canonical workbook conversion ────────────────
-        # Stateless: converts the raw MPP binary to an .xlsx workbook the rest
-        # of the pipeline understands. Used by the Data page "Validate Before
-        # Import" flow for a client-side preview of the governed workbook.
-    mpp_preview_max_bytes = 200 * 1024 * 1024
+    # ── MS Project (.mpp) → canonical workbook conversion ────────────────
+    # Stateless: converts the raw MPP binary to an .xlsx workbook the rest
+    # of the pipeline understands. Used by the Data page "Validate Before
+    # Import" flow for a client-side preview of the governed workbook.
+    # Real-world MS Project files can be hundreds of MB, so the preview cap is
+    # generous (the converter writes the payload to a temp file on disk).
+    mpp_preview_max_bytes = 1024 * 1024 * 1024  # 1 GB
 
     @application.post("/mpp-convert")
     async def mpp_convert(
