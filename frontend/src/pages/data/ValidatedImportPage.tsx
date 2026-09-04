@@ -83,7 +83,9 @@ export const ValidatedImportPage: React.FC = () => {
       let validationPreset = preset
       if (file.name.toLowerCase().endsWith(".mpp")) {
         validationFile = await convertMpp(file)
-        validationPreset = "msproject"
+        // /mpp-convert yields the canonical governed workbook, which the
+        // standard preset validates (not the MS Project export aliases).
+        validationPreset = "standard"
         setConvertedFile(validationFile)
       }
       const form = new FormData(); form.append("file", validationFile)
@@ -107,7 +109,16 @@ export const ValidatedImportPage: React.FC = () => {
       return
     }
     setError(null)
-    try { await uploadWorkbook(importFile, preset); setDone(true) }
+    try {
+      // .mpp files were converted to the canonical workbook, so they run
+      // straight through the analysis pipeline (no preset re-mapping).
+      if (file?.name.toLowerCase().endsWith(".mpp")) {
+        await uploadWorkbook(importFile)
+      } else {
+        await uploadWorkbook(importFile, preset)
+      }
+      setDone(true)
+    }
     catch (err: any) { setError(err?.response?.data?.error?.message || err?.message || "Import failed") }
   }
 

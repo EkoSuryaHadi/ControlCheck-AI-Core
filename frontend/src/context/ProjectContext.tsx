@@ -138,8 +138,37 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!currentProject?.id) throw new Error("A project must be selected before upload.")
     trackEvent("project_check_async_upload_started", { project_id: currentProject.id, file_name: file.name, file_size: file.size })
 
-    // 1. Ask the API for a presigned R2 upload target.
-    const { upload_url, storage_key } = await api.runs.createUploadUrl(currentProject.id, file)
+    // 1. Ask the API for a presigned R2 upload target. Environments without
+    //    presign support (local single-server deployments) fall back to the
+    //    synchronous upload, which accepts .mpp when the API has a JVM.
+    let upload_url: string
+    let storage_key: string
+    try {
+      const target = await api.runs.createUploadUrl(currentProject.id, file)
+      upload_url = target.upload_url
+      storage_key = target.storage_key
+    } catch (err: any) {
+      const status = err?.response?.status
+      const code = err?.response?.data?.error?.code
+      if (status === 501 || status === 400 || code === "presign_unsupported") {
+        const fallback = await api.runs.upload(currentProject.id, file)
+        if (!fallback?.id) throw new Error("Upload API did not return a valid analysis run ID.")
+        setCurrentRun(isSuccessfulRun(fallback) ? fallback : null)
+        const summary = {
+          runId: fallback.id,
+          projectId: currentProject.id,
+          ruleCount: Number(fallback.rule_count ?? 0),
+          findingCount: Number(fallback.finding_count ?? 0),
+          durationMs: fallback.duration_ms,
+          completedAt: fallback.completed_at || null,
+        }
+        localStorage.setItem("controlcheck_last_analysis_summary", JSON.stringify(summary))
+        trackEvent("project_check_async_upload_fallback_sync", { project_id: currentProject.id, file_name: file.name })
+        if (isSuccessfulRun(fallback)) await refreshHealthAndFindings()
+        return fallback
+      }
+      throw err
+    }
 
     // 2. Browser streams the file straight to object storage (bypasses the
     //    serverless request-body limit entirely).

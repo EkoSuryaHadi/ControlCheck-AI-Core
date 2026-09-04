@@ -372,6 +372,74 @@ def create_app(
                 },
             ) from exc
 
+        # ── MS Project (.mpp) → canonical workbook conversion ────────────────
+        # Stateless: converts the raw MPP binary to an .xlsx workbook the rest
+        # of the pipeline understands. Used by the Data page "Validate Before
+        # Import" flow for a client-side preview of the governed workbook.
+    mpp_preview_max_bytes = 200 * 1024 * 1024
+
+    @application.post("/mpp-convert")
+    async def mpp_convert(
+        request: Request,
+        x_file_name: str | None = Header(None, alias="X-File-Name"),
+    ) -> Response:
+        converter = build_mpp_converter()
+        if converter is None:
+            raise HTTPException(
+                501,
+                {
+                    "code": "mpp_requires_worker",
+                    "message": "MPP conversion requires a JVM runtime (MPXJ). Run this environment on the worker image or use the async upload path.",
+                },
+            )
+        data = await request.body()
+        if len(data) > mpp_preview_max_bytes:
+            raise HTTPException(413, {"code": "file_too_large", "max_bytes": mpp_preview_max_bytes})
+        if not data:
+            raise HTTPException(422, {"code": "empty_file", "message": "The uploaded MPP file is empty."})
+        try:
+            xlsx_bytes = converter.to_workbook_bytes(bytes(data), x_file_name or "project.mpp")
+        except ValueError as exc:
+            raise HTTPException(422, {"code": "mpp_parse_failed", "message": str(exc)}) from exc
+        stem = Path(x_file_name or "project.mpp").stem
+        return Response(
+            content=xlsx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{stem}_ControlCheck.xlsx"'},
+        )
+
+    # ── Import preflight (validate a source file before persisting) ──────
+    # Mirrors the validated-imports pipeline (same preset validation logic)
+    # without creating any rows — used by the Data page preview step.
+    @application.post("/v1/imports/preflight")
+    async def preflight_import(
+        file: UploadFile,
+        preset: str = "standard",
+    ) -> dict:
+        data = bytearray()
+        while chunk := await file.read(1024 * 1024):
+            data.extend(chunk)
+            if len(data) > mpp_preview_max_bytes:
+                raise HTTPException(413, {"code": "file_too_large", "max_bytes": mpp_preview_max_bytes})
+        filename = file.filename or "schedule.xlsx"
+        raw = bytes(data)
+        if filename.lower().endswith((".mpp", ".mpx")):
+            converter = build_mpp_converter()
+            if converter is None:
+                raise HTTPException(
+                    501,
+                    {
+                        "code": "mpp_requires_worker",
+                        "message": "MPP preflight requires a JVM runtime (MPXJ). Run this environment on the worker image or use the async upload path.",
+                    },
+                )
+            raw = converter.to_workbook_bytes(raw, filename)
+            filename = Path(filename).stem + "_ControlCheck.xlsx"
+        try:
+            return validate_workbook_bytes(raw, filename, preset=preset)
+        except ValueError as exc:
+            raise HTTPException(422, {"code": "invalid_workbook", "message": str(exc)}) from exc
+
 
 
     if session_factory is not None:
